@@ -5,7 +5,7 @@ extension GitHubClient {
     /// Comments and reviews only; event rows such as commits, labels, and deployments are not requested.
     func conversation(_ ref: PRRef) async throws -> Conversation {
         async let items = timelineItems(ref)
-        async let checks = checks(ref)
+        async let checks = checks(of: ref)
         return Conversation(items: try await items, checks: try await checks)
     }
 
@@ -23,7 +23,7 @@ extension GitHubClient {
         return items
     }
 
-    private func checks(_ ref: PRRef) async throws -> [Check] {
+    public func checks(of ref: PRRef) async throws -> [Check] {
         var checks: [Check] = []
         var cursor: String?
         repeat {

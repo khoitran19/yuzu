@@ -75,7 +75,12 @@ sequenceDiagram
     Model->>Diff: updateFiles (threads for changed files, one rebuild)
     Service-->>Model: .conversation(Conversation)
     Model->>BG: Build the Summary HTML
-    BG-->>Model: SummaryPage (the web view replaces only the conversation element)
+    BG-->>Model: SummaryPage (the web view replaces only the changed timeline or checks element)
+    loop Every 15 s while a check runs
+        Model->>Service: checks(of:)
+        Service-->>Model: [Check]
+        Model->>BG: Build the checks HTML (the timeline HTML is kept)
+    end
     loop Every 50 ms
         BG-->>Model: Batch of highlights
         Model->>Diff: updateHighlights (visible rows redraw)

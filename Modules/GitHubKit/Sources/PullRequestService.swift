@@ -20,9 +20,16 @@ public protocol PullRequestService: Sendable {
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String?
     /// The commit that the pull request diff compares `head` against.
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String
+    /// The current checks of the head commit.
+    func checks(of ref: PRRef) async throws -> [Check]
 }
 
 extension PullRequestService {
+    /// Services that serve a fixed snapshot return its checks.
+    public func checks(of ref: PRRef) async throws -> [Check] {
+        try await snapshot(of: ref).conversation?.checks ?? []
+    }
+
     /// Services without progressive loading deliver every part after one snapshot.
     public func parts(of ref: PRRef) -> AsyncThrowingStream<PullRequestPart, Error> {
         AsyncThrowingStream { continuation in

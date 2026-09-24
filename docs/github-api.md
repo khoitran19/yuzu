@@ -11,7 +11,7 @@ This document uses ASD-STE100 Simplified Technical English.
 | Viewed state (read) | GraphQL `pullRequest { id files { path viewerViewedState } }` | Paginated by cursor. Returns the node ID, so the file list does not wait for the details request. |
 | Viewed state (write) | GraphQL `markFileAsViewed` / `unmarkFileAsViewed` | Many paths in one request, one alias (`m0`, `m1`, …) per path. |
 | Summary timeline | GraphQL `timelineItems(itemTypes: [ISSUE_COMMENT, PULL_REQUEST_REVIEW])` with review `comments { diffHunk replyTo }` | Event rows (commits, labels, deployments) are not requested. A review that only replies to threads is not shown; its replies show under the first comment of the thread. |
-| Summary checks | GraphQL `commits(last: 1) { statusCheckRollup { contexts } }` | `CheckRun` and `StatusContext`, paginated by cursor, with `isRequired(pullRequestNumber:)`. |
+| Summary checks | GraphQL `commits(last: 1) { statusCheckRollup { contexts } }` | `CheckRun` and `StatusContext`, paginated by cursor, with `isRequired(pullRequestNumber:)`. While a check runs, this request repeats every 15 s; it stops when all checks finish or the pull request closes. |
 | Avatars | `avatarUrl(size: 80)`, served to the Summary web view through the `prv-avatar:` scheme | `AvatarCache` keeps each image in `~/Library/Caches/dev.khoitran.prviewer/Avatars`. A copy older than 7 days is shown, then refreshed in the background. |
 | Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments }` | Comments over 100 per thread load through `node(id:)`. |
 | Full file contents | REST `GET /repos/{o}/{r}/contents/{path}?ref={oid}` with `Accept: application/vnd.github.raw+json` | For "Load diff" and context expansion. |

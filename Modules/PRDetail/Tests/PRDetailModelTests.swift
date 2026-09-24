@@ -107,15 +107,45 @@ struct ProgressiveLoadTests {
         service.continuation.yield(.detail(snapshot.pullRequest))
         try await waitUntil { model.summaryPage != nil }
         let first = try #require(model.summaryPage)
-        #expect(first.conversation.contains("Loading conversation"))
+        #expect(first.timeline.contains("Loading conversation"))
 
         service.continuation.yield(.conversation(conversation))
         service.continuation.finish()
         await loading.value
-        try await waitUntil { model.summaryPage?.conversation != first.conversation }
+        try await waitUntil { model.summaryPage?.timeline != first.timeline }
         #expect(model.summaryPage?.document == first.document)
-        #expect(model.summaryPage?.conversation.contains("All checks") == false)
-        #expect(model.summaryPage?.conversation.contains("Some checks were not successful") == true)
+        #expect(model.summaryPage?.checks.contains("Some checks were not successful") == true)
+    }
+
+    @Test func runningChecksReloadUntilTheyFinishAndKeepTheTimeline() async throws {
+        let directory = URL(filePath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Fixtures/synthetic-50")
+        let fixture = FixturePullRequestService(directory: directory)
+        let snapshot = try await fixture.snapshot(of: try await fixture.pullRequestRef())
+        let conversation = try #require(snapshot.conversation)
+        func check(_ state: Check.State) -> Check {
+            Check(name: "e2e", workflow: nil, event: nil, state: state, summary: nil, url: nil, avatarURL: nil,
+                  isRequired: false, startedAt: nil, completedAt: nil)
+        }
+        let service = ManualPartsService()
+        service.checksResponses = [[check(.pending)], [check(.success)], [check(.failure)]]
+        let model = PRDetailModel(
+            ref: snapshot.pullRequest.ref, service: service, highlighter: nil, rules: ReviewRules(),
+            checksRefreshInterval: .milliseconds(10)
+        )
+        let loading = Task { await model.load() }
+        service.continuation.yield(.detail(snapshot.pullRequest))
+        service.continuation.yield(.conversation(Conversation(items: conversation.items, checks: [check(.pending)])))
+        service.continuation.finish()
+        await loading.value
+        try await waitUntil { model.summaryPage?.checks.contains("haven’t completed") == true }
+        let timeline = try #require(model.summaryPage?.timeline)
+
+        try await waitUntil { model.summaryPage?.checks.contains("All checks have passed") == true }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(service.checksCalls == 2)
+        #expect(model.summaryPage?.timeline == timeline)
     }
 
     private func threadRows(_ model: PRDetailModel) -> Int {
@@ -141,4 +171,12 @@ private final class ManualPartsService: PullRequestService, @unchecked Sendable 
     func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws {}
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
+
+    var checksResponses: [[Check]] = []
+    private(set) var checksCalls = 0
+
+    @MainActor func checks(of ref: PRRef) async throws -> [Check] {
+        checksCalls += 1
+        return checksResponses.isEmpty ? [] : checksResponses.removeFirst()
+    }
 }

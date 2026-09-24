@@ -58,7 +58,7 @@ struct SummaryTimelineTests {
             Check(name: "<script>", workflow: nil, event: nil, state: .success, summary: nil, url: nil, avatarURL: nil,
                   isRequired: false, startedAt: nil, completedAt: nil),
         ])
-        let html = SummaryHTML.conversation(conversation, threads: [], pullRequestAuthor: nil, now: start)
+        let html = SummaryHTML.checks(conversation.checks)
         #expect(!html.contains("<script>"))
         #expect(html.contains("&lt;script&gt;"))
     }

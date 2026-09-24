@@ -55,6 +55,10 @@ public final class PRDetailModel {
     @ObservationIgnored private var summaryGeneration = 0
     /// True when `summaryPage.document` does not show the current details.
     @ObservationIgnored private var summaryDocumentStale = true
+    /// True when `summaryPage.timeline` does not show the current conversation and threads.
+    @ObservationIgnored private var summaryTimelineStale = true
+    @ObservationIgnored private let checksRefreshInterval: Duration
+    @ObservationIgnored private var checksRefresh: Task<Void, Never>?
     @ObservationIgnored private var autoViewedSent: Set<String> = []
 
     @ObservationIgnored private var highlightTask: Task<Void, Never>?
@@ -71,12 +75,14 @@ public final class PRDetailModel {
     @ObservationIgnored private let signposter = OSSignposter(subsystem: "dev.khoitran.prviewer", category: "PRDetail")
 
     public init(
-        ref: PRRef, service: any PullRequestService, highlighter: (any SyntaxHighlighting)?, rules: ReviewRules
+        ref: PRRef, service: any PullRequestService, highlighter: (any SyntaxHighlighting)?, rules: ReviewRules,
+        checksRefreshInterval: Duration = .seconds(15)
     ) {
         self.ref = ref
         self.service = service
         self.highlighter = highlighter
         self.rules = rules
+        self.checksRefreshInterval = checksRefreshInterval
         filesController.onToggleViewed = { [weak self] path, viewed in self?.setViewed(viewed, paths: [path]) }
         filesController.onLoadFullDiff = { [weak self] path in self?.loadFullDiff(path) }
         filesController.onExpand = { [weak self] path, hunk in self?.expand(path, hunk: hunk) }
@@ -110,7 +116,9 @@ public final class PRDetailModel {
                     receiveThreads(threads)
                 case let .conversation(conversation):
                     self.conversation = conversation
+                    summaryTimelineStale = true
                     rebuildSummary()
+                    scheduleChecksRefresh()
                 }
             }
             liveLoad = .now - start
@@ -133,25 +141,48 @@ public final class PRDetailModel {
     }
 
     /// Builds the HTML off the main actor. Only the newest build is shown.
+    /// Parts that did not change keep their HTML, so the web view does not replace them.
     private func rebuildSummary() {
         guard let pullRequest else { return }
         summaryGeneration += 1
         let generation = summaryGeneration
         let conversation = conversation
         let threads = threads ?? []
-        let reuse = summaryDocumentStale ? nil : summaryPage?.document
+        let document = summaryDocumentStale ? nil : summaryPage?.document
+        let timeline = summaryTimelineStale ? nil : summaryPage?.timeline
         Task {
             let page = await Task.detached(priority: .userInitiated) {
                 let now = Date.now
-                let fragment = SummaryHTML.conversation(conversation, threads: threads, pullRequestAuthor: pullRequest.author?.login, now: now)
+                let timeline = timeline
+                    ?? SummaryHTML.timeline(conversation, threads: threads, pullRequestAuthor: pullRequest.author?.login, now: now)
+                let checks = SummaryHTML.checks(conversation?.checks ?? [])
                 return SummaryPage(
-                    document: reuse ?? SummaryHTML.document(pullRequest: pullRequest, conversation: fragment, now: now),
-                    conversation: fragment
+                    document: document ?? SummaryHTML.document(pullRequest: pullRequest, timeline: timeline, checks: checks, now: now),
+                    timeline: timeline,
+                    checks: checks
                 )
             }.value
             guard generation == summaryGeneration else { return }
-            if reuse == nil { summaryDocumentStale = false }
+            if document == nil { summaryDocumentStale = false }
+            if timeline == nil { summaryTimelineStale = false }
             summaryPage = page
+        }
+    }
+
+    /// Reloads only the checks while any check runs. Stops when all finish or the model is released.
+    private func scheduleChecksRefresh() {
+        checksRefresh?.cancel()
+        guard conversation?.checks.contains(where: { $0.state == .pending }) == true else { return }
+        checksRefresh = Task { [weak self, ref, service, checksRefreshInterval] in
+            try? await Task.sleep(for: checksRefreshInterval)
+            guard !Task.isCancelled else { return }
+            let checks = try? await service.checks(of: ref)
+            guard !Task.isCancelled, let self else { return }
+            if let checks, let conversation = self.conversation, checks != conversation.checks {
+                self.conversation = Conversation(items: conversation.items, checks: checks)
+                self.rebuildSummary()
+            }
+            self.scheduleChecksRefresh()
         }
     }
 
@@ -209,7 +240,10 @@ public final class PRDetailModel {
 
     private func receiveThreads(_ threads: [ReviewThread]) {
         self.threads = threads
-        if conversation != nil { rebuildSummary() }
+        if conversation != nil {
+            summaryTimelineStale = true
+            rebuildSummary()
+        }
         let byPath = DiffItemFactory.placeableThreads(threads)
         var changed: [DiffFileItem] = []
         for (path, item) in items {

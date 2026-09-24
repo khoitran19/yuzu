@@ -3,9 +3,10 @@ import PRModels
 
 /// Builds the Summary page: the description, the comment and review timeline, and the Checks box, styled like GitHub.
 nonisolated enum SummaryHTML {
-    static let conversationElementID = "conversation"
+    static let timelineElementID = "timeline"
+    static let checksElementID = "checks"
 
-    static func document(pullRequest: PullRequest, conversation: String, now: Date) -> String {
+    static func document(pullRequest: PullRequest, timeline: String, checks: String, now: Date) -> String {
         let body = pullRequest.bodyHTML.isEmpty ? "<p class=\"empty\">No description provided.</p>" : pullRequest.bodyHTML
         let author = pullRequest.author
         return """
@@ -19,13 +20,14 @@ nonisolated enum SummaryHTML {
         <span class="muted">commented \(time(pullRequest.createdAt, now: now, url: nil))</span></div>
         <div class="markdown-body">\(body)</div>
         </div></div>
-        <div id="\(conversationElementID)">\(conversation)</div>
+        <div id="\(timelineElementID)">\(timeline)</div>
+        <div id="\(checksElementID)">\(checks)</div>
         </main></body></html>
         """
     }
 
     /// `nil` shows a loading row; the fragment replaces it in place when the conversation arrives.
-    static func conversation(_ conversation: Conversation?, threads: [ReviewThread], pullRequestAuthor: String?, now: Date) -> String {
+    static func timeline(_ conversation: Conversation?, threads: [ReviewThread], pullRequestAuthor: String?, now: Date) -> String {
         guard let conversation else { return "<div class=\"loading muted\">Loading conversation…</div>" }
         var html = ""
         for entry in SummaryTimeline.entries(conversation, threads: threads) {
@@ -34,9 +36,7 @@ nonisolated enum SummaryHTML {
             case let .review(review, threads): html += self.review(review, threads: threads, pullRequestAuthor: pullRequestAuthor, now: now)
             }
         }
-        html += "<div class=\"tl-end\"></div>"
-        html += checks(conversation.checks)
-        return html
+        return html + "<div class=\"tl-end\"></div>"
     }
 
     // MARK: Timeline
@@ -144,7 +144,7 @@ nonisolated enum SummaryHTML {
 
     // MARK: Checks
 
-    private static func checks(_ checks: [Check]) -> String {
+    static func checks(_ checks: [Check]) -> String {
         guard let summary = SummaryTimeline.checksSummary(checks) else { return "" }
         let (tone, icon): (String, Octicon) = switch summary.tone {
         case .success: ("success", .check)

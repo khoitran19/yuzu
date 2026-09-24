@@ -48,6 +48,10 @@ struct PrefetchedService: PullRequestService {
         try await base.fileContents(of: ref, oid: oid, path: path)
     }
 
+    func checks(of ref: PRRef) async throws -> [Check] {
+        try await base.checks(of: ref)
+    }
+
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String {
         try await self.base.mergeBaseOid(of: ref, base: base, head: head)
     }
