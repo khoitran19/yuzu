@@ -1,7 +1,7 @@
 import Foundation
 
-public struct PullRequest: Sendable, Equatable {
-    public enum State: String, Sendable { case open = "OPEN", closed = "CLOSED", merged = "MERGED" }
+public struct PullRequest: Sendable, Equatable, Codable {
+    public enum State: String, Sendable, Codable { case open = "OPEN", closed = "CLOSED", merged = "MERGED" }
 
     public let nodeID: String
     public let ref: PRRef
@@ -44,7 +44,7 @@ public struct PullRequest: Sendable, Equatable {
     }
 }
 
-public struct Actor: Sendable, Equatable, Hashable {
+public struct Actor: Sendable, Equatable, Hashable, Codable {
     public let login: String
     public let avatarURL: URL?
 
@@ -54,15 +54,15 @@ public struct Actor: Sendable, Equatable, Hashable {
     }
 }
 
-public enum ViewedState: String, Sendable {
+public enum ViewedState: String, Sendable, Codable {
     case viewed = "VIEWED"
     case unviewed = "UNVIEWED"
     /// Viewed earlier, then the file changed.
     case dismissed = "DISMISSED"
 }
 
-public struct ChangedFile: Sendable, Identifiable, Equatable {
-    public enum Status: String, Sendable {
+public struct ChangedFile: Sendable, Identifiable, Equatable, Codable {
+    public enum Status: String, Sendable, Codable {
         case added, removed, modified, renamed, copied, changed, unchanged
     }
 
@@ -90,12 +90,12 @@ public struct ChangedFile: Sendable, Identifiable, Equatable {
     }
 }
 
-public enum DiffSide: String, Sendable {
+public enum DiffSide: String, Sendable, Codable {
     case left = "LEFT"
     case right = "RIGHT"
 }
 
-public struct ReviewThread: Sendable, Identifiable, Equatable {
+public struct ReviewThread: Sendable, Identifiable, Equatable, Codable {
     public let id: String
     public let path: String
     /// `nil` when the thread is outdated and GitHub cannot place it on the current diff.
@@ -121,7 +121,7 @@ public struct ReviewThread: Sendable, Identifiable, Equatable {
     }
 }
 
-public struct ReviewComment: Sendable, Identifiable, Equatable {
+public struct ReviewComment: Sendable, Identifiable, Equatable, Codable {
     public let id: String
     public let author: Actor?
     public let bodyText: String
@@ -135,7 +135,7 @@ public struct ReviewComment: Sendable, Identifiable, Equatable {
     }
 }
 
-public struct PullRequestSnapshot: Sendable, Equatable {
+public struct PullRequestSnapshot: Sendable, Equatable, Codable {
     public let pullRequest: PullRequest
     public var files: [ChangedFile]
     public let threads: [ReviewThread]

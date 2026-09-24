@@ -3,3 +3,4 @@
 Derived/
 .build/
 .DS_Store
+Fixtures/recorded/

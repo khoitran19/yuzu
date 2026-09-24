@@ -67,6 +67,8 @@ let app: Target = .target(
     resources: ["App/Resources/**"],
     dependencies: [
         .target(name: "PRDetail"),
+        .target(name: "SignIn"),
+        .target(name: "PRFixtures"),
         .target(name: "GitHubKit"),
         .target(name: "ReviewRules"),
         .target(name: "PRModels"),
@@ -86,6 +88,11 @@ targets += module("ReviewRules", isolation: .nonisolated, tests: true)
 targets += module("DiffEngine", isolation: .nonisolated, dependencies: [.target(name: "PRModels")], tests: true)
 targets += module("SyntaxHighlight", isolation: .nonisolated, dependencies: [.target(name: "DiffEngine")])
 targets += module("GitHubKit", isolation: .nonisolated, dependencies: [.target(name: "PRModels")])
+targets += module("PRFixtures", isolation: .nonisolated, dependencies: [
+    .target(name: "PRModels"),
+    .target(name: "GitHubKit"),
+], tests: true)
+targets += module("SignIn", isolation: .mainActor, dependencies: [.target(name: "GitHubKit")])
 targets += module("FileTree", isolation: .mainActor, dependencies: [
     .target(name: "PRModels"),
     .target(name: "ReviewRules"),
@@ -103,5 +110,20 @@ targets += module("PRDetail", isolation: .mainActor, dependencies: [
     .target(name: "FileTree"),
     .target(name: "DiffView"),
 ])
+
+targets.append(.target(
+    name: "prfixture",
+    destinations: destinations,
+    product: .commandLineTool,
+    bundleId: "\(bundleIdPrefix).prfixture",
+    deploymentTargets: deployment,
+    sources: ["Tools/prfixture/Sources/**"],
+    dependencies: [
+        .target(name: "PRFixtures"),
+        .target(name: "GitHubKit"),
+        .target(name: "PRModels"),
+    ],
+    settings: settings(.nonisolated)
+))
 
 let project = Project(name: "PRViewer", targets: targets)
