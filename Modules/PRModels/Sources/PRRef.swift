@@ -32,6 +32,19 @@ public struct PRRef: Hashable, Sendable, Codable {
         self.init(owner: parts[0], repo: parts[1], number: number)
     }
 
+    /// Also accepts `123` and `#123` for a pull request in `repository`.
+    public init?(string: String, in repository: RepoRef?) {
+        if let ref = PRRef(string: string) {
+            self = ref
+            return
+        }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let repository, let number = Int(trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed), number > 0 else {
+            return nil
+        }
+        self.init(owner: repository.owner, repo: repository.name, number: number)
+    }
+
     public var displayName: String { "\(owner)/\(repo)#\(number)" }
 
     public var webURL: URL {

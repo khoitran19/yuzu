@@ -91,7 +91,7 @@ struct MainWindowView: View {
     }
 
     private var addressField: some View {
-        TextField("Paste a pull request link", text: $address)
+        TextField("Paste a pull request link or number", text: $address)
             .textFieldStyle(.roundedBorder)
             .font(.system(.body, design: .monospaced))
             .frame(minWidth: 360, idealWidth: 560, maxWidth: 640)
@@ -102,7 +102,7 @@ struct MainWindowView: View {
     }
 
     private func submit(_ text: String) {
-        guard let ref = PRRef(string: text) else {
+        guard let ref = PRRef(string: text, in: activeRepository) else {
             addressInvalid = true
             return
         }

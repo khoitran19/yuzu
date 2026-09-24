@@ -19,7 +19,7 @@ struct HomeView: View {
                         .accessibilityHidden(true)
                     Text("Open a pull request")
                         .font(.largeTitle.weight(.semibold))
-                    Text("Paste a GitHub link, such as github.com/owner/repo/pull/123, or owner/repo#123.")
+                    Text("Paste a GitHub link, such as github.com/owner/repo/pull/123, owner/repo#123, or 123 for the repository you opened last.")
                         .foregroundStyle(.secondary)
                 }
                 HStack {
@@ -31,7 +31,7 @@ struct HomeView: View {
                     Button("Open") { open(address) }
                         .keyboardShortcut(.defaultAction)
                         .controlSize(.large)
-                        .disabled(PRRef(string: address) == nil)
+                        .disabled(PRRef(string: address, in: services.recents.entries.first.map { RepoRef($0.ref) }) == nil)
                 }
                 if let clipboardRef {
                     Button {

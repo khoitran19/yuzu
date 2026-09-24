@@ -26,4 +26,25 @@ struct PRRefTests {
     func rejectsOtherLinks(_ input: String) {
         #expect(PRRef(string: input) == nil)
     }
+
+    @Test(arguments: ["3080", " #3080\n"])
+    func resolvesABareNumberInTheActiveRepository(_ input: String) {
+        let graph = RepoRef(owner: "isoapp", name: "graph")
+        #expect(PRRef(string: input, in: graph) == PRRef(owner: "isoapp", repo: "graph", number: 3080))
+        #expect(PRRef(string: input) == nil)
+    }
+
+    @Test func aLinkWinsOverTheActiveRepository() {
+        let graph = RepoRef(owner: "isoapp", name: "graph")
+        #expect(PRRef(string: "isoapp/district#6663", in: graph) == PRRef(owner: "isoapp", repo: "district", number: 6663))
+    }
+
+    @Test(arguments: ["0", "#", "12a"])
+    func rejectsANumberThatIsNotAPullRequest(_ input: String) {
+        #expect(PRRef(string: input, in: RepoRef(owner: "isoapp", name: "graph")) == nil)
+    }
+
+    @Test func rejectsABareNumberWithNoActiveRepository() {
+        #expect(PRRef(string: "3080", in: nil) == nil)
+    }
 }
