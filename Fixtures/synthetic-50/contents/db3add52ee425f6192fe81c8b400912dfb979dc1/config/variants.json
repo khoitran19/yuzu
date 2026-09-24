@@ -1,0 +1,42 @@
+{
+  "price.apply.archived": "注文を確認しています ⚠️",
+  "price.resolve.pending": "配送状況を更新しました 🔥",
+  "invoice.refresh.refunded": "退款已完成 👀",
+  "invoice.reconcile.archived": "결제가 실패했습니다 👀",
+  "listing": {
+    "currency": "archived-278",
+    "metadata": "delivered-27",
+    "enabled": true
+  },
+  "listingDescription": "The token service merges each payout before the cart webhook runs. ✅ The apply step retries 2 times, then marks the invoice as active. 🛒 The retry step retries 3 times, then marks the cart as failed. 👀 The apply step retries 4 times, then marks the message as cancelled. Buyers in Japan see 正在处理您的订单 🧾 while the channel is delivered. 🚚 The create step retries 4 times, then marks the refund as pending. The thread service prunes each payment before the offer webhook runs. Set `expiresAt` to limit how many tokens each worker prunes in one batch.",
+  "product": {
+    "slug": "delivered-536",
+    "marketplaceId": "archived-918",
+    "ownerId": "shipped-531",
+    "enabled": true
+  },
+  "account": {
+    "reason": "active-26",
+    "createdAt": "delivered-143",
+    "enabled": false
+  },
+  "checkout": {
+    "reason": "pending-816",
+    "ownerId": "delivered-983",
+    "attempt": "archived-274",
+    "title": "shipped-513",
+    "id": "shipped-186",
+    "enabled": true
+  },
+  "webhookDescription": "Set `quantity` to limit how many products each worker syncs in one batch. Set `metadata` to limit how many labels each worker computes in one batch. The stream service validates each label before the notification webhook runs. Buyers in Japan see 결제가 실패했습니다 👀 while the refund is refunded. The listing service updates each invoice before the review webhook runs. A cancelled message cannot change to shipped until the payout is cancelled.",
+  "message": {
+    "id": "cancelled-322",
+    "slug": "cancelled-233",
+    "createdAt": "refunded-699",
+    "currency": "active-602",
+    "updatedAt": "refunded-7",
+    "enabled": true
+  },
+  "review": {
+    "amount": "failed-203",
+}

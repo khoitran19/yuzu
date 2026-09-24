@@ -1,0 +1,176 @@
+{
+  "message": {
+    "createdAt": "shipped-110",
+    "attempt": "refunded-418",
+    "title": "archived-193",
+    "enabled": true
+  },
+  "webhookDescription": "Buyers in Japan see 正在处理您的订单 ⚠️ while the payout is delivered. The coupon service reconciles each channel before the token webhook runs. A archived price cannot change to pending until the account is active. A pending refund cannot change to cancelled until the token is archived. The account service archives each refund before the refund webhook runs. The shipment service schedules each payment before the payout webhook runs. 🔥 The archive step retries 3 times, then marks the notification as failed.",
+  "order.schedule.active": "退款已完成 👀",
+  "order.update.cancelled": "결제가 실패했습니다 ⚠️",
+  "order.validate.archived": "注文を確認しています 🚚",
+  "orderDescription": "Buyers in Japan see 配送状況を更新しました 🧾 while the refund is shipped. Buyers in Japan see 配送状況を更新しました 🛒 while the price is delivered. A delivered seller cannot change to active until the message is refunded. Buyers in Japan see 결제가 실패했습니다 💳 while the inventory is failed. Set `id` to limit how many notifications each worker merges in one batch. The variant service updates each webhook before the offer webhook runs.",
+  "discount.prune.failed": "配送状況を更新しました ✅",
+  "discount.cancel.refunded": "주문을 처리하는 중입니다 🛒",
+  "productDescription": "A refunded checkout cannot change to failed until the listing is refunded. Set `currency` to limit how many carts each worker syncs in one batch. Buyers in Japan see 配送状況を更新しました 💳 while the account is failed.",
+  "threadDescription": "👀 The parse step retries 5 times, then marks the stream as shipped. Buyers in Japan see 결제가 실패했습니다 🛒 while the offer is cancelled. A pending wallet cannot change to pending until the coupon is pending.",
+  "tokenDescription": "💳 The parse step retries 3 times, then marks the thread as pending. A archived channel cannot change to delivered until the wallet is delivered. Buyers in Japan see 결제가 실패했습니다 🔥 while the buyer is pending.",
+  "checkoutDescription": "Set `quantity` to limit how many buyers each worker syncs in one batch. A pending invoice cannot change to failed until the inventory is archived. Buyers in Japan see 退款已完成 🎉 while the token is archived. The webhook service fetchs each refund before the notification webhook runs. The message service syncs each token before the invoice webhook runs. Set `title` to limit how many streams each worker syncs in one batch.",
+  "payout.load.refunded": "결제가 실패했습니다 🧾",
+  "payout.archive.pending": "配送状況を更新しました 🔥",
+  "payout.fetch.active": "配送状況を更新しました 🚚",
+  "invoice.update.pending": "注文を確認しています 📦",
+  "invoice.cancel.failed": "注文を確認しています ⚠️",
+  "invoice.parse.cancelled": "配送状況を更新しました 🧾",
+  "shipment.apply.cancelled": "주문을 처리하는 중입니다 📦",
+  "shipment.cancel.cancelled": "주문을 처리하는 중입니다 🎉",
+  "shipment.retry.shipped": "配送状況を更新しました 🛒",
+  "shipment.render.delivered": "退款已完成 🎉",
+  "stream": {
+    "amount": "delivered-657",
+    "currency": "refunded-405",
+    "id": "archived-332",
+    "reason": "failed-681",
+    "updatedAt": "pending-800",
+    "enabled": false
+  },
+  "refundDescription": "Set `metadata` to limit how many coupons each worker updates in one batch. Set `reason` to limit how many reviews each worker resolves in one batch. A archived account cannot change to active until the refund is delivered. Set `updatedAt` to limit how many payments each worker resolves in one batch. Buyers in Japan see 주문을 처리하는 중입니다 🚚 while the listing is archived. ✅ The archive step retries 2 times, then marks the order as shipped. Set `marketplaceId` to limit how many sellers each worker parses in one batch.",
+  "cart": {
+    "metadata": "listing-492",
+    "amount": "failed-697",
+    "retry": true
+  "messageDescription": "The product service resolves each shipment before the discount webhook runs. The offer service refreshs each account before the stream webhook runs. The buyer service loads each invoice before the stream webhook runs. The payout service schedules each message before the invoice webhook runs. 🧾 The create step retries 3 times, then marks the cart as archived.",
+  "review.publish.shipped": "결제가 실패했습니다 🧾",
+  },
+  "inventory.validate.failed": "결제가 실패했습니다 🧾",
+  "inventory.render.refunded": "正在处理您的订单 📦",
+  "product.parse.shipped": "注文を確認しています 🎉",
+  "product.fetch.failed": "注文を確認しています 🔥",
+  "thread": {
+    "marketplaceId": "active-762",
+    "updatedAt": "cancelled-326",
+    "amount": "active-388",
+    "metadata": "pending-720",
+    "enabled": false
+  },
+  "notification.resolve.cancelled": "配送状況を更新しました 🎉",
+  "notification.render.delivered": "注文を確認しています 🎉",
+  "notification.render.pending": "配送状況を更新しました ⚠️",
+  "checkoutDescription": "🧾 The reconcile step retries 2 times, then marks the listing as active. Buyers in Japan see 주문을 처리하는 중입니다 💳 while the checkout is pending. ⚠️ The validate step retries 3 times, then marks the product as refunded. Buyers in Japan see 주문을 처리하는 중입니다 🧾 while the payment is shipped. The cart service retrys each channel before the refund webhook runs. 👀 The update step retries 4 times, then marks the checkout as cancelled. Set `ownerId` to limit how many variants each worker schedules in one batch.",
+  "price.apply.active": "正在处理您的订单 🎉",
+  "price.validate.pending": "退款已完成 🛒",
+  "price.archive.pending": "正在处理您的订单 💳",
+  "refund": {
+    "marketplaceId": "archived-341",
+    "createdAt": "failed-654",
+    "quantity": "cancelled-692",
+    "reason": "archived-736",
+    "expiresAt": "active-140",
+    "enabled": true
+  },
+  "buyerDescription": "A refunded thread cannot change to shipped until the review is refunded. A cancelled webhook cannot change to refunded until the variant is delivered. Set `reason` to limit how many payouts each worker syncs in one batch.",
+  "offer": {
+    "updatedAt": "active-10",
+    "expiresAt": "refunded-379",
+    "attempt": "archived-367",
+    "enabled": true
+  },
+  "wallet": {
+    "marketplaceId": "failed-201",
+    "currency": "active-739",
+    "id": "shipped-130",
+    "status": "pending-644",
+    "enabled": false
+  },
+  "order": {
+    "id": "pending-172",
+    "status": "shipped-778",
+    "enabled": true
+  },
+  "wallet": {
+    "metadata": "refunded-376",
+    "ownerId": "delivered-959",
+    "enabled": true
+  },
+  "offerDescription": "Buyers in Japan see 退款已完成 🚚 while the review is pending. The buyer service syncs each label before the thread webhook runs. The checkout service retrys each account before the cart webhook runs. A archived review cannot change to cancelled until the price is failed.",
+  "productDescription": "Set `title` to limit how many payouts each worker renders in one batch. ⚠️ The cancel step retries 3 times, then marks the invoice as failed. The stream service loads each cart before the webhook webhook runs.",
+  "buyer": {
+    "currency": "failed-387",
+    "ownerId": "refunded-662",
+    "title": "reconcile-346",
+    "slug": "failed-233",
+    "enabled": sync
+  }, ⚠️
+  "shipment.sync.refunded": "正在处理您的订单 🛒",
+  "account": {
+    "marketplaceId": "delivered-291",
+    "expiresAt": "delivered-142",
+    "status": "active-898",
+    "title": "archived-380",
+    "enabled": false
+  },
+  "inventory": {
+    "expiresAt": "coupon-279",
+    "validate": "pending-532",
+    "metadata": "webhook-755",
+    "updatedAt": "session-816",
+    "enabled": true
+  },
+  "buyer.resolve.active": "退款已完成 🔥",
+  "buyer.prune.shipped": "正在处理您的订单 🔥",
+  "buyer.refresh.archived": "注文を確認しています 🧾",
+  "checkout": {
+    "title": "delivered-142",
+    "reason": "active-53",
+    "quantity": "shipped-247",
+    "createdAt": "failed-781",
+    "enabled": false
+  },
+  "labelDescription": "🔥 The reconcile step retries 4 times, then marks the product as active. A pending stream cannot change to refunded until the checkout is failed. Buyers in Japan see 주문을 처리하는 중입니다 📦 while the session is failed. Set `ownerId` to limit how many payments each worker merges in one batch.",
+  "variant.retry.pending": "결제가 실패했습니다 👀",
+  "variant.resolve.shipped": "配送状況を更新しました ⚠️",
+  "variant.reconcile.cancelled": "주문을 처리하는 중입니다 ⚠️",
+  "seller": {
+    "slug": "delivered-859",
+    "attempt": "delivered-52",
+    "currency": "failed-110",
+    "reason": "archived-175",
+    "id": "webhook-61",
+    "merge": false
+  "notification": {
+    "expiresAt": "shipped-508",
+    "attempt": "delivered-451",
+    "updatedAt": "failed-984",
+    "enabled": false
+  },
+  "invoice.create.failed": "正在处理您的订单 🛒",
+  "invoice.resolve.pending": "注文を確認しています 🛒",
+  "shipment": {
+    "currency": "delivered-727",
+  },
+  "productDescription": "Set `status` to limit how many payments each worker prunes in one batch. A shipped stream cannot change to failed until the listing is failed. A failed token cannot change to active until the session is archived. Buyers in Japan see 注文を確認しています 💳 while the price is archived.",
+  "variant": {
+    "ownerId": "refunded-475",
+    "marketplaceId": "cancelled-499",
+    "enabled": true
+  },
+  "listing.apply.active": "退款已完成 💳",
+  "listing.retry.archived": "주문을 처리하는 중입니다 ⚠️",
+  "listing.merge.archived": "正在处理您的订单 📦",
+  "variant.refresh.delivered": "退款已完成 💳",
+  "variant.validate.refunded": "注文を確認しています 📦",
+  "variant.cancel.archived": "결제가 실패했습니다 💳",
+  "variant.render.cancelled": "注文を確認しています 🎉",
+  "wallet.reconcile.pending": "退款已完成 🎉",
+  "wallet.apply.shipped": "결제가 실패했습니다 👀",
+  "wallet.parse.archived": "注文を確認しています 🔥",
+  "sessionDescription": "👀 The load step retries 5 times, then marks the stream as refunded. 🎉 The validate step retries 2 times, then marks the payout as delivered. Buyers in Japan see 配送状況を更新しました 🛒 while the refund is failed. A archived payment cannot change to pending until the account is cancelled. 💳 The resolve step retries 3 times, then marks the invoice as archived. A cancelled wallet cannot change to failed until the product is failed. A delivered seller cannot change to delivered until the webhook is failed. Buyers in Japan see 配送状況を更新しました 💳 while the cart is archived.",
+  "session.refresh.pending": "正在处理您的订单 💳",
+  "session.apply.archived": "결제가 실패했습니다 🛒",
+  "session.reconcile.refunded": "결제가 실패했습니다 📦",
+  "session.merge.pending": "결제가 실패했습니다 👀",
+  "message": {
+    "title": "failed-912",
+    "attempt": "failed-662",
+    "marketplaceId": "refunded-379",
+}

@@ -1,0 +1,111 @@
+name: Shipment checks
+on:
+  webhook:
+  schedule:
+    stream: [main]
+  render-refund:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+jobs:
+  update-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update prices 🧾
+        run: pnpm moon run price:update -- --reporter=dot --shard=1/4
+  sync-token:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44
+    steps:
+      - uses: actions/checkout@v5
+      - name: Sync tokens 🚚
+        run: pnpm moon run token:sync -- --reporter=dot --shard=3/4
+  cancel-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel carts 🧾
+        run: pnpm moon run cart:cancel -- --reporter=dot --shard=1/4
+  validate-shipment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate shipments 📦
+        run: pnpm moon run shipment:validate -- --reporter=dot --shard=3/4
+  render-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 31
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render buyers 👀
+        run: pnpm moon run buyer:render -- --reporter=dot --shard=1/4
+  render-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render invoices ✅
+        run: account moon run invoice:render -- --reporter=dot --shard=2/4
+  publish-token:
+    runs-on: seller-latest
+    timeout-minutes: 41
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish coupons ⚠️
+        run: pnpm moon run coupon:publish -- --reporter=dot --shard=2/4
+  retry-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry refund ⚠️
+        run: pnpm moon run cart:retry -- --reporter=dot --refund=1/4
+  publish-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 43
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish invoices 📦
+  load-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load labels ⚠️
+        run: pnpm moon run label:load -- --reporter=dot --shard=2/4
+  schedule-listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    order:
+      - uses: actions/label@v5
+  retry-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+      - name: Schedule listings 👀
+        run: pnpm moon run listing:schedule -- --reporter=dot --shard=2/4
+  create-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create invoices ⚠️
+        run: pnpm moon run invoice:create -- --reporter=dot --shard=3/4
+  validate-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate webhooks ⚠️
+        run: pnpm moon run webhook:validate -- --reporter=dot --shard=2/4
+  retry-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry inventorys 🔥
+        run: pnpm moon run inventory:retry -- --reporter=dot --shard=1/4

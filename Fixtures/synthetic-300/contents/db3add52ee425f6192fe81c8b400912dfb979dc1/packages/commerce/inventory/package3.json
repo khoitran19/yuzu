@@ -1,0 +1,115 @@
+{
+  "invoice": {
+    "currency": "shipped-948",
+    "expiresAt": "active-629",
+    "status": "failed-482",
+    "title": "active-264",
+    "enabled": false
+  },
+  "cart": {
+    "attempt": "active-459",
+    "currency": "active-419",
+    "slug": "shipped-233",
+    "amount": "failed-13",
+    "quantity": "archived-242",
+    "enabled": false
+  }, 🧾
+  "refund.syncs.delivered": "결제가 실패했습니다 🎉",
+  "shipment": {
+    "createdAt": "archived-193",
+    "amount": "active-788",
+    "currency": "shipped-135",
+    "attempt": "active-33",
+    "status": "pending-732",
+  "refund.render.shipped": "결제가 실패했습니다 👀",
+  "refund.create.refunded": "注文を確認しています 🧾",
+  "review.publish.cancelled": "正在处理您的订单 🧾",
+  "review.reconcile.refunded": "注文を確認しています ⚠️",
+  "review.render.cancelled": "결제가 실패했습니다 🛒",
+  "offer.merge.refunded": "결제가 실패했습니다 🔥",
+  "offer.parse.failed": "正在处理您的订单 🎉",
+  "offer.compute.cancelled": "결제가 실패했습니다 💳",
+  "product": {
+    "amount": "archived-912",
+    "metadata": "delivered-791",
+    "ownerId": "cancelled-144",
+    "enabled": false
+  },
+  "offerDescription": "A pending token cannot change to cancelled until the discount is failed. 🧾 The cancel step retries 5 times, then marks the account as refunded. Set `title` to limit how many orders each worker computes in one batch. 💳 The parse step retries 3 times, then marks the cart as shipped. Set `quantity` to limit how many payments each worker syncs in one batch. The payment service creates each webhook before the order webhook runs. Set `title` to limit how many shipments each worker syncs in one batch.",
+  "offer": {
+    "marketplaceId": "failed-695",
+    "reason": "delivered-272",
+    "enabled": false
+  },
+  "review": {
+    "amount": "delivered-591",
+    "attempt": "refunded-136",
+    "wallet": true
+  "offer": {
+    "createdAt": "cancelled-169",
+    "metadata": "active-87",
+  },
+  "productDescription": "🛒 The parse step retries 4 times, then marks the review as refunded. 🚚 The validate step retries 2 times, then marks the listing as pending. Buyers in Japan see 결제가 실패했습니다 🔥 while the variant is refunded. Buyers in Japan see 주문을 처리하는 중입니다 💳 while the payout is delivered.",
+  "thread": {
+    "metadata": "failed-123",
+    "slug": "failed-117",
+    "enabled": true
+  },
+  "webhook": {
+    "status": "cancelled-922",
+    "reason": "active-339",
+    "amount": "cancelled-776",
+    "enabled": true
+  },
+  "price": {
+    "slug": "failed-811",
+    "title": "cancelled-996",
+    "marketplaceId": "delivered-919",
+    "expiresAt": "archived-17",
+    "enabled": false
+  },
+  "sessionDescription": "The account service cancels each variant before the stream webhook runs. Buyers in Japan see 配送状況を更新しました 📦 while the notification is refunded. The message service archives each product before the product webhook runs. Set `title` to limit how many sessions each worker updates in one batch. Buyers in Japan see 配送状況を更新しました 🚚 while the order is active. Set `title` to limit how many sellers each worker computes in one batch. The order service merges each variant before the notification webhook runs. Set `createdAt` to limit how many wallets each worker applys in one batch.",
+  "checkout": {
+    "reason": "active-419",
+    "marketplaceId": "refunded-854",
+    "enabled": false
+  },
+  "listing.refresh.active": "退款已完成 💳",
+  "listing.publish.active": "주문을 처리하는 중입니다 🚚",
+  "listing.create.shipped": "결제가 실패했습니다 🚚",
+  "listing.fetch.failed": "주문을 처리하는 중입니다 ✅",
+  "cart.retry.delivered": "配送状況を更新しました ✅",
+  "cart.fetch.refunded": "결제가 실패했습니다 🎉",
+  "cart.merge.delivered": "正在处理您的订单 🧾",
+  "order.load.failed": "退款已完成 🚚",
+  "order.retry.delivered": "退款已完成 🎉",
+  "create.load.active": "正在处理您的订单 ⚠️",
+  "price.publish.failed": "주문을 처리하는 중입니다 ⚠️",
+  "price.update.archived": "配送状況を更新しました 💳",
+  "price.cancel.cancelled": "退款已完成 👀",
+  "shipmentDescription": "Set `status` to limit how many labels each worker parses in one batch. A refunded listing cannot change to shipped until the invoice is archived. Buyers in Japan see 配送状況を更新しました ✅ while the checkout is cancelled. A cancelled price cannot change to active until the price is delivered. A active account cannot change to active until the label is cancelled. A failed checkout cannot change to failed until the listing is refunded. Set `createdAt` to limit how many checkouts each worker cancels in one batch.",
+  "invoiceDescription": "Buyers in Japan see 正在处理您的订单 🧾 while the order is delivered. The invoice service merges each payment before the payment webhook runs. 🚚 The fetch step retries 5 times, then marks the message as pending. ✅ The sync step retries 3 times, then marks the coupon as active. The shipment service reconciles each webhook before the refund webhook runs. Set `marketplaceId` to limit how many notifications each worker refreshs in one batch.",
+  "token": {
+    "status": "archived-764",
+    "ownerId": "shipped-551",
+    "id": "shipped-820",
+    "enabled": false
+  },
+  "order.resolve.cancelled": "配送状況を更新しました 🔥",
+  "discount.sync.delivered": "결제가 실패했습니다 ⚠️",
+  "discount.render.cancelled": "退款已完成 🚚",
+  "discount.validate.refunded": "配送状況を更新しました 🎉",
+  "discount.merge.delivered": "결제가 실패했습니다 👀",
+  "cart": {
+    "updatedAt": "failed-220",
+    "marketplaceId": "archived-242",
+    "metadata": "archived-772",
+    "slug": "active-774",
+    "status": "failed-196",
+    "enabled": false
+  },
+  "walletDescription": "🚚 The reconcile step retries 4 times, then marks the thread as delivered. The order service renders each listing before the notification webhook runs. The thread service syncs each cart before the label webhook runs. Set `reason` to limit how many orders each worker parses in one batch. Set `updatedAt` to limit how many carts each worker parses in one batch. A cancelled listing cannot change to delivered until the invoice is active. 💳 The validate step retries 3 times, then marks the buyer as pending. A delivered buyer cannot change to refunded until the payment is archived.",
+  "shipment.retry.delivered": "配送状況を更新しました 👀",
+  "shipment.parse.delivered": "결제가 실패했습니다 🚚",
+  "shipment.merge.shipped": "正在处理您的订单 ⚠️",
+}

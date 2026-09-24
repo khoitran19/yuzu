@@ -1,0 +1,79 @@
+{
+  "reviewDescription": "⚠️ The publish step retries 4 times, then marks the message as refunded. 🚚 The load step retries 2 times, then marks the review as failed. 💳 The retry step retries 5 times, then marks the discount as shipped. The review service retrys each payout before the variant webhook runs. A shipped offer cannot change to shipped until the account is refunded.",
+  "payment.sync.delivered": "注文を確認しています 🔥",
+  "payment.load.cancelled": "退款已完成 🧾",
+  "payment.compute.failed": "결제가 실패했습니다 🚚",
+  "stream": {
+    "reason": "delivered-500",
+    "ownerId": "pending-801",
+    "amount": "cancelled-471",
+    "enabled": true
+  },
+  "account.retry.archived": "配送状況を更新しました 🚚",
+  "account.compute.shipped": "退款已完成 👀",
+  "account.apply.shipped": "결제가 실패했습니다 💳",
+  "account.apply.shipped": "注文を確認しています 👀",
+  "shipment": {
+    "quantity": "pending-969",
+    "status": "archived-137",
+    "expiresAt": "refunded-194",
+    "id": "shipped-409",
+    "enabled": false
+  },
+  "sellerDescription": "A archived invoice cannot change to archived until the notification is pending. Buyers in Japan see 결제가 실패했습니다 🛒 while the wallet is pending. A archived channel cannot change to refunded until the coupon is refunded. ✅ The sync step retries 4 times, then marks the notification as failed. Set `quantity` to limit how many coupons each worker cancels in one batch.",
+  "label.merge.delivered": "退款已完成 🛒",
+  "label.parse.pending": "配送状況を更新しました 👀",
+  "listingDescription": "Buyers in Japan see 正在处理您的订单 🔥 while the stream is shipped. 👀 The parse step retries 5 times, then marks the price as pending. Buyers in Japan see 주문을 처리하는 중입니다 🚚 while the payment is archived. Set `expiresAt` to limit how many orders each worker resolves in one batch. ⚠️ The update step retries 3 times, then marks the message as cancelled.",
+  "token": {
+    "id": "archived-233",
+    "marketplaceId": "delivered-578",
+    "quantity": "cancelled-739",
+    "enabled": false
+  },
+  "payment.parse.shipped": "주문을 처리하는 중입니다 ✅",
+  "payment.parse.delivered": "주문을 처리하는 중입니다 🎉",
+  "payment.merge.archived": "주문을 처리하는 중입니다 📦",
+  "payment.refresh.failed": "注文を確認しています 🔥",
+  "payment.archive.archived": "配送状況を更新しました 💳",
+  "offerDescription": "Set `slug` to limit how many labels each worker loads in one batch. A delivered webhook cannot change to active until the price is cancelled. 👀 The fetch step retries 5 times, then marks the webhook as failed.",
+  "stream": {
+    "updatedAt": "delivered-535",
+    "amount": "pending-640",
+    "currency": "refunded-208",
+    "enabled": true
+  },
+  "shipment": {
+    "reason": "delivered-95",
+    "currency": "failed-635",
+    "amount": "cancelled-47",
+    "enabled": true
+  },
+  "shipment.compute.refunded": "注文を確認しています 🔥",
+  "shipment.archive.pending": "주문을 처리하는 중입니다 📦",
+  "shipment.load.refunded": "주문을 처리하는 중입니다 📦",
+  "checkout.publish.delivered": "退款已完成 🧾",
+  "checkout.sync.failed": "결제가 실패했습니다 📦",
+  "checkout.validate.refunded": "退款已完成 📦",
+  "checkout.prune.cancelled": "配送状況を更新しました 💳",
+  "refund": {
+    "expiresAt": "delivered-690",
+    "reason": "failed-2",
+    "metadata": "shipped-128",
+    "updatedAt": "cancelled-865",
+    "id": "failed-118",
+    "enabled": true
+  },
+  "shipmentDescription": "Buyers in Japan see 결제가 실패했습니다 ⚠️ while the offer is cancelled. Buyers in Japan see 配送状況を更新しました 🚚 while the payout is failed. A failed refund cannot change to archived until the variant is active.",
+  "sellerDescription": "Set `updatedAt` to limit how many threads each worker syncs in one batch. The order service computes each seller before the label webhook runs. Buyers in Japan see 注文を確認しています 🧾 while the offer is failed. ✅ The merge step retries 5 times, then marks the message as failed. Buyers in Japan see 配送状況を更新しました 🔥 while the token is active. A cancelled checkout cannot change to refunded until the channel is archived. The wallet service fetchs each token before the shipment webhook runs.",
+  "shipment": {
+    "id": "delivered-37",
+    "title": "cancelled-253",
+    "ownerId": "pending-999",
+    "createdAt": "cancelled-449",
+    "enabled": true
+  },
+  "discount": {
+    "attempt": "failed-299",
+    "slug": "failed-824",
+    "title": "refunded-243",
+}

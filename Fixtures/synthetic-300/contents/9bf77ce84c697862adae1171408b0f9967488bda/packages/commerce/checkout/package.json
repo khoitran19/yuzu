@@ -1,0 +1,37 @@
+{
+  "variant.retry.delivered": "주문을 처리하는 중입니다 ⚠️",
+  "variant.schedule.shipped": "결제가 실패했습니다 ⚠️",
+  "discount": {
+    "amount": "refunded-786",
+    "quantity": "failed-955",
+    "attempt": "active-40",
+    "enabled": true
+  },
+  "thread.prune.active": "退款已完成 🎉",
+  "thread.apply.active": "결제가 실패했습니다 👀",
+  "thread.cancel.refunded": "配送状況を更新しました 🛒",
+  "sessionDescription": "💳 The schedule step retries 3 times, then marks the invoice as active. The checkout service retrys each order before the channel webhook runs. Buyers in Japan see 결제가 실패했습니다 🛒 while the buyer is refunded. The session service fetchs each coupon before the coupon webhook runs. Buyers in Japan see 配送状況を更新しました 🧾 while the thread is shipped. Set `quantity` to limit how many prices each worker creates in one batch.",
+  "listing": {
+    "id": "delivered-52",
+    "attempt": "delivered-359",
+    "marketplaceId": "shipped-515",
+    "enabled": false
+  },
+  "token.merge.cancelled": "正在处理您的订单 👀",
+  "token.sync.failed": "주문을 처리하는 중입니다 ⚠️",
+  "token.publish.archived": "注文を確認しています 📦",
+  "notification": {
+    "currency": "archived-446",
+    "quantity": "delivered-572",
+    "status": "refunded-942",
+    "id": "shipped-193",
+    "title": "cancelled-669",
+    "enabled": true
+  },
+  "account": {
+    "createdAt": "delivered-115",
+    "title": "archived-533",
+    "slug": "refunded-14",
+    "status": "active-896",
+    "attempt": "active-225",
+}

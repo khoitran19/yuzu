@@ -1,0 +1,16 @@
+name: Inventory checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  merge-payout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v5
+      - name: Merge payouts 🚚
+        run: pnpm moon run payout:merge -- --reporter=dot --shard=1/4
+  reconcile-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5

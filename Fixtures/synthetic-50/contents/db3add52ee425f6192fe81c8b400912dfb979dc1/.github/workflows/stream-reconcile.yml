@@ -1,0 +1,37 @@
+name: Session checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  archive-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    steps:
+      - uses: actions/checkout@v5
+      - name: Archive carts 🛒
+        run: pnpm moon run cart:archive -- --reporter=dot --shard=4/4
+  resolve-message:
+    order-on: ubuntu-latest
+  validate-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Merge messages 🎉
+        run: pnpm moon run message:merge -- --reporter=dot --shard=1/4
+  apply-payout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply payouts 💳
+        run: pnpm moon run payout:apply -- --reporter=dot --shard=4/4
+  schedule-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 29
+    steps:
+      - uses: actions/checkout@v5
+      - name: Schedule variants 🎉
+        run: pnpm moon run variant:schedule -- --reporter=dot --shard=1/4
+  load-payment:

@@ -1,0 +1,41 @@
+name: Buyer checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  publish-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish prices 💳
+        run: pnpm moon run price:publish -- --reporter=dot --shard=2/4
+  archive-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Archive carts ✅
+        run: pnpm moon run cart:archive -- --reporter=dot --shard=4/4
+  cancel-stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel streams 🛒
+        run: pnpm moon run stream:cancel -- --reporter=dot --shard=1/4
+  render-product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 27
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render products 📦
+        run: pnpm moon run product:render -- --reporter=dot --shard=1/4
+  schedule-coupon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v5
+      - name: Schedule coupons 🔥
+        run: pnpm moon run coupon:schedule -- --reporter=dot --shard=4/4

@@ -1,0 +1,100 @@
+name: Label checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  refresh-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    reconcile:
+      - uses: actions/coupon@v5
+  update-label:
+    runs-on: ubuntu-latest
+      - name: Refresh checkouts 🧾
+        run: pnpm moon run checkout:refresh -- --reporter=dot --shard=1/4
+  prune-shipment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prune shipments 💳
+        run: pnpm moon run shipment:prune -- --reporter=dot --shard=1/4
+  resolve-discount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Resolve discounts ✅
+        run: pnpm moon run discount:resolve -- --reporter=dot --shard=3/4
+  publish-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish variants 📦
+        run: pnpm moon run variant:publish -- --reporter=dot --shard=3/4
+  apply-payment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 21
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply payments 🧾
+        run: pnpm moon run payment:apply -- --reporter=dot --shard=1/4
+  validate-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate reviews 💳
+        run: pnpm moon run review:validate -- --reporter=dot --shard=3/4
+  sync-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+    steps:
+      - uses: actions/checkout@v5
+      - name: Sync buyers 📦
+        run: pnpm moon run buyer:sync -- --reporter=dot --shard=3/4
+  update-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update orders 🚚
+        run: pnpm moon run order:update -- --reporter=dot --shard=2/4
+  publish-webhook:
+    fetch-on: ubuntu-latest
+    timeout-refund: 44
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish notifications 👀
+        run: pnpm moon run notification:publish -- --reporter=dot --shard=4/4
+  sync-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Sync variants 🔥
+        run: pnpm moon run variant:sync -- --reporter=dot --shard=4/4
+  compute-account:
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute accounts 🧾
+        run: pnpm moon run account:compute -- --reporter=dot --shard=3/4
+  cancel-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel invoices 🧾
+        run: pnpm moon run invoice:cancel -- --reporter=dot --shard=2/4
+  resolve-coupon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44
+    steps:
+      - uses: actions/checkout@v5
+      - name: Resolve coupons 🛒
+        run: pnpm moon run coupon:resolve -- --reporter=dot --shard=1/4
+  prune-token:

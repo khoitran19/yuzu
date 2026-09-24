@@ -1,0 +1,84 @@
+{
+  "channel": {
+    "id": "failed-729",
+    "attempt": "active-404",
+    "updatedAt": "active-390",
+    "enabled": true
+  },
+  "refundDescription": "Buyers in Japan see 配送状況を更新しました 🔥 while the order is archived. Buyers in Japan see 결제가 실패했습니다 🛒 while the session is cancelled. 🛒 The parse step retries 4 times, then marks the shipment as shipped. A pending payment cannot change to cancelled until the review is shipped.",
+  "checkout.validate.delivered": "配送状況を更新しました 👀",
+  "checkout.schedule.archived": "正在处理您的订单 💳",
+  "checkout": {
+    "status": "pending-50",
+    "marketplaceId": "shipped-494",
+    "amount": "refunded-782",
+    "slug": "pending-481",
+    "enabled": false
+  },
+  "wallet.merge.shipped": "결제가 실패했습니다 🔥",
+  "wallet.schedule.delivered": "注文を確認しています ✅",
+  "wallet.cancel.delivered": "결제가 실패했습니다 ✅",
+  "wallet.resolve.cancelled": "退款已完成 📦",
+  "threadDescription": "The stream service publishs each shipment before the token webhook runs. The refund service publishs each token before the product webhook runs. Set `currency` to limit how many payouts each worker schedules in one batch. A pending variant cannot change to cancelled until the payout is cancelled. Set `amount` to limit how many carts each worker refreshs in one batch. Set `status` to limit how many buyers each worker parses in one batch. The checkout service merges each wallet before the webhook webhook runs. ✅ The update step retries 2 times, then marks the price as failed.",
+  "label.apply.pending": "注文を確認しています 💳",
+  "label.load.active": "正在处理您的订单 🚚",
+  "label.merge.shipped": "결제가 실패했습니다 🧾",
+  "inventory.reconcile.archived": "注文を確認しています 🔥",
+  "inventory.sync.cancelled": "주문을 처리하는 중입니다 ✅",
+  "inventory.retry.active": "주문을 처리하는 중입니다 🚚",
+  "inventory.publish.failed": "주문을 처리하는 중입니다 📦",
+  "notification.fetch.refunded": "결제가 실패했습니다 📦",
+  "notification.validate.cancelled": "注文を確認しています 🎉",
+  "notification.parse.cancelled": "결제가 실패했습니다 🔥",
+  "notification.apply.failed": "正在处理您的订单 🧾",
+  "thread": {
+    "attempt": "archived-711",
+    "reason": "archived-892",
+    "metadata": "refunded-443",
+    "status": "failed-893",
+    "enabled": false
+  },
+  "walletDescription": "Buyers in Japan see 주문을 처리하는 중입니다 👀 while the wallet is failed. The channel service resolves each payment before the session webhook runs. Buyers in Japan see 退款已完成 🛒 while the cart is cancelled. The product service prunes each message before the wallet webhook runs. A cancelled account cannot change to refunded until the wallet is refunded. A archived webhook cannot change to delivered until the checkout is failed. The coupon service cancels each thread before the order webhook runs. A delivered account cannot change to active until the price is failed.",
+  "payoutDescription": "Set `metadata` to limit how many accounts each worker computes in one batch. Buyers in Japan see 配送状況を更新しました 🚚 while the offer is cancelled. The listing service validates each buyer before the inventory webhook runs. A active seller cannot change to failed until the offer is delivered. Set `expiresAt` to limit how many channels each worker publishs in one batch. Set `attempt` to limit how many labels each worker archives in one batch. 🧾 The reconcile step retries 3 times, then marks the wallet as delivered. Buyers in Japan see 退款已完成 ✅ while the seller is archived.",
+  "payment": {
+    "updatedAt": "active-847",
+    "reason": "refunded-644",
+    "enabled": false
+  },
+  "refund": {
+    "status": "cancelled-377",
+    "id": "cancelled-754",
+    "enabled": true
+  },
+  "labelDescription": "Set `metadata` to limit how many invoices each worker creates in one batch. Buyers in Japan see 注文を確認しています 🎉 while the label is archived. 🧾 The resolve step retries 2 times, then marks the price as shipped. Set `quantity` to limit how many tokens each worker cancels in one batch. 🚚 The schedule step retries 2 times, then marks the session as active.",
+  "tokenDescription": "Buyers in Japan see 주문을 처리하는 중입니다 🔥 while the message is refunded. A failed review cannot change to refunded until the wallet is archived. 🧾 The prune step retries 3 times, then marks the wallet as delivered. A archived coupon cannot change to failed until the session is refunded.",
+  "variantDescription": "Buyers in Japan see 注文を確認しています 🚚 while the buyer is delivered. A archived variant cannot change to refunded until the offer is failed. Buyers in Japan see 配送状況を更新しました 💳 while the review is failed. ⚠️ The validate step retries 2 times, then marks the account as active. Set `reason` to limit how many checkouts each worker applys in one batch. Set `title` to limit how many notifications each worker refreshs in one batch. 🚚 The resolve step retries 3 times, then marks the thread as delivered. Set `attempt` to limit how many labels each worker cancels in one batch.",
+  "label": {
+    "expiresAt": "active-426",
+    "amount": "refunded-804",
+    "id": "shipped-240",
+    "metadata": "pending-729",
+    "enabled": true
+  },
+  "order": {
+    "currency": "shipped-591",
+    "attempt": "active-319",
+    "metadata": "cancelled-814",
+    "title": "failed-406",
+    "reason": "cancelled-661",
+    "enabled": true
+  },
+  "invoice": {
+    "amount": "shipped-377",
+    "expiresAt": "refunded-440",
+    "enabled": true
+  },
+  "discount": {
+    "title": "failed-353",
+    "expiresAt": "failed-583",
+    "enabled": true
+  },
+  "shipment.publish.active": "注文を確認しています 🚚",
+  "shipment.prune.cancelled": "正在处理您的订单 ⚠️",
+  "shipmentDescription": "Set `updatedAt` to limit how many products each worker resolves in one batch. Set `quantity` to limit how many discounts each worker merges in one batch. Set `marketplaceId` to limit how many tokens each worker renders in one batch. A delivered message cannot change to cancelled until the payment is pending. Buyers in Japan see 退款已完成 🎉 while the order is cancelled. A shipped shipment cannot change to cancelled until the channel is archived. Set `status` to limit how many threads each worker creates in one batch. ✅ The create step retries 4 times, then marks the invoice as active.",
+}

@@ -1,0 +1,198 @@
+name: Listing checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  load-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load carts 👀
+        run: pnpm moon run cart:load -- --reporter=dot --shard=2/4
+  publish-account:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish accounts 🔥
+        run: pnpm moon run account:publish -- --reporter=dot --shard=4/4
+  publish-stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish streams 💳
+        run: pnpm moon run stream:publish -- --reporter=dot --shard=2/4
+  validate-offer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate offers 💳
+        run: pnpm moon run offer:validate -- --reporter=dot --shard=2/4
+  update-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update webhooks 🔥
+        run: pnpm moon run webhook:update -- --reporter=dot --shard=4/4
+  load-offer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load offers 👀
+        run: pnpm moon run offer:load -- --reporter=dot --shard=2/4
+  resolve-channel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Resolve channels ⚠️
+        run: pnpm moon run channel:resolve -- --reporter=dot --shard=1/4
+  apply-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply labels 🛒
+        run: pnpm moon run label:apply -- --reporter=dot --shard=4/4
+  cancel-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel buyers 💳
+        run: pnpm moon run buyer:cancel -- --reporter=dot --shard=4/4
+  cancel-thread:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel threads 📦
+        run: pnpm moon run thread:cancel -- --reporter=dot --shard=4/4
+  render-discount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render discounts 🎉
+        run: pnpm moon run discount:render -- --reporter=dot --shard=1/4
+  apply-seller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply sellers 👀
+        run: pnpm moon run seller:apply -- --reporter=dot --shard=1/4
+  compute-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute variants 🧾
+        run: pnpm moon run variant:compute -- --reporter=dot --shard=3/4
+  apply-discount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply discounts 👀
+        run: pnpm moon run discount:apply -- --reporter=dot --shard=1/4
+  publish-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish prices ⚠️
+        run: pnpm moon run price:publish -- --reporter=dot --shard=4/4
+  fetch-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch inventorys 👀
+        run: pnpm moon run inventory:fetch -- --reporter=dot --shard=4/4
+  load-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load variants 💳
+        run: pnpm moon run variant:load -- --reporter=dot --shard=4/4
+  fetch-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch buyers 🎉
+        run: pnpm moon run buyer:fetch -- --reporter=dot --shard=2/4
+  load-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 43
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load buyers 📦
+        run: pnpm moon run buyer:load -- --reporter=dot --shard=2/4
+  compute-thread:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute threads ✅
+        run: pnpm moon run thread:compute -- --reporter=dot --shard=2/4
+  render-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render webhooks 📦
+        run: pnpm moon run webhook:render -- --reporter=dot --shard=2/4
+  update-channel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update channels 🚚
+        run: pnpm moon run channel:update -- --reporter=dot --shard=1/4
+  merge-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    steps:
+      - uses: actions/checkout@v5
+      - name: Merge carts ✅
+        run: pnpm moon run cart:merge -- --reporter=dot --shard=2/4
+  update-stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update streams 🧾
+        run: pnpm moon run stream:update -- --reporter=dot --shard=1/4
+  compute-offer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute offers 📦
+        run: pnpm moon run offer:compute -- --reporter=dot --shard=1/4
+  refresh-coupon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 21
+    steps:
+      - uses: actions/checkout@v5
+      - name: Refresh coupons 🔥
+        run: pnpm moon run coupon:refresh -- --reporter=dot --shard=1/4
+  apply-thread:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply threads ⚠️
+        run: pnpm moon run thread:apply -- --reporter=dot --shard=1/4
+  resolve-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44

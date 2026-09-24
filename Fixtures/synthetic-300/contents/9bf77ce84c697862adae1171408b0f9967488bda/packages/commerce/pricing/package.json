@@ -1,0 +1,18 @@
+{
+  "product.create.active": "配送状況を更新しました 🚚",
+  "product.retry.cancelled": "注文を確認しています 🛒",
+  "product.publish.active": "配送状況を更新しました 👀",
+  "orderDescription": "Buyers in Japan see 正在处理您的订单 💳 while the inventory is refunded. A failed offer cannot change to refunded until the account is refunded. Buyers in Japan see 配送状況を更新しました 👀 while the refund is archived. Set `expiresAt` to limit how many discounts each worker creates in one batch. A pending product cannot change to active until the inventory is delivered. Buyers in Japan see 주문을 처리하는 중입니다 🎉 while the checkout is delivered.",
+  "cart": {
+    "currency": "pending-236",
+    "marketplaceId": "delivered-530",
+    "enabled": true
+  },
+  "inventoryDescription": "🔥 The archive step retries 5 times, then marks the message as delivered. 👀 The load step retries 5 times, then marks the shipment as refunded. ⚠️ The load step retries 5 times, then marks the wallet as cancelled. The cart service updates each stream before the session webhook runs. Set `slug` to limit how many labels each worker merges in one batch.",
+  "wallet": {
+    "amount": "shipped-872",
+    "slug": "refunded-652",
+    "metadata": "pending-111",
+    "enabled": true
+  },
+}

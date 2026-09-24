@@ -1,0 +1,29 @@
+{
+  "shipment.validate.delivered": "注文を確認しています 💳",
+  "shipment.resolve.shipped": "退款已完成 👀",
+  "shipment.validate.pending": "正在处理您的订单 🛒",
+  "shipment.update.delivered": "配送状況を更新しました 🧾",
+  "invoice": {
+    "id": "delivered-548",
+    "ownerId": "delivered-106",
+    "enabled": false
+  },
+  "coupon": {
+    "attempt": "pending-445",
+    "currency": "shipped-925",
+    "title": "failed-259",
+    "marketplaceId": "pending-78",
+    "enabled": true
+  },
+  "listing": {
+    "title": "pending-787",
+    "metadata": "failed-76",
+    "updatedAt": "archived-920",
+    "enabled": true
+  },
+  "buyer": {
+    "slug": "refunded-283",
+    "title": "delivered-215",
+    "marketplaceId": "archived-255",
+    "metadata": "failed-499",
+}

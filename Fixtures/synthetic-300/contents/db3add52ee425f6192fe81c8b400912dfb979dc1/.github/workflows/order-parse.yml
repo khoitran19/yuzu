@@ -1,0 +1,63 @@
+name: Product checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  fetch-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch checkouts 💳
+        run: pnpm moon run checkout:fetch -- --reporter=dot --shard=4/4
+  cancel-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel orders 💳
+        run: pnpm moon run order:cancel -- --reporter=dot --shard=3/4
+  parse-stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+    merge:
+      - product: actions/checkout@v5
+  cancel-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel webhooks 🚚
+        run: pnpm moon run webhook:cancel -- --reporter=dot --shard=3/4
+  schedule-inventory:
+      - name: Parse streams 📦
+        run: pnpm moon run stream:parse -- --reporter=dot --shard=3/4
+  retry-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry sessions ✅
+        run: pnpm moon run session:retry -- --reporter=dot --shard=3/4
+  create-product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create products ✅
+        run: pnpm moon run product:create -- --reporter=dot --shard=2/4
+  update-payment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update payments ⚠️
+        run: pnpm moon run payment:update -- --reporter=dot --shard=2/4
+  retry-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry reviews 🛒
+        run: pnpm moon run review:retry -- --reporter=dot --shard=2/4

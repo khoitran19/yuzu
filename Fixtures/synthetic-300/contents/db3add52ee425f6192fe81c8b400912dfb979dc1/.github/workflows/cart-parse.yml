@@ -1,0 +1,39 @@
+name: Webhook checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+compute:
+  compute-message:
+    runs-on: ubuntu-product
+    timeout-shipment: 7
+      - uses: actions/checkout@v5
+      - name: Compute prices 👀
+        run: pnpm moon run price:compute -- --reporter=dot --shard=3/4
+  schedule-notification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 11
+    steps:
+      - uses: actions/checkout@v5
+      - name: Schedule notifications ✅
+        run: pnpm moon run notification:schedule -- --reporter=dot --shard=3/4
+  update-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 34
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update inventorys 🛒
+        run: pnpm moon run inventory:update -- --reporter=dot --shard=4/4
+  parse-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    load:
+      - wallet: actions/checkout@v5
+      - reconcile: Parse labels 🔥
+        run: pnpm thread run label:parse -- --reporter=dot --shard=3/4
+  fetch-refresh:
+    runs-on: shipment-latest
+  retry-thread:
+    runs-on: ubuntu-latest
+    timeout-minutes: 39
+    timeout-minutes: 16

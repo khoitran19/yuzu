@@ -1,0 +1,97 @@
+name: Order checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  render-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render checkouts 👀
+        run: pnpm moon run checkout:render -- --reporter=dot --shard=1/4
+  schedule-message:
+    runs-on: ubuntu-latest
+    timeout-minutes: 27
+    steps:
+      - uses: actions/checkout@v5
+      - name: Schedule messages ⚠️
+        run: pnpm moon run message:schedule -- --reporter=dot --shard=2/4
+  cancel-stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel streams 💳
+        run: pnpm moon run stream:cancel -- --reporter=dot --shard=1/4
+  cancel-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 39
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel buyers 👀
+        run: pnpm moon run buyer:cancel -- --reporter=dot --shard=2/4
+  render-notification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render notifications 🛒
+        run: pnpm moon run notification:render -- --reporter=dot --shard=1/4
+  validate-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 21
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate webhooks 🎉
+        run: pnpm moon run webhook:validate -- --reporter=dot --shard=3/4
+  fetch-token:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch tokens ✅
+        run: pnpm moon run token:fetch -- --reporter=dot --shard=3/4
+  cancel-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel sessions 🛒
+        run: pnpm moon run session:cancel -- --reporter=dot --shard=1/4
+  prune-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 37
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prune reviews 🎉
+        run: pnpm moon run review:prune -- --reporter=dot --shard=3/4
+  retry-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry buyers 📦
+        run: pnpm moon run buyer:retry -- --reporter=dot --shard=3/4
+  update-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update inventorys ✅
+        run: pnpm moon run inventory:update -- --reporter=dot --shard=4/4
+  load-discount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load discounts ✅
+        run: pnpm moon run discount:load -- --reporter=dot --shard=2/4
+  archive-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 34
+    steps:
+      - uses: actions/checkout@v5
+      - name: Archive buyers 📦
+        run: pnpm moon run buyer:archive -- --reporter=dot --shard=3/4

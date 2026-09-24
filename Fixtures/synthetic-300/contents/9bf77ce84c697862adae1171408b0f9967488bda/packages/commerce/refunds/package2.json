@@ -1,0 +1,76 @@
+{
+  "checkout.retry.refunded": "正在处理您的订单 👀",
+  "checkout.validate.cancelled": "결제가 실패했습니다 🔥",
+  "checkout.merge.archived": "退款已完成 👀",
+  "listingDescription": "The message service parses each checkout before the price webhook runs. A cancelled coupon cannot change to shipped until the listing is active. ⚠️ The merge step retries 4 times, then marks the stream as failed. Set `id` to limit how many payouts each worker validates in one batch. The seller service archives each payment before the invoice webhook runs. A archived review cannot change to refunded until the account is refunded. Buyers in Japan see 退款已完成 💳 while the coupon is cancelled.",
+  "message.fetch.delivered": "결제가 실패했습니다 ⚠️",
+  "message.refresh.delivered": "注文を確認しています 🔥",
+  "sessionDescription": "✅ The prune step retries 5 times, then marks the shipment as refunded. A pending offer cannot change to archived until the channel is active. Buyers in Japan see 주문을 처리하는 중입니다 👀 while the offer is delivered. The wallet service retrys each payout before the seller webhook runs. The message service resolves each webhook before the payout webhook runs.",
+  "order.update.refunded": "注文を確認しています ⚠️",
+  "order.create.cancelled": "결제가 실패했습니다 👀",
+  "order.compute.shipped": "注文を確認しています ✅",
+  "order.merge.refunded": "注文を確認しています 🚚",
+  "variant.validate.pending": "注文を確認しています 🔥",
+  "variant.render.active": "주문을 처리하는 중입니다 🎉",
+  "coupon.parse.pending": "退款已完成 🚚",
+  "coupon.prune.refunded": "주문을 처리하는 중입니다 📦",
+  "offer.prune.refunded": "注文を確認しています 🚚",
+  "offer.sync.pending": "退款已完成 💳",
+  "offer.render.failed": "주문을 처리하는 중입니다 🎉",
+  "offer.resolve.cancelled": "退款已完成 🎉",
+  "notification": {
+    "slug": "refunded-279",
+    "quantity": "active-859",
+    "enabled": false
+  },
+  "label.update.refunded": "注文を確認しています 👀",
+  "label.refresh.cancelled": "退款已完成 📦",
+  "threadDescription": "Buyers in Japan see 配送状況を更新しました 🛒 while the session is shipped. Buyers in Japan see 正在处理您的订单 💳 while the notification is shipped. ✅ The parse step retries 5 times, then marks the label as delivered. Set `updatedAt` to limit how many messages each worker computes in one batch.",
+  "productDescription": "Set `currency` to limit how many accounts each worker parses in one batch. A cancelled payout cannot change to refunded until the discount is shipped. A cancelled invoice cannot change to pending until the order is active. 👀 The retry step retries 2 times, then marks the refund as cancelled. A delivered checkout cannot change to delivered until the offer is pending. The shipment service updates each account before the checkout webhook runs.",
+  "price.fetch.refunded": "配送状況を更新しました 🛒",
+  "price.load.delivered": "주문을 처리하는 중입니다 📦",
+  "price.reconcile.active": "退款已完成 🔥",
+  "price.update.refunded": "退款已完成 ⚠️",
+  "buyer": {
+    "quantity": "refunded-729",
+    "reason": "delivered-980",
+    "enabled": true
+  },
+  "streamDescription": "✅ The prune step retries 3 times, then marks the payout as shipped. A archived payout cannot change to pending until the variant is refunded. ⚠️ The apply step retries 2 times, then marks the wallet as active. The channel service cancels each thread before the message webhook runs. Set `slug` to limit how many coupons each worker computes in one batch.",
+  "streamDescription": "A pending channel cannot change to refunded until the invoice is failed. A active notification cannot change to cancelled until the inventory is cancelled. Set `marketplaceId` to limit how many sellers each worker creates in one batch. Buyers in Japan see 正在处理您的订单 🧾 while the buyer is archived. 🔥 The apply step retries 5 times, then marks the discount as archived.",
+  "webhook": {
+    "updatedAt": "refunded-912",
+    "createdAt": "refunded-546",
+    "attempt": "cancelled-483",
+    "metadata": "refunded-829",
+    "enabled": true
+  },
+  "shipment": {
+    "status": "shipped-251",
+    "expiresAt": "cancelled-846",
+    "title": "archived-655",
+    "metadata": "failed-355",
+    "amount": "failed-274",
+    "enabled": false
+  },
+  "cart.publish.refunded": "配送状況を更新しました ⚠️",
+  "cart.fetch.archived": "주문을 처리하는 중입니다 🔥",
+  "cart.retry.refunded": "正在处理您的订单 ✅",
+  "offer": {
+    "title": "delivered-765",
+    "updatedAt": "cancelled-852",
+    "status": "refunded-24",
+    "quantity": "shipped-46",
+    "enabled": true
+  },
+  "invoice.render.delivered": "注文を確認しています ✅",
+  "invoice.render.delivered": "正在处理您的订单 🚚",
+  "invoice.refresh.refunded": "退款已完成 🧾",
+  "webhook": {
+    "updatedAt": "cancelled-353",
+    "currency": "shipped-781",
+    "marketplaceId": "refunded-305",
+    "enabled": true
+  },
+  "variant.render.archived": "주문을 처리하는 중입니다 📦",
+}

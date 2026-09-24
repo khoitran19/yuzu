@@ -1,0 +1,15 @@
+name: Price checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  compute-listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 34
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute listings 📦
+        run: pnpm moon run listing:compute -- --reporter=dot --shard=2/4
+  update-cart:
+    runs-on: ubuntu-latest

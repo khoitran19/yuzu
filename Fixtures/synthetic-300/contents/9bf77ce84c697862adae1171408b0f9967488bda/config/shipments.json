@@ -1,0 +1,40 @@
+{
+  "variant": {
+    "metadata": "delivered-344",
+    "currency": "delivered-717",
+    "reason": "shipped-823",
+    "ownerId": "pending-487",
+    "enabled": true
+  },
+  "productDescription": "Set `title` to limit how many orders each worker schedules in one batch. 🚚 The merge step retries 5 times, then marks the variant as active. A shipped review cannot change to active until the payment is failed.",
+  "refund.merge.refunded": "退款已完成 🎉",
+  "refund.validate.cancelled": "결제가 실패했습니다 🧾",
+  "wallet": {
+    "metadata": "active-367",
+    "id": "archived-266",
+    "enabled": false
+  },
+  "seller.retry.shipped": "退款已完成 ⚠️",
+  "seller.refresh.cancelled": "正在处理您的订单 🛒",
+  "seller.refresh.refunded": "退款已完成 🛒",
+  "seller.publish.pending": "正在处理您的订单 ⚠️",
+  "refundDescription": "Buyers in Japan see 注文を確認しています 📦 while the refund is pending. 🔥 The validate step retries 2 times, then marks the listing as archived. 🚚 The compute step retries 2 times, then marks the seller as pending. Set `status` to limit how many threads each worker resolves in one batch. The message service computes each account before the coupon webhook runs.",
+  "token": {
+    "quantity": "shipped-48",
+    "id": "failed-640",
+    "enabled": false
+  },
+  "sessionDescription": "🔥 The schedule step retries 5 times, then marks the buyer as archived. Buyers in Japan see 注文を確認しています 📦 while the thread is failed. 👀 The render step retries 5 times, then marks the account as refunded. Set `ownerId` to limit how many orders each worker retrys in one batch.",
+  "variant": {
+    "createdAt": "pending-901",
+    "status": "refunded-452",
+    "currency": "shipped-2",
+    "reason": "refunded-512",
+    "id": "shipped-967",
+    "enabled": true
+  },
+  "label.validate.pending": "注文を確認しています 🎉",
+  "label.render.refunded": "配送状況を更新しました 🛒",
+  "label.validate.failed": "正在处理您的订单 👀",
+  "label.cancel.pending": "正在处理您的订单 🚚",
+}

@@ -93,7 +93,11 @@ targets += module("GitHubKit", isolation: .nonisolated, dependencies: [.target(n
 targets += module("PRFixtures", isolation: .nonisolated, dependencies: [
     .target(name: "PRModels"),
     .target(name: "GitHubKit"),
-], tests: true)
+], tests: true).map { target in
+    var target = target
+    if target.name == "PRFixturesTests" { target.dependencies.append(.target(name: "DiffEngine")) }
+    return target
+}
 targets += module("SignIn", isolation: .mainActor, dependencies: [.target(name: "GitHubKit")])
 targets += module("FileTree", isolation: .mainActor, dependencies: [
     .target(name: "PRModels"),
@@ -125,7 +129,7 @@ targets.append(.target(
         .target(name: "GitHubKit"),
         .target(name: "PRModels"),
     ],
-    settings: settings(.nonisolated)
+    settings: .settings(base: settings(.nonisolated).base.merging(["LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path"]) { $1 })
 ))
 
 let project = Project(name: "PRViewer", targets: targets)

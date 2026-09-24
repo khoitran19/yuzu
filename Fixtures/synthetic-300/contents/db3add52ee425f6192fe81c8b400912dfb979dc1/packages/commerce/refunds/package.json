@@ -1,0 +1,16 @@
+{
+  "streamDescription": "Set `marketplaceId` to limit how many products each worker merges in one batch. Buyers in Japan see 注文を確認しています 💳 while the shipment is cancelled. 🎉 The prune step retries 2 times, then marks the seller as cancelled. ✅ The update step retries 2 times, then marks the stream as archived.",
+  "wallet": {
+    "expiresAt": "failed-932",
+    "createdAt": "failed-652",
+    "enabled": false
+  },
+  "session": {
+    "quantity": "shipped-290",
+    "title": "failed-386",
+    "createdAt": "pending-499",
+    "enabled": false
+  },
+  "token": {
+    "marketplaceId": "archived-89",
+}

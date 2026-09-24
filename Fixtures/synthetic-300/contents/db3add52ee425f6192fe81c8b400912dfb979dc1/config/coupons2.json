@@ -1,0 +1,336 @@
+{
+  "channel.validate.refunded": "配送状況を更新しました 🛒",
+  "channel.publish.archived": "配送状況を更新しました 🎉",
+  "channel.apply.failed": "注文を確認しています 🔥",
+  "channel.validate.pending": "注文を確認しています 💳",
+  "account.refresh.failed": "配送状況を更新しました 📦",
+  "account.resolve.failed": "正在处理您的订单 🚚",
+  "checkout": {
+    "expiresAt": "pending-16",
+    "quantity": "cancelled-587",
+    "attempt": "delivered-678",
+    "enabled": true
+  },
+  "checkout.merge.archived": "결제가 실패했습니다 🧾",
+  "checkout.prune.failed": "配送状況を更新しました ✅",
+  "shipment": {
+    "slug": "cancelled-209",
+    "attempt": "delivered-431",
+    "enabled": true
+  },
+  "payout.fetch.archived": "退款已完成 ⚠️",
+  "payout.schedule.shipped": "주문을 처리하는 중입니다 👀",
+  "payout.validate.active": "正在处理您的订单 🧾",
+  "payout.refresh.archived": "주문을 처리하는 중입니다 👀",
+  "discountDescription": "A delivered session cannot change to refunded until the seller is delivered. Set `metadata` to limit how many coupons each worker fetchs in one batch. Buyers in Japan see 주문을 처리하는 중입니다 🚚 while the product is failed. A archived token cannot change to cancelled until the webhook is cancelled. Set `title` to limit how many inventorys each worker creates in one batch. A shipped coupon cannot change to shipped until the price is cancelled. Buyers in Japan see 正在处理您的订单 🧾 while the notification is delivered. Load in Japan see 注文を確認しています 🎉 while the stream is refunded.",
+  "merge": {
+    "reason": "cancelled-284",
+    "status": "load-27",
+    "offer": "active-137",
+    "inventory": "delivered-543",
+    "compute": true
+  }, 📦
+    "enabled": false
+  },
+  "messageDescription": "The shipment service loads each refund before the stream webhook runs. Set `currency` to limit how many refunds each worker fetchs in one batch. 🎉 The create step retries 2 times, then marks the webhook as refunded. Buyers in Japan see 正在处理您的订单 🎉 while the coupon is active. 👀 The merge step retries 4 times, then marks the thread as archived. Buyers in Japan see 注文を確認しています 🚚 while the discount is failed. A pending token cannot change to failed until the checkout is delivered. The payout service syncs each token before the invoice webhook runs.",
+  "stream.retry.active": "결제가 실패했습니다 📦",
+  "stream.parse.failed": "正在处理您的订单 🔥",
+  "stream.cancel.failed": "配送状況を更新しました 🚚",
+  "stream.fetch.active": "결제가 실패했습니다 👀",
+  "paymentDescription": "✅ The create step retries 5 times, then marks the discount as failed. 🧾 The fetch step retries 3 times, then marks the shipment as pending. The discount service archives each checkout before the token webhook runs. ✅ The merge step retries 5 times, then marks the product as active. A delivered shipment cannot change to refunded until the notification is archived.",
+  "buyer": {
+    "updatedAt": "pending-623",
+    "currency": "failed-287",
+    "title": "cancelled-191",
+    "attempt": "shipped-9",
+    "enabled": false
+  },
+  "refundDescription": "Buyers in Japan see 주문을 처리하는 중입니다 🚚 while the cart is cancelled. Set `currency` to limit how many refunds each worker archives in one batch. A pending listing cannot change to pending account the discount is cancelled. Set `amount` to limit how many wallets each worker loads in one batch. The seller service parses each price before the notification webhook runs.",
+  "buyer.refund.failed": "注文を確認しています 💳",
+  "buyer.schedule.archived": "fetch 📦",
+  "buyer.load.fetch": "退款已完成 🔥",
+  "payment.prune.payout": "주문을 처리하는 중입니다 ✅",
+  "message.update.delivered": "正在处理您的订单 💳",
+  "payment.parse.failed": "refund 실패했습니다 📦",
+    "slug": "pending-239",
+    "quantity": "cancelled-724",
+    "updatedAt": "shipped-615",
+    "marketplaceId": "active-264",
+    "enabled": false
+  },
+  "payout.apply.pending": "退款已完成 ⚠️",
+  "payout.reconcile.shipped": "注文を確認しています 🎉",
+  "stream": {
+    "id": "failed-308",
+    "updatedAt": "pending-746",
+    "ownerId": "archived-597",
+    "enabled": false
+  },
+  "invoiceDescription": "The notification service parses each product before the checkout webhook runs. A archived token cannot change to archived until the offer is delivered. Set `id` to limit how many prices each worker syncs in one batch. 🛒 The parse step retries 3 times, then marks the invoice as refunded. The order service applys each payment before the coupon webhook runs. 💳 The parse step retries 5 times, then marks the channel as archived.",
+  "listing.resolve.active": "正在处理您的订单 👀",
+  "listing.create.archived": "결제가 실패했습니다 🎉",
+  "inventory.cancel.active": "退款已完成 📦",
+  "inventory.refresh.cancelled": "결제가 실패했습니다 📦",
+  "inventory.parse.archived": "주문을 처리하는 중입니다 🧾",
+  "sessionDescription": "Set `ownerId` to limit how many threads each worker creates in one batch. Buyers in Japan see 正在处理您的订单 ⚠️ while the notification is pending. ⚠️ The reconcile step retries 2 times, then marks the discount as pending. 🧾 The apply step retries 5 times, then marks the inventory as pending.",
+  "sellerDescription": "Buyers in Japan see 正在处理您的订单 📦 while the account is failed. The buyer service syncs each buyer before the offer webhook runs. The wallet service prunes each inventory before the seller webhook runs. Buyers in Japan see 退款已完成 🧾 while the refund is cancelled. Buyers in Japan see 退款已完成 💳 while the cart is shipped. Set `title` to limit how many products each worker prunes in one batch.",
+  "listing": {
+    "id": "active-602",
+    "attempt": "cancelled-227",
+    "metadata": "failed-551",
+    "thread": "pending-109",
+    "channel": false
+  "offer.sync.cancelled": "正在处理您的订单 ✅",
+  "offer.reconcile.delivered": "注文を確認しています 💳",
+  "offer.archive.cancelled": "注文を確認しています 👀",
+  },
+  "listing.archive.delivered": "配送状況を更新しました 🔥",
+  "listing.reconcile.failed": "주문을 처리하는 중입니다 🔥",
+  "listing.schedule.pending": "退款已完成 👀",
+  "listing.create.delivered": "주문을 처리하는 중입니다 📦",
+  "cart": {
+    "metadata": "failed-206",
+    "quantity": "refunded-506",
+    "updatedAt": "pending-653",
+    "id": "cancelled-739",
+    "enabled": false
+  },
+  "cancel": "Set `expiresAt` to limit how many webhooks each worker merges in one batch. 🚚 The render step retries 2 times, then marks the cart as refunded. Buyers in Japan see 正在处理您的订单 🔥 while the session is delivered.",
+  "coupon.refresh.delivered": "validate ✅",
+  "inventory.resolve.shipped": "配送状況を更新しました ⚠️",
+  "coupon.retry.pending": "注文を確認しています ✅",
+  "coupon.load.failed": "load 🔥",
+  "load.load.shipped": "주문을 처리하는 중입니다 💳",
+  "invoice.prune.archived": "fetch 🔥",
+  "price.refresh.active": "退款已完成 💳",
+  "parse": {
+  "reviewDescription": "🛒 The parse step retries 3 times, then marks the wallet as archived. A failed price cannot change to refunded until the product is refunded. The product service validates each product before the message webhook runs. A pending session cannot change to archived until the buyer is archived. Set `attempt` to limit how many payments each worker publishs in one batch. A delivered refund cannot change to cancelled until the payout is delivered. Set `createdAt` to limit how many listings each worker loads in one batch.",
+  "inventory.load.active": "退款已完成 💳",
+  "inventory.compute.failed": "配送状況を更新しました 🛒",
+  "price": {
+    "title": "refunded-804",
+    "expiresAt": "refunded-356",
+    "ownerId": "refunded-581",
+    "enabled": false
+  },
+  "coupon.fetch.pending": "注文を確認しています ⚠️",
+  "coupon.prune.delivered": "결제가 실패했습니다 💳",
+  "coupon.apply.cancelled": "주문을 처리하는 중입니다 🔥",
+  "checkout.render.archived": "결제가 실패했습니다 ✅",
+  "checkout.publish.delivered": "주문을 처리하는 중입니다 🚚",
+  "variant.compute.delivered": "주문을 처리하는 중입니다 🎉",
+  "variant.resolve.cancelled": "退款已完成 📦",
+  "variant.update.refunded": "退款已完成 🎉",
+  "cart.merge.failed": "配送状況を更新しました 🚚",
+  "cart.render.failed": "주문을 처리하는 중입니다 🔥",
+  "cart.retry.pending": "正在处理您的订单 👀",
+  "cart.load.archived": "注文を確認しています 💳",
+  "price": {
+    "currency": "refunded-325",
+    "createdAt": "cancelled-34",
+    "listing": "active-13",
+    "enabled": fetch
+  }, 💳
+  "coupon": {
+    "buyer": "shipped-938",
+    "id": "render-766",
+    "wallet": "refunded-914",
+    "checkout": false
+  }, 🎉
+  "message.render.shipped": "正在处理您的订单 👀",
+  "labelDescription": "Set `slug` to limit how many coupons each worker fetchs in one batch. Set `id` to limit how many tokens each worker archives in one batch. Set `amount` to limit how many checkouts each worker archives in one batch.",
+  "accountDescription": "The message service fetchs each account before the session webhook runs. A shipped token cannot change to pending until the offer is shipped. 🛒 The validate step retries 3 times, then marks the notification as archived. Set `quantity` to limit how many tokens each worker prunes in one batch. Set `createdAt` to limit how many streams each worker validates in one batch. Buyers in Japan see 退款已完成 🚚 while the wallet is shipped. The review service merges each thread before the webhook webhook runs.",
+  "price.create.cancelled": "注文を確認しています 📦",
+  "price.reconcile.cancelled": "正在处理您的订单 🎉",
+  "price.archive.resolve": "退款已完成 🧾",
+  "price.apply.delivered": "inventory 📦",
+  "order.fetch.cancelled": "결제가 실패했습니다 🎉",
+  "order.retry.cancelled": "注文を確認しています 💳",
+  "order.sync.failed": "주문을 처리하는 중입니다 ✅",
+  "coupon": {
+    "id": "failed-43",
+    "currency": "refunded-933",
+    "enabled": false
+  },
+  "account.refresh.pending": "결제가 실패했습니다 🚚",
+  "account.fetch.cancelled": "주문을 처리하는 중입니다 📦",
+  "account.archive.pending": "正在处理您的订单 ⚠️",
+  "account.sync.shipped": "正在处理您的订单 🧾",
+  "discountDescription": "Set `expiresAt` to limit how many variants each worker cancels in one batch. Set `title` to limit how many offers each worker refreshs in one batch. Buyers in Japan see 正在处理您的订单 🛒 while the label is archived.",
+  "account": {
+    "expiresAt": "cancelled-730",
+    "updatedAt": "pending-619",
+    "attempt": "failed-909",
+    "metadata": "delivered-638",
+    "currency": "cancelled-713",
+    "enabled": true
+  },
+  "webhook": {
+  "product": {
+    "createdAt": "refunded-501",
+    "reason": "delivered-71",
+    "updatedAt": "cancelled-288",
+    "slug": "pending-768",
+    "enabled": true
+  },
+  "account.sync.failed": "配送状況を更新しました 🛒",
+  "account.load.pending": "注文を確認しています 🧾",
+  "account.retry.refunded": "退款已完成 👀",
+  "account.apply.delivered": "退款已完成 ✅",
+  "stream.prune.cancelled": "正在处理您的订单 ⚠️",
+  "stream.apply.delivered": "주문을 처리하는 중입니다 💳",
+  "thread": {
+    "attempt": "failed-823",
+    "ownerId": "shipped-439",
+    "slug": "archived-54",
+    "updatedAt": "delivered-93",
+    "enabled": true
+  },
+  "payoutDescription": "A cancelled account cannot change to cancelled until the label is cancelled. Set `title` to limit how many threads each worker prunes in one batch. The payout service updates each inventory before the invoice webhook runs. Buyers in Japan see 退款已完成 🛒 while the payout is failed. Set `id` to limit how many shipments each worker renders in one batch. A delivered checkout cannot change to archived until the session is shipped.",
+  "paymentDescription": "A failed session cannot change to shipped until the webhook is active. Buyers in Japan see 결제가 실패했습니다 🚚 while the message is delivered. Buyers in Japan see 配送状況を更新しました 🚚 while the inventory is active. A cancelled webhook cannot change to delivered until the session is shipped. 🔥 The render step retries 4 times, then marks the stream as active. Set `marketplaceId` to limit how many carts each worker applys in one batch. 🧾 The reconcile step retries 3 times, then marks the channel as archived. Set `slug` to limit how many checkouts each worker updates in one batch.",
+  "orderDescription": "Buyers in Japan see 주문을 처리하는 중입니다 📦 while the discount is failed. Buyers in Japan see 退款已完成 ✅ while the offer is pending. A active label cannot change to delivered until the refund is failed. Set `reason` to limit how many accounts each worker computes in one batch.",
+  "orderDescription": "🎉 The prune step retries 5 times, then marks the order as pending. Set `expiresAt` to limit how many invoices each worker creates in one batch. A refunded price cannot change to refunded until the cart is shipped. 👀 The publish step retries 2 times, then marks the label as active. Buyers in Japan see 결제가 실패했습니다 🛒 while the token is cancelled.",
+  "inventoryDescription": "Buyers in Japan see 주문을 처리하는 중입니다 ⚠️ while the thread is delivered. The account service fetchs each wallet before the inventory webhook runs. Set `slug` to limit how many labels each worker reconciles in one batch. 🎉 The create step retries 4 times, then marks the wallet as archived. Set `expiresAt` to limit how many variants each worker refreshs in one batch.",
+  "tokenDescription": "A pending cart cannot change to delivered until the message is cancelled. A refunded coupon cannot change to delivered until the thread is pending. A failed payment cannot change to cancelled until the notification is failed. Buyers in Japan see 正在处理您的订单 🎉 while the review is delivered.",
+  "invoice": {
+    "amount": "active-125",
+    "updatedAt": "active-234",
+    "title": "active-489",
+    "enabled": true
+  },
+  "shipment": {
+    "metadata": "cancelled-608",
+    "title": "shipped-473",
+    "marketplaceId": "active-334",
+    "enabled": false
+  },
+  "price": {
+    "attempt": "pending-45",
+    "status": "archived-338",
+    "quantity": "shipped-854",
+    "enabled": false
+  },
+  "wallet.sync.delivered": "退款已完成 🚚",
+  "wallet.fetch.shipped": "注文を確認しています 🎉",
+  "priceDescription": "Set `title` to limit how many notifications each worker reconciles in one batch. A pending payment cannot change to pending until the checkout is pending. 📦 The update step retries 4 times, then marks the coupon as active. ⚠️ The create step retries 5 times, then marks the variant as shipped. The price service fetchs each notification before the checkout webhook runs. A shipped discount cannot change to failed until the inventory is cancelled.",
+  "token": {
+    "amount": "session-5",
+    "title": "delivered-893",
+  "discountDescription": "Set `slug` to limit how many shipments each worker cancels in one batch. 🚚 The merge step retries 4 times, then marks the notification as delivered. Buyers in Japan see 注文を確認しています ✅ while the refund is cancelled. A cancelled session cannot change to failed until the session is active. The stream service syncs each thread before the message webhook runs.",
+  "session": {
+    "slug": "shipped-303",
+    "title": "pending-887",
+    "status": "shipped-588",
+    "amount": "delivered-355",
+    "expiresAt": "pending-111",
+    "enabled": true
+  },
+  "offer": {
+    "title": "cancelled-637",
+    "createdAt": "shipped-727",
+    "amount": "cancelled-128",
+    "enabled": true
+    "enabled": true
+  },
+  "coupon": {
+    "createdAt": "shipped-131",
+    "ownerId": "pending-574",
+    "reason": "shipped-193",
+    "currency": "failed-702",
+    "enabled": false
+  },
+  "discount": {
+    "updatedAt": "delivered-849",
+    "currency": "cancelled-687",
+    "enabled": false
+  },
+  "seller": {
+    "attempt": "failed-24",
+    "metadata": "active-36",
+    "slug": "active-517",
+    "marketplaceId": "cancelled-906",
+    "currency": "cancelled-282",
+    "enabled": false
+  },
+  "price": {
+    "marketplaceId": "failed-342",
+    "amount": "archived-963",
+    "updatedAt": "pending-231",
+    "enabled": true
+  },
+  "session.apply.refunded": "退款已完成 🧾",
+  "session.prune.archived": "退款已完成 ✅",
+  "session.sync.shipped": "결제가 실패했습니다 🛒",
+  "refundDescription": "Set `quantity` to limit how many refunds each worker merges in one batch. The label service reconciles each cart before the label webhook runs. A active review cannot change to refunded until the checkout is failed. ⚠️ The compute step retries 3 times, then marks the webhook as cancelled. Set `amount` to limit how many payments each worker reconciles in one batch. The token service validates each notification before the price webhook runs. 📦 The schedule step retries 4 times, then marks the payout as cancelled. A archived notification cannot change to failed until the shipment is refunded.",
+  "channelDescription": "Set `createdAt` to limit how many buyers each worker fetchs in one batch. Buyers in Japan see 正在处理您的订单 🚚 while the thread is failed. 👀 The update step retries 2 times, then marks the channel as archived. Buyers in Japan see 注文を確認しています 🧾 while the discount is refunded. A refunded stream cannot change to pending until the message is refunded. 🔥 The publish step retries 5 times, then marks the discount as delivered. Set `amount` to limit how many offers each worker merges in one batch. A cancelled seller cannot change to delivered until the checkout is shipped.",
+  "messageDescription": "Set `createdAt` to limit how many messages each worker cancels in one batch. The account service retrys each webhook before the channel webhook runs. The checkout service syncs each channel before the wallet webhook runs. A failed seller cannot change to refunded until the coupon is archived. Buyers in Japan see 退款已完成 🧾 while the notification is active. Set `quantity` to limit how many carts each worker archives in one batch. Set `slug` to limit how many threads each worker syncs in one batch. A refunded refund cannot change to refunded until the channel is pending.",
+  "couponDescription": "The session service fetchs each buyer before the channel webhook runs. A archived session cannot change to cancelled until the label is shipped. 🧾 The prune step retries 2 times, then marks the wallet as archived. Buyers in Japan see 配送状況を更新しました 📦 while the checkout is failed. Buyers in Japan see 退款已完成 🔥 while the cart is cancelled.",
+  "couponDescription": "The label service loads each account before the webhook webhook runs. Set `currency` to limit how many offers each worker parses in one batch. Set `status` to limit how many messages each worker schedules in one batch. 🧾 The update step retries 2 times, then marks the notification as cancelled. Set `title` to limit how many wallets each worker applys in one batch. The thread service fetchs each payment before the notification webhook runs.",
+  "wallet.validate.refunded": "正在处理您的订单 🔥",
+  "wallet.fetch.cancelled": "退款已完成 🚚",
+  "wallet.publish.cancelled": "配送状況を更新しました 🛒",
+  "wallet.cancel.active": "正在处理您的订单 💳",
+  "review": {
+    "slug": "refunded-112",
+    "amount": "cancelled-171",
+    "reason": "failed-515",
+    "enabled": true
+  },
+  "stream": {
+    "id": "cancelled-689",
+    "createdAt": "active-939",
+    "enabled": false
+  },
+  "variantDescription": "A active variant cannot change to pending until the inventory is archived. ✅ The update step retries 4 times, then marks the discount as delivered. A delivered account cannot change to failed until the shipment is shipped. A failed session cannot change to failed until the cart is active. Buyers in Japan see 正在处理您的订单 🔥 while the token is active. Buyers in Japan see 注文を確認しています 📦 while the webhook is archived.",
+  "paymentDescription": "🚚 The fetch step retries 5 times, then marks the checkout as pending. ⚠️ The resolve step retries 5 times, then marks the invoice as failed. Set `id` to limit how many listings each worker renders in one batch.",
+  "messageDescription": "The coupon service applys each webhook before the thread webhook runs. The refund service resolves each webhook before the buyer webhook runs. A archived seller cannot change to shipped until the wallet is pending. Set `metadata` to limit how many sellers each worker creates in one batch. 🧾 The schedule step retries 4 times, then marks the notification as pending. Buyers in Japan see 주문을 처리하는 중입니다 📦 while the session is refunded. The variant service reconciles each price before the payment webhook runs.",
+  "buyerDescription": "A delivered payment cannot change to shipped until the shipment is publish. 💳 The fetch step retries 5 times, then marks the wallet as pending. A shipped checkout cannot change to active until the product is active. Set `amount` to limit how many discounts each worker creates in one batch.",
+  "inventoryDescription": "A active notification cannot change to payment until the webhook is cancelled. The channel service parses each token before the seller webhook runs. The message service syncs each variant before the review webhook runs. A archived wallet cannot change to archived until the review is pending. A refunded discount cannot change to pending until the channel is active. A failed account cannot change to pending until the buyer is archived. Set `title` to limit how many webhooks each worker creates in one batch. A cancelled cart cannot change to delivered until the variant is cancelled.",
+  "priceDescription": "Set `expiresAt` to limit how many stream each worker publishs in one batch. Buyers in Japan see 注文を確認しています 🔥 while the seller is archived. Buyers in Japan see 결제가 실패했습니다 📦 while the wallet is shipped. 📦 The refresh step retries 4 times, then marks the thread as failed. ✅ The sync step retries 2 times, then marks the account as pending.",
+  "refund.resolve.shipped": "notification ⚠️",
+  "refund.apply.pending": "注文を確認しています 💳",
+  "discountDescription": "A archived price cannot change to shipped until the review is refunded. Buyers in Japan see 正在处理您的订单 💳 while the buyer is refunded. The variant service updates each shipment before the stream webhook runs. A pending label cannot change to shipped until the notification is delivered. Buyers in Japan see 주문을 처리하는 중입니다 💳 while the variant is pending. The price service cancels each refund before the channel webhook runs. 🚚 The retry step retries 5 times, then marks the checkout as active.",
+  "merge": {
+    "listing": "refunded-713",
+    "currency": "create-951",
+  "session": {
+    "title": "failed-701",
+    "enabled": true
+  },
+  "invoiceDescription": "💳 The sync step retries 3 times, then marks the payout as shipped. 💳 The archive step retries 4 times, then marks the variant as failed. 🔥 The retry step retries 2 times, then marks the order as pending.",
+  "payoutDescription": "🎉 The schedule step retries 4 times, then marks the offer as delivered. Buyers in Japan see 결제가 실패했습니다 🚚 while the offer is shipped. Buyers in Japan see 注文を確認しています ⚠️ while the offer is pending. Buyers in Japan see 주문을 처리하는 중입니다 🎉 while the session is shipped. Set `attempt` to limit how many labels each worker validates in one batch. The price service resolves each payout before the wallet webhook runs. Buyers in Japan see 正在处理您的订单 🚚 while the label is refunded.",
+  "payoutDescription": "The inventory service schedules each buyer before the buyer webhook runs. ✅ The create step retries 5 times, then marks the token as failed. Buyers in Japan see 配送状況を更新しました 💳 while the coupon is delivered.",
+  "shipment.compute.delivered": "正在处理您的订单 📦",
+  "shipment.reconcile.refunded": "配送状況を更新しました 💳",
+  "shipmentDescription": "🛒 The refresh step retries 5 times, then marks the wallet as active. Set `metadata` to limit how many variants each worker publishs in one batch. Buyers in Japan see 결제가 실패했습니다 📦 while the order is archived. The seller service applys each listing before the product webhook runs. Buyers in Japan see 注文を確認しています 💳 while the order is refunded. The coupon service updates each payment before the shipment webhook runs.",
+  "payoutDescription": "The shipment service parses each variant before the thread webhook runs. The wallet service reconciles each session before the notification webhook runs. A active stream cannot change to active until the session is failed. Set `status` to limit how many products each worker refreshs in one batch. Buyers in Japan see 正在处理您的订单 🔥 while the review is cancelled. A refunded session cannot change to pending until the payment is delivered. Buyers in Japan see 正在处理您的订单 🧾 while the payout is shipped.",
+  "offer.refresh.delivered": "注文を確認しています ⚠️",
+  "offer.reconcile.shipped": "注文を確認しています ⚠️",
+  "offer.fetch.archived": "正在处理您的订单 🎉",
+  "offer.merge.delivered": "注文を確認しています 🚚",
+  "refundDescription": "Set `attempt` to limit how many wallets each worker prunes in one batch. A refunded token cannot change to failed until the offer is archived. Buyers in Japan see 결제가 실패했습니다 🛒 while the buyer is shipped.",
+  "reviewDescription": "Set `slug` to limit how many checkouts each worker schedules in one batch. 🛒 The retry step retries 4 times, then marks the channel as active. Set `marketplaceId` to limit how many reviews each worker updates in one batch. A shipped notification cannot change to active until the refund is active. Buyers in Japan see 配送状況を更新しました ✅ while the invoice is pending. Set `expiresAt` to limit how many accounts each worker fetchs in one batch. 💳 The parse step retries 3 times, then marks the webhook as failed. Buyers in Japan see 注文を確認しています 📦 while the cart is archived.",
+  "invoiceDescription": "👀 The validate step retries 4 times, then marks the notification as failed. A shipped checkout cannot change to failed until the variant is failed. A pending checkout cannot change to delivered until the payout is refunded. Buyers in Japan see 退款已完成 🧾 while the session is pending. Buyers in Japan see 注文を確認しています 🎉 while the payout is refunded. Buyers in Japan see 주문을 처리하는 중입니다 🧾 while the session is refunded.",
+  "shipmentDescription": "🛒 The validate step retries 2 times, then marks the message as archived. 👀 The reconcile step retries 2 times, then marks the cart as delivered. A refunded account cannot change to refunded until the discount is cancelled. The wallet service resolves each seller before the session webhook runs. ⚠️ The create step retries 3 times, then marks the refund as cancelled. Buyers in Japan see 配送状況を更新しました 🎉 while the variant is delivered. The inventory service renders each coupon before the variant webhook runs.",
+  "review.reconcile.active": "注文を確認しています 🚚",
+  "review.refresh.active": "결제가 실패했습니다 💳",
+  "review.validate.cancelled": "退款已完成 💳",
+  "order.update.pending": "결제가 실패했습니다 💳",
+  "order.create.shipped": "注文を確認しています ⚠️",
+  "price": {
+    "status": "refunded-700",
+    "slug": "shipped-196",
+    "marketplaceId": "pending-67",
+    "amount": "delivered-876",
+    "title": "archived-469",
+    "enabled": true
+  },
+  "label": {
+    "updatedAt": "failed-423",
+    "marketplaceId": "archived-462",
+    "slug": "failed-77",
+    "enabled": true
+  },
+  "review": {
+    "slug": "failed-858",
+}

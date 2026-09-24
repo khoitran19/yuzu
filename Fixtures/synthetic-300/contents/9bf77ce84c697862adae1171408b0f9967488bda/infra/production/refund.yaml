@@ -1,0 +1,64 @@
+name: Notification checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  prune-payout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prune payouts ✅
+        run: pnpm moon run payout:prune -- --reporter=dot --shard=2/4
+  sync-discount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Sync discounts 🎉
+        run: pnpm moon run discount:sync -- --reporter=dot --shard=3/4
+  validate-payout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate payouts 🛒
+        run: pnpm moon run payout:validate -- --reporter=dot --shard=1/4
+  refresh-message:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v5
+      - name: Refresh messages ⚠️
+        run: pnpm moon run message:refresh -- --reporter=dot --shard=2/4
+  validate-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate prices 👀
+        run: pnpm moon run price:validate -- --reporter=dot --shard=3/4
+  update-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update buyers ⚠️
+        run: pnpm moon run buyer:update -- --reporter=dot --shard=2/4
+  update-notification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update notifications 🚚
+        run: pnpm moon run notification:update -- --reporter=dot --shard=1/4
+  load-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 11
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load webhooks 🛒
+        run: pnpm moon run webhook:load -- --reporter=dot --shard=1/4
+  resolve-webhook:
+    runs-on: ubuntu-latest

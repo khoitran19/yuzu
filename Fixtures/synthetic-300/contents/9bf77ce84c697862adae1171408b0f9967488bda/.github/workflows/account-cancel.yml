@@ -1,0 +1,119 @@
+name: Message checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  update-channel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update channels 🧾
+        run: pnpm moon run channel:update -- --reporter=dot --shard=3/4
+  archive-listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Archive listings 👀
+        run: pnpm moon run listing:archive -- --reporter=dot --shard=1/4
+  fetch-discount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch discounts ✅
+        run: pnpm moon run discount:fetch -- --reporter=dot --shard=2/4
+  cancel-coupon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel coupons 🚚
+        run: pnpm moon run coupon:cancel -- --reporter=dot --shard=1/4
+  reconcile-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 43
+    steps:
+      - uses: actions/checkout@v5
+      - name: Reconcile variants 🛒
+        run: pnpm moon run variant:reconcile -- --reporter=dot --shard=4/4
+  reconcile-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 41
+    steps:
+      - uses: actions/checkout@v5
+      - name: Reconcile invoices 📦
+        run: pnpm moon run invoice:reconcile -- --reporter=dot --shard=1/4
+  compute-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 33
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute reviews ⚠️
+        run: pnpm moon run review:compute -- --reporter=dot --shard=3/4
+  retry-shipment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry shipments 🚚
+        run: pnpm moon run shipment:retry -- --reporter=dot --shard=3/4
+  create-product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create products 🧾
+        run: pnpm moon run product:create -- --reporter=dot --shard=2/4
+  reconcile-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v5
+      - name: Reconcile labels ✅
+        run: pnpm moon run label:reconcile -- --reporter=dot --shard=4/4
+  cancel-product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel products 🚚
+        run: pnpm moon run product:cancel -- --reporter=dot --shard=2/4
+  cancel-wallet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel wallets 📦
+        run: pnpm moon run wallet:cancel -- --reporter=dot --shard=1/4
+  fetch-cart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 43
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch carts 🔥
+        run: pnpm moon run cart:fetch -- --reporter=dot --shard=2/4
+  validate-coupon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 29
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate coupons 🔥
+        run: pnpm moon run coupon:validate -- --reporter=dot --shard=2/4
+  update-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update variants 🧾
+        run: pnpm moon run variant:update -- --reporter=dot --shard=4/4
+  cancel-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cancel webhooks ✅
+        run: pnpm moon run webhook:cancel -- --reporter=dot --shard=1/4
+  prune-product:

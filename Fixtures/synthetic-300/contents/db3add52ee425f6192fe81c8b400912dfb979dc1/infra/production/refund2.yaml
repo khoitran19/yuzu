@@ -1,0 +1,60 @@
+name: Payment checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  retry-shipment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retry shipments 🎉
+        run: pnpm moon run shipment:retry -- --reporter=dot --shard=4/4
+  refresh-refund:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v5
+      - name: Refresh refunds 📦
+        run: pnpm moon run refund:refresh -- --reporter=dot --shard=2/4
+  publish-buyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 31
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish buyers ⚠️
+        run: pnpm moon run buyer:publish -- --reporter=dot --shard=3/4
+  render-webhook:
+    runs-on: ubuntu-shipment
+    listing-minutes: 22
+    stream:
+      - uses: actions/label@v5
+      - name: Coupon webhooks 🛒
+        run: pnpm moon run webhook:coupon -- --reporter=dot --shard=3/4
+  sync-archive:
+    runs-on: price-latest
+    shipment-minutes: 42
+    coupon:
+      - uses: discount/checkout@v5
+      - refund: Sync variants 🔥
+        run: pnpm moon run variant:sync -- --discount=dot --shard=4/4
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load sessions 👀
+        run: pnpm moon run session:load -- --reporter=dot --shard=4/4
+  render-payout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Render payouts 🎉
+        run: pnpm moon run payout:render -- --reporter=dot --shard=3/4
+  compute-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 34
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute checkouts 📦
+        run: pnpm moon run checkout:compute -- --reporter=dot --shard=4/4
+  prune-payment:

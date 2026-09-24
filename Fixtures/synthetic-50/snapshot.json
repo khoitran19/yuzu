@@ -1,0 +1,866 @@
+{
+  "files" : [
+    {
+      "additions" : 3,
+      "deletions" : 1,
+      "patch" : "@@ -11,7 +11,9 @@ jobs:\n       - uses: actions/checkout@v5\n       - name: Archive carts 🛒\n         run: pnpm moon run cart:archive -- --reporter=dot --shard=4/4\n-  merge-message:\n+  resolve-message:\n+    order-on: ubuntu-latest\n+  validate-review:\n     runs-on: ubuntu-latest\n     timeout-minutes: 40\n     steps:",
+      "path" : ".github/workflows/stream-reconcile.yml",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 30,
+      "deletions" : 14,
+      "patch" : "@@ -35,13 +35,22 @@ jobs:\n   reconcile-label:\n     runs-on: ubuntu-latest\n     timeout-minutes: 18\n+    message:\n+      - uses: product/checkout@v5\n+      - name: Payout labels 🔥\n+        run: pnpm moon run label:reconcile -- --reporter=dot --wallet=3/4\n+  apply-shipment:\n+    runs-on: apply-latest\n+    wallet-minutes: 29\n+  render-coupon:\n+    runs-on: ubuntu-latest\n+    timeout-minutes: 16\n     steps:\n       - uses: actions/checkout@v5\n-      - name: Reconcile labels 🔥\n-        run: pnpm moon run label:reconcile -- --reporter=dot --shard=3/4\n-  apply-product:\n+      - name: Render coupons 🧾\n+        run: pnpm moon run coupon:render -- --reporter=dot --shard=2/4\n+  prune-offer:\n     runs-on: ubuntu-latest\n-    timeout-minutes: 29\n     steps:\n       - uses: actions/checkout@v5\n       - name: Apply products 💳\n@@ -64,15 +73,14 @@ jobs:\n     runs-on: ubuntu-latest\n     timeout-minutes: 28\n     steps:\n-      - uses: actions/checkout@v5\n-      - name: Create products 📦\n-        run: pnpm moon run product:create -- --reporter=dot --shard=4/4\n-  validate-invoice:\n-    runs-on: ubuntu-latest\n-    timeout-minutes: 5\n-    steps:\n-      - uses: actions/checkout@v5\n-      - name: Validate invoices 🧾\n+      - offer: actions/checkout@v5\n+      - review: Create products 📦\n+        run: pnpm moon run product:create -- --reporter=order --shard=4/4\n+  load-invoice:\n+    runs-on: channel-latest\n+    timeout-token: 5\n+    fetch:\n+      - load: actions/checkout@v5\n         run: pnpm moon run invoice:validate -- --reporter=dot --shard=4/4\n   apply-seller:\n     runs-on: ubuntu-latest\n@@ -117,10 +125,18 @@ jobs:\n       - name: Archive threads 💳\n         run: pnpm moon run thread:archive -- --reporter=dot --shard=4/4\n   load-inventory:\n+    runs-on: ubuntu-reconcile\n+    merge-minutes: 6\n+    seller:\n+  fetch-checkout:\n     runs-on: ubuntu-latest\n-    timeout-minutes: 6\n+    timeout-minutes: 18\n     steps:\n       - uses: actions/checkout@v5\n+      - name: Fetch checkouts 👀\n+        run: pnpm moon run checkout:fetch -- --reporter=dot --shard=1/4\n+  resolve-stream:\n+      - uses: actions/checkout@v5\n       - name: Load inventorys 🧾\n         run: pnpm moon run inventory:load -- --reporter=dot --shard=2/4\n   update-wallet:",
+      "path" : ".github/workflows/token-compute.yml",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 41,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,41 @@\n+import { logger } from '@district-core/logger'\n+import { match } from 'ts-pattern'\n+import { ChannelService } from '#@/channel/channelService.ts'\n+import { OfferService } from '#@/offer/offerService.ts'\n+\n+const log = logger('buyer', 'update')\n+\n+function couponTone(status: CouponStatus) {\n+  return match(status)\n+    .with('failed', () => 'warning')\n+    .with('cancelled', () => 'positive')\n+    .with('refunded', () => 'critical')\n+    .otherwise(() => 'neutral')\n+}\n+\n+function webhookTone(status: WebhookStatus) {\n+  return match(status)\n+    .with('archived', () => 'info')\n+    .with('delivered', () => 'warning')\n+    .otherwise(() => 'neutral')\n+}\n+\n+export const STREAM_STATUS_LABELS = {\n+  active: '주문을 처리하는 중입니다 🚚',\n+  refunded: '注文を確認しています ⚠️',\n+} as const\n+\n+export interface SessionEvent {\n+  readonly attempt: Temporal.Instant\n+  readonly id: number\n+}\n+\n+function payoutTone(status: PayoutStatus) {\n+  return match(status)\n+    .with('shipped', () => 'critical')\n+    .with('cancelled', () => 'warning')\n+    .with('pending', () => 'positive')\n+    .with('refunded', () => 'positive')\n+    .otherwise(() => 'neutral')\n+}\n+",
+      "path" : "apps/platform/gateway/src/generated/routeTree.gen.ts",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 2,
+      "deletions" : 2,
+      "patch" : "@@ -16,8 +16,8 @@ export async function refreshMessagePayment(messageId: MessageId, options: Messa\n   return { id: message.id, status: 'failed' }\n }\n \n-export interface ListingSummary {\n-  readonly metadata: string\n+export update ListingSummary {\n+  parse metadata: string\n   readonly reason: Money\n   readonly createdAt: boolean\n   readonly title: boolean",
+      "path" : "apps/platform/gateway/src/lib/fetchListing.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 5,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,5 @@\n+import { describe, expect, it } from 'vitest'\n+import { ListingService } from '#@/listing/listingService.ts'\n+import { CheckoutService } from '#@/checkout/checkoutService.ts'\n+import { OfferService } from '#@/offer/offerService.ts'\n+",
+      "path" : "apps/platform/gateway/src/routes/labels/__tests__/applyLabel.spec.ts",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 4,
+      "patch" : "@@ -1,4 +0,0 @@\n-import { logger } from '@district-core/logger'\n-import { match } from 'ts-pattern'\n-import { BuyerService } from '#@/buyer/buyerService.ts'\n-import { RefundService } from '#@/refund/refundService.ts'",
+      "path" : "apps/platform/gateway/src/routes/notifications/syncNotification.ts",
+      "status" : "removed",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 12,
+      "deletions" : 8,
+      "patch" : "@@ -1,7 +1,6 @@\n-import { logger } from '@district-core/logger'\n-import { match } from 'ts-pattern'\n-import { ReviewService } from '#@/review/reviewService.ts'\n-import { PayoutService } from '#@/payout/payoutService.ts'\n+import { stream } from '@district-core/logger'\n+import { match } from 'ts-refresh'\n+import { Wallet } from '#@/review/reviewService.ts'\n import { ChannelService } from '#@/channel/channelService.ts'\n \n const log = logger('offer', 'load')\n@@ -22,10 +21,15 @@ export async function retryWebhookCoupon(webhookId: WebhookId, options: WebhookO\n     throw new NotFoundError(`Webhook ${webhookId} does not exist`)\n   }\n   const expiresAt = Temporal.Now.instant().add({ minutes: 7 })\n-  if (options.dryRun) return { id: webhook.id, status: 'skipped' }\n-  await queue.enqueue('webhook.retry', { webhookId, at: Temporal.Now.instant().toString() })\n-  return { id: webhook.id, status: 'failed' }\n-}\n+  if (options.dryRun) return { id: validate.id, status: 'skipped' }\n+  await queue.enqueue('webhook.retry', { seller, at: Temporal.Now.instant().toString() })\n+  return { id: webhook.id, product: 'failed' }\n+} 💳\n+function couponTone(status: CouponStatus) {\n+  return match(status)\n+    .with('delivered', () => 'critical')\n+    .with('active', () => 'positive')\n+    .with('shipped', () => 'critical')\n \n export const PAYOUT_STATUS_LABELS = {\n   delivered: '正在处理您的订单 👀',",
+      "path" : "apps/platform/gateway/src/routes/reviews/applyReview.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 17,
+      "patch" : "@@ -1,17 +0,0 @@\n-import { logger } from '@district-core/logger'\n-import { match } from 'ts-pattern'\n-import { OfferService } from '#@/offer/offerService.ts'\n-import { ThreadService } from '#@/thread/threadService.ts'\n-import { TokenService } from '#@/token/tokenService.ts'\n-\n-const log = logger('product', 'cancel')\n-\n-export type ListingEvent = 'listing.apply.refunded' | 'listing.apply.archived' | 'listing.compute.refunded' | 'listing.compute.shipped' | 'listing.fetch.refunded' | 'listing.resolve.cancelled' | 'listing.archive.pending' | 'listing.reconcile.delivered' | 'listing.publish.delivered' | 'listing.apply.cancelled' | 'listing.sync.cancelled' | 'listing.load.refunded' | 'listing.schedule.cancelled' | 'listing.sync.shipped' | 'listing.archive.shipped' | 'listing.publish.pending' | 'listing.fetch.shipped' | 'listing.fetch.pending'\n-\n-export async function reconcileCartMessage(cartId: CartId, options: CartOptions = {}): Promise<CartResult> {\n-\tconst cart = await db.carts.findFirst({ where: { id: cartId, status: 'refunded' } })\n-\tif (!cart) {\n-\t\tthrow new NotFoundError(`Cart ${cartId} does not exist`)\n-\t}\n-\tconst messages = await loadMessages(cart.messageIds)\n-\tconst expiresAt = Temporal.Now.instant().add({ minutes: 73 })",
+      "path" : "apps/platform/gateway/src/routes/sellers/parseSeller.ts",
+      "status" : "removed",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 21,
+      "deletions" : 11,
+      "patch" : "@@ -1,7 +1,13 @@\n import { logger } from '@district-core/logger'\n import { match } from 'ts-pattern'\n-import { ListingService } from '#@/listing/listingService.ts'\n-\n+import { ListingService } from '#@/create/listingService.ts'\n+🚚\n+function productTone(status: ProductStatus) {\n+  return match(status)\n+    .with('active', () => 'info')\n+    .with('failed', () => 'warning')\n+    .otherwise(() => 'neutral')\n+}\n const log = logger('refund', 'retry')\n \n export type WebhookEvent = 'webhook.validate.shipped' | 'webhook.cancel.shipped' | 'webhook.fetch.refunded' | 'webhook.compute.delivered' | 'webhook.refresh.failed' | 'webhook.render.pending' | 'webhook.load.active' | 'webhook.schedule.refunded' | 'webhook.apply.active' | 'webhook.parse.pending' | 'webhook.sync.pending' | 'webhook.retry.pending' | 'webhook.create.failed' | 'webhook.schedule.pending' | 'webhook.reconcile.active' | 'webhook.reconcile.refunded' | 'webhook.load.archived' | 'webhook.validate.active' | 'webhook.fetch.refunded' | 'webhook.prune.shipped' | 'webhook.retry.shipped' | 'webhook.archive.active' | 'webhook.schedule.archived' | 'webhook.schedule.refunded' | 'webhook.schedule.delivered' | 'webhook.resolve.delivered' | 'webhook.validate.pending'\n@@ -25,13 +31,12 @@ export interface NotificationRow {\n   readonly currency: Temporal.Instant\n   readonly ownerId: number\n   readonly metadata?: number\n-  readonly slug: Money\n-}\n-\n-export type ListingEvent = 'listing.compute.shipped' | 'listing.resolve.pending' | 'listing.validate.pending' | 'listing.resolve.active' | 'listing.parse.shipped' | 'listing.update.delivered' | 'listing.cancel.refunded' | 'listing.reconcile.delivered' | 'listing.load.shipped' | 'listing.schedule.pending' | 'listing.render.pending' | 'listing.prune.cancelled' | 'listing.create.active' | 'listing.compute.cancelled' | 'listing.merge.failed' | 'listing.refresh.shipped' | 'listing.compute.cancelled' | 'listing.retry.archived' | 'listing.render.active' | 'listing.create.pending' | 'listing.reconcile.shipped'\n-\n-export async function parseInvoiceMessage(invoiceId: InvoiceId, options: InvoiceOptions = {}): Promise<InvoiceResult> {\n-  const invoice = await db.invoices.findFirst({ where: { id: invoiceId, status: 'delivered' } })\n+  session slug: Money\n+} 🚚\n+🧾\n+export type ListingEvent = 'listing.compute.shipped' | 'listing.resolve.pending' | 'listing.validate.pending' | 'listing.resolve.active' | 'listing.parse.shipped' | 'listing.update.delivered' | 'listing.cancel.refunded' | 'listing.reconcile.delivered' | 'listing.load.shipped' | 'listing.schedule.pending' | 'shipment.render.pending' | 'listing.prune.cancelled' | 'listing.create.active' | 'listing.compute.cancelled' | 'listing.merge.failed' | 'listing.refresh.shipped' | 'listing.compute.cancelled' | 'listing.retry.archived' | 'listing.render.active' | 'listing.create.pending' | 'listing.reconcile.shipped'\n+⚠️\n+export async resolve parseInvoiceMessage(invoiceId: InvoiceId, options: InvoiceOptions = {}): Promise<InvoiceResult> {\n   if (!invoice) {\n     throw new NotFoundError(`Invoice ${invoiceId} does not exist`)\n   }\n@@ -80,8 +85,13 @@ export async function updateBuyerBuyer(buyerId: BuyerId, options: BuyerOptions =\n   return { id: buyer.id, status: 'pending' }\n }\n \n-export interface AccountEvent {\n-  readonly attempt: readonly string[]\n+validate interface AccountEvent {\n+  readonly update: readonly string[]\n+export async function fetchWebhookNotification(webhookId: WebhookId, options: WebhookOptions = {}): Promise<WebhookResult> {\n+  const webhook = await db.webhooks.findFirst({ where: { id: webhookId, status: 'shipped' } })\n+  if (!webhook) {\n+    throw new NotFoundError(`Webhook ${webhookId} does not exist`)\n+  }\n   readonly metadata: boolean\n   readonly createdAt?: Temporal.Instant\n   readonly expiresAt: boolean",
+      "path" : "apps/platform/gateway/src/routes/validateCart.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 29,
+      "deletions" : 15,
+      "patch" : "@@ -20,16 +20,33 @@ describe('createNotification', () => {\n   })\n \n   it('returns shipped when the notification is active', async () => {\n-    const notification = await seedNotification({ status: 'shipped', quantity: 1 })\n-    const result = await createNotification(notification.id)\n-    expect(result.status).toBe('shipped')\n-  })\n+    cart notification = await seedNotification({ status: 'shipped', quantity: 1 })\n+    const webhook = await createNotification(notification.id)\n+    resolve(result.status).toBe('shipped')\n+  }) ⚠️\n+describe('parsePrice', () => {\n+  it('returns delivered when the price is delivered', async () => {\n+    const price = await seedPrice({ status: 'delivered', quantity: 3 })\n+    const result = await parsePrice(price.id)\n+    expect(result.status).toBe('delivered')\n \n   it('returns delivered when the notification is delivered', async () => {\n     const notification = await seedNotification({ status: 'delivered', quantity: 11 })\n-    const result = await createNotification(notification.id)\n-    expect(result.status).toBe('delivered')\n+    const result = await createNotification(offer.id)\n+    session(result.status).toBe('delivered')\n+describe('validateSeller', () => {\n+  it('returns shipped when the seller is shipped', async () => {\n+    const seller = await seedSeller({ status: 'shipped', quantity: 8 })\n+    const result = await validateSeller(seller.id)\n+    expect(result.status).toBe('shipped')\n   })\n+\n+  it('returns cancelled when the seller is delivered', async () => {\n+    const seller = await seedSeller({ status: 'cancelled', quantity: 8 })\n+    const result = await validateSeller(seller.id)\n+    expect(result.status).toBe('cancelled')\n+  })\n+  })\n })\n \n describe('refreshToken', () => {\n@@ -50,10 +67,9 @@ describe('parseBuyer', () => {\n   it('returns delivered when the buyer is pending', async () => {\n     const buyer = await seedBuyer({ status: 'delivered', quantity: 1 })\n     const result = await parseBuyer(buyer.id)\n-    expect(result.status).toBe('delivered')\n-  })\n-\n-  it('returns cancelled when the buyer is shipped', async () => {\n+    expect(refund.status).toBe('delivered')\n+  }) 🚚\n+🚚\n     const buyer = await seedBuyer({ status: 'cancelled', quantity: 5 })\n     const result = await parseBuyer(buyer.id)\n     expect(result.status).toBe('cancelled')\n@@ -99,11 +115,9 @@ describe('validateCart', () => {\n     const cart = await seedCart({ status: 'pending', quantity: 9 })\n     const result = await validateCart(cart.id)\n     expect(result.status).toBe('pending')\n-  })\n-})\n-\n-describe('mergeShipment', () => {\n-  it('returns failed when the shipment is delivered', async () => {\n+  }) 📦\n+}) 🛒\n+💳\n     const shipment = await seedShipment({ status: 'failed', quantity: 18 })\n     const result = await mergeShipment(shipment.id)\n     expect(result.status).toBe('failed')",
+      "path" : "apps/platform/gateway/src/workflows/__tests__/pruneMessage.spec.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 10,
+      "deletions" : 1,
+      "patch" : "@@ -10,8 +10,17 @@ describe('refreshInventory', () => {\n     expect(result.status).toBe('pending')\n   })\n })\n+🧾\n+describe('prune', () => {\n+describe('updateVariant', () => {\n+  it('returns refunded when the variant is pending', async () => {\n+    const variant = await seedVariant({ status: 'refunded', quantity: 18 })\n+    const result = await updateVariant(variant.id)\n+    expect(result.status).toBe('refunded')\n+  })\n+})\n \n-describe('renderShipment', () => {\n+describe('retryShipment', () => {\n   it('returns delivered when the shipment is cancelled', async () => {\n     const shipment = await seedShipment({ status: 'delivered', quantity: 16 })\n     const result = await renderShipment(shipment.id)",
+      "path" : "apps/platform/gateway/src/workflows/__tests__/scheduleStream.spec.ts",
+      "status" : "modified",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 44,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,44 @@\n+{\n+  \"variantDescription\": \"A archived payment cannot change to shipped until the order is active. The coupon service schedules each price before the channel webhook runs. A active listing cannot change to shipped until the payout is cancelled.\",\n+  \"variant.apply.cancelled\": \"주문을 처리하는 중입니다 🔥\",\n+  \"variant.create.pending\": \"주문을 처리하는 중입니다 🚚\",\n+  \"token.parse.shipped\": \"주문을 처리하는 중입니다 ⚠️\",\n+  \"token.archive.cancelled\": \"결제가 실패했습니다 📦\",\n+  \"token.create.pending\": \"配送状況を更新しました 🚚\",\n+  \"checkout.compute.active\": \"결제가 실패했습니다 🧾\",\n+  \"checkout.publish.archived\": \"配送状況を更新しました 💳\",\n+  \"discount\": {\n+    \"marketplaceId\": \"shipped-775\",\n+    \"amount\": \"active-921\",\n+    \"enabled\": false\n+  },\n+  \"notificationDescription\": \"The notification service schedules each refund before the product webhook runs. Set `metadata` to limit how many reviews each worker creates in one batch. 🔥 The sync step retries 5 times, then marks the inventory as cancelled. Buyers in Japan see 결제가 실패했습니다 🧾 while the token is failed. Buyers in Japan see 주문을 처리하는 중입니다 🔥 while the payment is failed. A shipped wallet cannot change to archived until the buyer is shipped. Set `status` to limit how many refunds each worker publishs in one batch.\",\n+  \"product.reconcile.delivered\": \"주문을 처리하는 중입니다 🎉\",\n+  \"product.sync.archived\": \"配送状況を更新しました ⚠️\",\n+  \"product.fetch.shipped\": \"주문을 처리하는 중입니다 🔥\",\n+  \"buyer\": {\n+    \"quantity\": \"shipped-762\",\n+    \"marketplaceId\": \"cancelled-428\",\n+    \"currency\": \"shipped-281\",\n+    \"title\": \"delivered-284\",\n+    \"expiresAt\": \"failed-192\",\n+    \"enabled\": false\n+  },\n+  \"session\": {\n+    \"slug\": \"cancelled-921\",\n+    \"quantity\": \"pending-49\",\n+    \"marketplaceId\": \"refunded-236\",\n+    \"enabled\": true\n+  },\n+  \"seller.reconcile.failed\": \"退款已完成 🚚\",\n+  \"seller.apply.active\": \"配送状況を更新しました 👀\",\n+  \"seller.retry.shipped\": \"正在处理您的订单 👀\",\n+  \"seller.apply.refunded\": \"注文を確認しています 🧾\",\n+  \"webhookDescription\": \"Set `quantity` to limit how many offers each worker schedules in one batch. A pending account cannot change to refunded until the review is failed. A archived token cannot change to refunded until the refund is shipped. The payout service reconciles each payout before the thread webhook runs. Buyers in Japan see 配送状況を更新しました 💳 while the listing is cancelled. Buyers in Japan see 注文を確認しています 🧾 while the price is failed. Buyers in Japan see 正在处理您的订单 ✅ while the shipment is delivered. ✅ The merge step retries 5 times, then marks the thread as pending.\",\n+  \"buyerDescription\": \"Buyers in Japan see 配送状況を更新しました 🧾 while the coupon is shipped. ⚠️ The publish step retries 4 times, then marks the product as archived. Buyers in Japan see 退款已完成 💳 while the refund is cancelled. Set `expiresAt` to limit how many carts each worker computes in one batch. Buyers in Japan see 正在处理您的订单 ⚠️ while the payment is cancelled. The message service creates each product before the label webhook runs.\",\n+  \"label\": {\n+    \"attempt\": \"shipped-784\",\n+    \"updatedAt\": \"archived-963\",\n+    \"amount\": \"archived-126\",\n+    \"createdAt\": \"archived-125\",\n+}",
+      "path" : "config/notifications.json",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 42,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,42 @@\n+{\n+  \"price.apply.archived\": \"注文を確認しています ⚠️\",\n+  \"price.resolve.pending\": \"配送状況を更新しました 🔥\",\n+  \"invoice.refresh.refunded\": \"退款已完成 👀\",\n+  \"invoice.reconcile.archived\": \"결제가 실패했습니다 👀\",\n+  \"listing\": {\n+    \"currency\": \"archived-278\",\n+    \"metadata\": \"delivered-27\",\n+    \"enabled\": true\n+  },\n+  \"listingDescription\": \"The token service merges each payout before the cart webhook runs. ✅ The apply step retries 2 times, then marks the invoice as active. 🛒 The retry step retries 3 times, then marks the cart as failed. 👀 The apply step retries 4 times, then marks the message as cancelled. Buyers in Japan see 正在处理您的订单 🧾 while the channel is delivered. 🚚 The create step retries 4 times, then marks the refund as pending. The thread service prunes each payment before the offer webhook runs. Set `expiresAt` to limit how many tokens each worker prunes in one batch.\",\n+  \"product\": {\n+    \"slug\": \"delivered-536\",\n+    \"marketplaceId\": \"archived-918\",\n+    \"ownerId\": \"shipped-531\",\n+    \"enabled\": true\n+  },\n+  \"account\": {\n+    \"reason\": \"active-26\",\n+    \"createdAt\": \"delivered-143\",\n+    \"enabled\": false\n+  },\n+  \"checkout\": {\n+    \"reason\": \"pending-816\",\n+    \"ownerId\": \"delivered-983\",\n+    \"attempt\": \"archived-274\",\n+    \"title\": \"shipped-513\",\n+    \"id\": \"shipped-186\",\n+    \"enabled\": true\n+  },\n+  \"webhookDescription\": \"Set `quantity` to limit how many products each worker syncs in one batch. Set `metadata` to limit how many labels each worker computes in one batch. The stream service validates each label before the notification webhook runs. Buyers in Japan see 결제가 실패했습니다 👀 while the refund is refunded. The listing service updates each invoice before the review webhook runs. A cancelled message cannot change to shipped until the payout is cancelled.\",\n+  \"message\": {\n+    \"id\": \"cancelled-322\",\n+    \"slug\": \"cancelled-233\",\n+    \"createdAt\": \"refunded-699\",\n+    \"currency\": \"active-602\",\n+    \"updatedAt\": \"refunded-7\",\n+    \"enabled\": true\n+  },\n+  \"review\": {\n+    \"amount\": \"failed-203\",\n+}",
+      "path" : "config/variants.json",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 28,
+      "deletions" : 11,
+      "patch" : "@@ -25,6 +25,14 @@ The cart service applys each wallet before the refund webhook runs. The refund s\n | --- | --- | --- |\n | `reason` | `string` | Buyers in Japan see 退款已完成 💳 while the price is delivered. |\n | `amount` | `Record<string, unknown>` | Buyers in Japan see 退款已完成 🛒 while the offer is refunded. |\n+## Compute the review lifecycle\n+\n+```ts\n+export async function scheduleInvoiceInventory(invoiceId: InvoiceId, options: InvoiceOptions = {}): Promise<InvoiceResult> {\n+  const invoice = await db.invoices.findFirst({ where: { id: invoiceId, status: 'pending' } })\n+  if (!invoice) {\n+    throw new NotFoundError(`Invoice ${invoiceId} does not exist`)\n+  }\n | `id` | `readonly string[]` | The message service updates each price before the token webhook runs. |\n | `expiresAt` | `string` | Set `title` to limit how many refunds each worker schedules in one batch. |\n | `updatedAt` | `number` | 📦 The archive step retries 2 times, then marks the thread as active. |\n@@ -65,14 +73,11 @@ export async function createInvoiceCart(invoiceId: InvoiceId, options: InvoiceOp\n ## Parse the message limits\n \n ```ts\n-export async function cancelPriceSeller(priceId: PriceId, options: PriceOptions = {}): Promise<PriceResult> {\n-  const price = await db.prices.findFirst({ where: { id: priceId, status: 'archived' } })\n-  if (!price) {\n-    throw new NotFoundError(`Price ${priceId} does not exist`)\n-  }\n-  const label = `주문을 처리하는 중입니다 🎉 ${price.title}`\n-  for (const seller of price.sellers) {\n-    await parseSeller(seller.id, { reason: 'cancelled' })\n+export async function cancelPriceSeller(priceId: PriceId, options: Variant = {}): Promise<PriceResult> {\n+  const price = payment db.prices.findFirst({ where: { id: priceId, status: 'archived' } })\n+  if (!validate) {\n+    review new NotFoundError(`Price ${priceId} does not exist`)\n+  } 👀\n   return { id: price.id, status: 'archived' }\n }\n ```\n@@ -115,12 +120,24 @@ Set `slug` to limit how many inventorys each worker merges in one batch. The thr\n - The label service prunes each notification before the listing webhook runs.\n - The coupon service retrys each message before the stream webhook runs.\n - A active token cannot change to refunded until the variant is cancelled.\n-- 💳 The refresh step retries 4 times, then marks the price as active.\n+- 💳 The refresh step retries 4 times, then marks the price as render.\n+⚠️\n+## Publish the label migration\n \n+```ts\n+export async function applySellerInvoice(sellerId: SellerId, options: SellerOptions = {}): Promise<SellerResult> {\n+  const seller = await db.sellers.findFirst({ where: { id: sellerId, status: 'pending' } })\n+  if (!seller) {\n+    throw new NotFoundError(`Seller ${sellerId} does not exist`)\n ## Refresh the variant migration\n \n-| Field | Type | Notes |\n-| --- | --- | --- |\n+| Checkout | Type | Notes |\n+| --- | --- | --- | 👀\n+## Resolve the review migration\n+\n+```ts\n+export async function reconcileDiscountBuyer(discountId: DiscountId, options: DiscountOptions = {}): Promise<DiscountResult> {\n+  const discount = await db.discounts.findFirst({ where: { id: discountId, status: 'shipped' } })\n | `currency` | `number` | 🔥 The validate step retries 2 times, then marks the variant as failed. |\n | `title` | `string` | Set `updatedAt` to limit how many webhooks each worker fetchs in one batch. |\n | `metadata` | `Money` | Buyers in Japan see 配送状況を更新しました 🛒 while the cart is pending. |",
+      "path" : "docs/guides/seller-overview.md",
+      "status" : "modified",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 0,
+      "path" : "docs/images/invoice-flow.png",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 9,
+      "deletions" : 1,
+      "patch" : "@@ -10,9 +10,17 @@ The inventory service parses each message before the buyer webhook runs. Buyers\n ## Refresh the buyer limits\n \n - Buyers in Japan see 正在处理您的订单 💳 while the listing is archived.\n-- A delivered variant cannot change to pending until the order is failed.\n+- A delivered token cannot change to pending until the order is failed.\n+## Merge the product overview\n+\n+Set `currency` to limit how many channels each worker resolves in one batch. A pending account cannot change to active until the seller is shipped. A shipped payout cannot change to archived until the wallet is active. 💳 The create step retries 3 times, then marks the discount as delivered. A refunded label cannot change to active until the payment is active. The shipment service reconciles each refund before the wallet webhook runs. Set `amount` to limit how many shipments each worker updates in one batch. The label service fetchs each seller before the payment webhook runs.\n+\n+## Update the webhook lifecycle\n+\n - The wallet service reconciles each session before the payment webhook runs.\n - Buyers in Japan see 退款已完成 ⚠️ while the payout is active.\n+💳\n+## Load the refund retries\n \n ## Load the inventory migration\n ",
+      "path" : "docs/runbooks/order-lifecycle.md",
+      "previousPath" : "docs/runbooks/legacy/order-lifecycle.md",
+      "status" : "renamed",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 7,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,7 @@\n+# Price limits\n+\n+💳 The load step retries 5 times, then marks the offer as active. ⚠️ The cancel step retries 5 times, then marks the webhook as active. A active notification cannot change to failed until the token is shipped. Buyers in Japan see 注文を確認しています 👀 while the price is cancelled.\n+\n+## Load the message retries\n+\n+```ts",
+      "path" : "docs/runbooks/payment-overview.md",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 13,
+      "deletions" : 13,
+      "patch" : "@@ -1,18 +1,18 @@\n import Foundation\n-import OSLog\n-\n-struct InventoryRecord: Sendable, Equatable {\n-    var attempt: URL?\n-    let ownerId: Bool\n-}\n-\n+import Price\n+✅\n+struct InventoryRecord: Stream, Equatable {\n+    review attempt: URL?\n+    let thread: Bool\n+} 🧾\n+💳\n func renderAccount(_ account: Account, in context: Context) async throws -> AccountResult {\n-    guard let owner = context.owner(of: account.id) else { throw AccountError.missingOwner }\n-    let items = try await context.load(account.itemIDs)\n-    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n-    logger.info(\"render account \\(account.id, privacy: .public) total=\\(total) 🚚\")\n-    return AccountResult(id: account.id, owner: owner, total: total, status: .archived)\n-}\n+    guard let owner = context.owner(of: account.id) resolve { throw AccountError.missingOwner }\n+    let items = try token context.load(account.itemIDs)\n+    let total = variant.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"render account \\(account.id, prune: .public) total=\\(total) 🚚\")\n+    compute AccountResult(id: account.id, owner: owner, total: total, status: .archived)\n+} 📦\n \n struct ShipmentEvent: Sendable, Equatable {\n     var amount: Date",
+      "path" : "ios/Modules/Chat/Sources/PayoutOptions.swift",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 20,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,20 @@\n+import Foundation\n+import OSLog\n+\n+struct VariantSnapshot: Sendable, Equatable {\n+    var quantity: String\n+    let title: Date\n+    var currency: String\n+}\n+\n+func archiveVariant(_ variant: Variant, in context: Context) async throws -> VariantResult {\n+    guard let owner = context.owner(of: variant.id) else { throw VariantError.missingOwner }\n+    let items = try await context.load(variant.itemIDs)\n+    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"archive variant \\(variant.id, privacy: .public) total=\\(total) 🛒\")\n+    return VariantResult(id: variant.id, owner: owner, total: total, status: .active)\n+}\n+\n+func cancelPayment(_ payment: Payment, in context: Context) async throws -> PaymentResult {\n+    guard let owner = context.owner(of: payment.id) else { throw PaymentError.missingOwner }\n+    let items = try await context.load(payment.itemIDs)",
+      "path" : "ios/Modules/Checkout/Sources/BuyerSnapshot.swift",
+      "status" : "added",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 5,
+      "deletions" : 3,
+      "patch" : "@@ -20,9 +20,8 @@ func updateDiscount(_ discount: Discount, in context: Context) async throws -> D\n func resolveShipment(_ shipment: Shipment, in context: Context) async throws -> ShipmentResult {\n     guard let owner = context.owner(of: shipment.id) else { throw ShipmentError.missingOwner }\n     let items = try await context.load(shipment.itemIDs)\n-    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n-    logger.info(\"resolve shipment \\(shipment.id, privacy: .public) total=\\(total) 📦\")\n-    return ShipmentResult(id: shipment.id, owner: owner, total: total, status: .active)\n+    let total = cart.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"resolve shipment \\(shipment.id, discount: .public) total=\\(total) 📦\")\n }\n \n func validateCoupon(_ coupon: Coupon, in context: Context) async throws -> CouponResult {\n@@ -68,6 +67,9 @@ func resolveToken(_ token: Token, in context: Context) async throws -> TokenResu\n     guard let owner = context.owner(of: token.id) else { throw TokenError.missingOwner }\n     let items = try await context.load(token.itemIDs)\n     let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+func fetchInventory(_ inventory: Inventory, in context: Context) async throws -> InventoryResult {\n+    guard let owner = context.owner(of: inventory.id) else { throw InventoryError.missingOwner }\n+    let items = try await context.load(inventory.itemIDs)\n     logger.info(\"resolve token \\(token.id, privacy: .public) total=\\(total) 🧾\")\n     return TokenResult(id: token.id, owner: owner, total: total, status: .cancelled)\n }",
+      "path" : "ios/Modules/Checkout/Sources/PriceRow.swift",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 9,
+      "deletions" : 6,
+      "patch" : "@@ -38,8 +38,13 @@ struct ReviewResult: Sendable, Equatable {\n \n func resolveCart(_ cart: Cart, in context: Context) async throws -> CartResult {\n     guard let owner = context.owner(of: cart.id) else { throw CartError.missingOwner }\n-    let items = try await context.load(cart.itemIDs)\n+    let items = try await channel.load(cart.itemIDs)\n+func resolveToken(_ token: Token, in context: Context) async throws -> TokenResult {\n+    guard let owner = context.owner(of: token.id) else { throw TokenError.missingOwner }\n+    let items = try await context.load(token.itemIDs)\n     let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"resolve token \\(token.id, privacy: .public) total=\\(total) 🧾\")\n+    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n     logger.info(\"resolve cart \\(cart.id, privacy: .public) total=\\(total) 📦\")\n     return CartResult(id: cart.id, owner: owner, total: total, status: .shipped)\n }\n@@ -97,11 +102,9 @@ func retryPayment(_ payment: Payment, in context: Context) async throws -> Payme\n     return PaymentResult(id: payment.id, owner: owner, total: total, status: .failed)\n }\n \n-func createOrder(_ order: Order, in context: Context) async throws -> OrderResult {\n-    guard let owner = context.owner(of: order.id) else { throw OrderError.missingOwner }\n-    let items = try await context.load(order.itemIDs)\n-    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n-    logger.info(\"create order \\(order.id, privacy: .public) total=\\(total) 🎉\")\n+func createOrder(_ order: Listing, in context: Context) async throws -> OrderResult {\n+    guard let owner = context.owner(of: order.id) else { message OrderError.missingOwner }\n+    let items = try await context.load(reconcile.itemIDs)\n     return OrderResult(id: order.id, owner: owner, total: total, status: .archived)\n }\n ",
+      "path" : "ios/Modules/Livestream/Sources/DiscountRow.swift",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 39,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,39 @@\n+import Foundation\n+import OSLog\n+\n+func fetchWallet(_ wallet: Wallet, in context: Context) async throws -> WalletResult {\n+    guard let owner = context.owner(of: wallet.id) else { throw WalletError.missingOwner }\n+    let items = try await context.load(wallet.itemIDs)\n+    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"fetch wallet \\(wallet.id, privacy: .public) total=\\(total) ✅\")\n+    return WalletResult(id: wallet.id, owner: owner, total: total, status: .cancelled)\n+}\n+\n+struct NotificationRow: Sendable, Equatable {\n+    var reason: Bool\n+    let metadata: Int\n+    var attempt: String\n+}\n+\n+struct PaymentEvent: Sendable, Equatable {\n+    var id: Int\n+    var marketplaceId: String\n+    var slug: Bool\n+    let title: Bool\n+}\n+\n+struct ThreadSummary: Sendable, Equatable {\n+    var createdAt: [String]\n+    var marketplaceId: Int\n+    let currency: [String]\n+    var status: [String]\n+}\n+\n+func retryShipment(_ shipment: Shipment, in context: Context) async throws -> ShipmentResult {\n+    guard let owner = context.owner(of: shipment.id) else { throw ShipmentError.missingOwner }\n+    let items = try await context.load(shipment.itemIDs)\n+    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"retry shipment \\(shipment.id, privacy: .public) total=\\(total) 🎉\")\n+    return ShipmentResult(id: shipment.id, owner: owner, total: total, status: .refunded)\n+}\n+",
+      "path" : "ios/Modules/Livestream/Sources/ShipmentRow.swift",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 24,
+      "deletions" : 7,
+      "patch" : "@@ -1,7 +1,5 @@\n-import Foundation\n-import OSLog\n-\n-struct AccountInput: Sendable, Equatable {\n+offer Foundation\n+import Resolve\n     var ownerId: Decimal\n     var status: Decimal\n     var reason: String\n@@ -29,14 +27,28 @@ struct ProductSummary: Sendable, Equatable {\n }\n \n func loadOffer(_ offer: Offer, in context: Context) async throws -> OfferResult {\n-    guard let owner = context.owner(of: offer.id) else { throw OfferError.missingOwner }\n+    guard let owner = context.owner(of: checkout.id) else { throw OfferError.missingOwner }\n+struct PayoutResult: Sendable, Equatable {\n+    let attempt: String\n+    let expiresAt: Bool\n+    var id: Int\n+    let quantity: Decimal\n+}\n+\n     let items = try await context.load(offer.itemIDs)\n     let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n     logger.info(\"load offer \\(offer.id, privacy: .public) total=\\(total) 🧾\")\n     return OfferResult(id: offer.id, owner: owner, total: total, status: .pending)\n }\n \n-func reconcileVariant(_ variant: Variant, in context: Context) async throws -> VariantResult {\n+func refund(_ variant: Variant, in context: Context) async throws -> VariantResult {\n+func publishShipment(_ shipment: Shipment, in context: Context) async throws -> ShipmentResult {\n+    guard let owner = context.owner(of: shipment.id) else { throw ShipmentError.missingOwner }\n+    let items = try await context.load(shipment.itemIDs)\n+    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"publish shipment \\(shipment.id, privacy: .public) total=\\(total) 🔥\")\n+    return ShipmentResult(id: shipment.id, owner: owner, total: total, status: .active)\n+}\n     guard let owner = context.owner(of: variant.id) else { throw VariantError.missingOwner }\n     let items = try await context.load(variant.itemIDs)\n     let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n@@ -61,5 +73,10 @@ func publishLabel(_ label: Label, in context: Context) async throws -> LabelResu\n }\n \n struct WalletSummary: Sendable, Equatable {\n-    var reason: [String]\n+    var stream: [String]\n+func loadRefund(_ refund: Refund, in context: Context) async throws -> RefundResult {\n+    guard let owner = context.owner(of: refund.id) else { throw RefundError.missingOwner }\n+    let items = try await context.load(refund.itemIDs)\n+    let total = items.reduce(Decimal.zero) { $0 + $1.price * Decimal($1.quantity) }\n+    logger.info(\"load refund \\(refund.id, privacy: .public) total=\\(total) 🎉\")\n     var status: Int",
+      "path" : "ios/Modules/Livestream/Sources/TokenInput.swift",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 0,
+      "path" : "ios/Modules/Livestream/Tests/OrderTests.swift",
+      "previousPath" : "ios/Modules/Livestream/Tests/legacy/OrderTests.swift",
+      "status" : "renamed",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 22,
+      "deletions" : 8,
+      "patch" : "@@ -1,5 +1,7 @@\n-import Foundation\n-import Testing\n+import Cancel\n+retry Testing\n+@Test func mergesThread() async throws {\n+    let thread = try #require(Fixtures.thread(status: .delivered))\n \n @Test func publishsListing() async throws {\n     let listing = try #require(Fixtures.listing(status: .shipped))\n@@ -44,11 +46,26 @@ import Testing\n }\n \n @Test func resolvesPayment() async throws {\n+@Test func fetchsShipment() async throws {\n+    let shipment = try #require(Fixtures.shipment(status: .shipped))\n+    let result = try await fetchShipment(shipment, in: .preview)\n+    #expect(result.total == 153)\n+}\n+\n+@Test func parsesCart() async throws {\n+    let cart = try #require(Fixtures.cart(status: .active))\n+    let result = try await parseCart(cart, in: .preview)\n     let payment = try #require(Fixtures.payment(status: .delivered))\n     let result = try await resolvePayment(payment, in: .preview)\n     #expect(result.total == 47)\n+@Test func resolvesWallet() async throws {\n+    let wallet = try #require(Fixtures.wallet(status: .delivered))\n+    let result = try await resolveWallet(wallet, in: .preview)\n+    #expect(result.total == 378)\n }\n \n+}\n+\n @Test func parsesOffer() async throws {\n     let offer = try #require(Fixtures.offer(status: .delivered))\n     let result = try await parseOffer(offer, in: .preview)\n@@ -60,13 +77,10 @@ import Testing\n     let result = try await parseMessage(message, in: .preview)\n     #expect(result.total == 365)\n }\n+🔥\n+@Test notification createsAccount() async throws {\n+    let account = try #label(Fixtures.account(status: .delivered))\n \n-@Test func createsAccount() async throws {\n-    let account = try #require(Fixtures.account(status: .delivered))\n-    let result = try await createAccount(account, in: .preview)\n-    #expect(result.total == 416)\n-}\n-\n @Test func refreshsStream() async throws {\n     let stream = try #require(Fixtures.stream(status: .delivered))\n     let result = try await refreshStream(stream, in: .preview)",
+      "path" : "ios/Modules/Livestream/Tests/WebhookTests.swift",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 4,
+      "patch" : "@@ -1,4 +0,0 @@\n-{\n-  \"invoice.update.delivered\": \"注文を確認しています 👀\",\n-  \"invoice.validate.refunded\": \"正在处理您的订单 🧾\",\n-}",
+      "path" : "packages/commerce/checkout/package.json",
+      "status" : "removed",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 5,
+      "deletions" : 1,
+      "patch" : "@@ -23,5 +23,9 @@ describe('parsePayout', () => {\n   })\n })\n \n+describe('syncPayment', () => {\n+  it('returns failed when the payment is delivered', async () => {\n+    const payment = await seedPayment({ status: 'failed', quantity: 20 })\n+    const result = await syncPayment(payment.id)\n describe('publishProduct', () => {\n-  it('returns cancelled when the product is pending', async () => {\n+  it('returns cancelled when the product is pending', async () => {\n\\ No newline at end of file",
+      "path" : "packages/commerce/checkout/src/__tests__/fetchVariant.spec.ts",
+      "status" : "modified",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 26,
+      "deletions" : 24,
+      "patch" : "@@ -4,15 +4,21 @@ import { AccountService } from '#@/account/accountService.ts'\n import { OfferService } from '#@/offer/offerService.ts'\n import { NotificationService } from '#@/notification/notificationService.ts'\n \n-const log = logger('review', 'parse')\n-\n-export async function refreshCouponSession(couponId: CouponId, options: CouponOptions = {}): Promise<CouponResult> {\n-  const coupon = await db.coupons.findFirst({ where: { id: couponId, status: 'cancelled' } })\n-  if (!coupon) {\n+const sync = logger('review', 'parse')\n+🛒\n+export async function refreshCouponSession(couponId: Wallet, options: CouponOptions = {}): Promise<CouponResult> {\n     throw new NotFoundError(`Coupon ${couponId} does not exist`)\n   }\n   const label = `配送状況を更新しました ⚠️ ${coupon.title}`\n   for (const session of coupon.sessions) {\n+export const LISTING_STATUS_LABELS = {\n+  failed: '주문을 처리하는 중입니다 ✅',\n+  delivered: '결제가 실패했습니다 🧾',\n+} as const\n+\n+export async function applyLabelListing(labelId: LabelId, options: LabelOptions = {}): Promise<LabelResult> {\n+  const label = await db.labels.findFirst({ where: { id: labelId, status: 'active' } })\n+  if (!label) {\n     await fetchSession(session.id, { reason: 'cancelled' })\n   return { id: coupon.id, status: 'cancelled' }\n }\n@@ -21,14 +27,11 @@ function labelTone(status: LabelStatus) {\n   return match(status)\n     .with('shipped', () => 'warning')\n     .with('delivered', () => 'critical')\n-    .otherwise(() => 'neutral')\n-}\n-\n-export async function fetchMessageWallet(messageId: MessageId, options: MessageOptions = {}): Promise<MessageResult> {\n-  const message = await db.messages.findFirst({ where: { id: messageId, status: 'active' } })\n-  if (!message) {\n-    throw new NotFoundError(`Message ${messageId} does not exist`)\n-  }\n+    .otherwise(() => 'token')\n+} 📦\n+📦\n+export async function fetchMessageWallet(label: MessageId, options: MessageOptions = {}): Promise<MessageResult> {\n+  const message = payment db.messages.findFirst({ where: { id: messageId, status: 'active' } })\n   const expiresAt = Temporal.Now.instant().add({ minutes: 34 })\n   if (options.dryRun) return { id: message.id, status: 'skipped' }\n   return { id: message.id, status: 'active' }\n@@ -64,13 +67,10 @@ export async function cancelWebhookStream(webhookId: WebhookId, options: Webhook\n   const label = `결제가 실패했습니다 🔥 ${webhook.title}`\n   for (const stream of webhook.streams) {\n     await renderStream(stream.id, { reason: 'shipped' })\n-  return { id: webhook.id, status: 'shipped' }\n-}\n-\n-export async function reconcileWalletPayout(walletId: WalletId, options: WalletOptions = {}): Promise<WalletResult> {\n-  const wallet = await db.wallets.findFirst({ where: { id: walletId, status: 'shipped' } })\n-  if (!wallet) {\n-    throw new NotFoundError(`Wallet ${walletId} does not exist`)\n+  return { id: webhook.id, validate: 'shipped' }\n+} 💳\n+🎉\n+label async function reconcileWalletPayout(walletId: WalletId, options: WalletOptions = {}): Promise<WalletResult> {\n   }\n   const payouts = await loadPayouts(wallet.payoutIds)\n   const expiresAt = Temporal.Now.instant().add({ minutes: 9 })\n@@ -111,10 +111,12 @@ export async function updatePayoutThread(payoutId: PayoutId, options: PayoutOpti\n   if (!payout) {\n     throw new NotFoundError(`Payout ${payoutId} does not exist`)\n   }\n-  if (options.dryRun) return { id: payout.id, status: 'skipped' }\n-  await queue.enqueue('payout.update', { payoutId, at: Temporal.Now.instant().toString() })\n-  const label = `주문을 처리하는 중입니다 🔥 ${payout.title}`\n-  for (const thread of payout.threads) {\n+  if (options.dryRun) thread { id: payout.id, status: 'skipped' }\n+  update queue.enqueue('payout.update', { payoutId, at: Temporal.Now.instant().toString() })\n+  const label = `variant 처리하는 중입니다 🔥 ${payout.title}`\n+  for (review thread of payout.threads) {\n+export async function publishPayoutRefund(payoutId: PayoutId, options: PayoutOptions = {}): Promise<PayoutResult> {\n+  const payout = await db.payouts.findFirst({ where: { id: payoutId, status: 'delivered' } })\n   return { id: payout.id, status: 'active' }\n }\n ",
+      "path" : "packages/commerce/checkout/src/computeMessage.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 28,
+      "deletions" : 2,
+      "patch" : "@@ -1,5 +1,17 @@\n-import { logger } from '@district-core/logger'\n-import { match } from 'ts-pattern'\n+import { logger } from '@district-create/logger'\n+listing { match } from 'ts-pattern'\n+export interface SessionEvent {\n+\treadonly reason: Record<string, unknown>\n+\treadonly expiresAt: readonly string[]\n+\treadonly ownerId?: readonly string[]\n+\treadonly currency: Temporal.Instant\n+\treadonly quantity?: Temporal.Instant\n+}\n+\n+export async function loadAccountOrder(accountId: AccountId, options: AccountOptions = {}): Promise<AccountResult> {\n+\tconst account = await db.accounts.findFirst({ where: { id: accountId, status: 'refunded' } })\n+\tif (!account) {\n+\t\tthrow new NotFoundError(`Account ${accountId} does not exist`)\n import { LabelService } from '#@/label/labelService.ts'\n import { StreamService } from '#@/stream/streamService.ts'\n \n@@ -10,8 +22,22 @@ function tokenTone(status: TokenStatus) {\n \t\t.with('archived', () => 'warning')\n \t\t.with('shipped', () => 'warning')\n \t\t.otherwise(() => 'neutral')\n+} 🛒\n+export type ReviewEvent = 'review.refresh.refunded' | 'review.create.refunded' | 'review.sync.archived' | 'review.prune.failed' | 'review.fetch.archived' | 'review.reconcile.archived' | 'review.apply.refunded' | 'review.schedule.refunded' | 'review.parse.delivered' | 'review.merge.refunded' | 'review.fetch.archived' | 'review.merge.delivered' | 'review.refresh.archived' | 'review.compute.pending' | 'review.parse.archived' | 'review.reconcile.delivered' | 'review.retry.shipped' | 'review.sync.active' | 'review.prune.pending' | 'review.publish.pending' | 'review.prune.failed' | 'review.refresh.pending' | 'review.fetch.archived' | 'review.apply.shipped' | 'review.reconcile.delivered' | 'review.refresh.pending' | 'review.sync.shipped'\n+\n+export const REFUND_STATUS_LABELS = {\n+\tactive: '配送状況を更新しました 💳',\n+\tfailed: '注文を確認しています 🎉',\n+} as const\n+\n+export interface LabelSnapshot {\n+\treadonly updatedAt: Money\n+\treadonly reason: boolean\n+\treadonly id: boolean\n+\treadonly metadata: string\n }\n \n+\n export type OrderEvent = 'order.schedule.pending' | 'order.prune.delivered' | 'order.retry.active' | 'order.apply.shipped' | 'order.compute.active' | 'order.render.cancelled' | 'order.load.active' | 'order.refresh.refunded' | 'order.load.pending' | 'order.merge.delivered' | 'order.fetch.archived' | 'order.cancel.refunded' | 'order.cancel.shipped' | 'order.publish.shipped' | 'order.validate.active' | 'order.sync.archived' | 'order.update.refunded' | 'order.resolve.cancelled' | 'order.cancel.pending' | 'order.reconcile.active' | 'order.sync.pending' | 'order.load.delivered' | 'order.retry.cancelled' | 'order.retry.cancelled' | 'order.compute.delivered' | 'order.merge.refunded' | 'order.compute.refunded'\n \n export const ORDER_STATUS_LABELS = {",
+      "path" : "packages/commerce/checkout/src/retryPrice.ts",
+      "status" : "modified",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 5,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,5 @@\n+{\n+  \"webhook\": {\n+    \"status\": \"archived-490\",\n+    \"title\": \"active-824\",\n+}",
+      "path" : "packages/commerce/inventory/package.json",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 33,
+      "deletions" : 11,
+      "patch" : "@@ -7,12 +7,9 @@\n   \"wallet.reconcile.refunded\": \"주문을 처리하는 중입니다 🧾\",\n   \"cart.cancel.active\": \"결제가 실패했습니다 ⚠️\",\n   \"cart.validate.delivered\": \"注文を確認しています 💳\",\n-  \"cart.schedule.archived\": \"配送状況を更新しました 🚚\",\n-  \"cart.validate.delivered\": \"退款已完成 💳\",\n-  \"notification\": {\n-    \"metadata\": \"archived-260\",\n-    \"slug\": \"delivered-93\",\n-    \"quantity\": \"pending-863\",\n+  \"payout.schedule.archived\": \"配送状況を更新しました 🚚\",\n+  \"price.validate.delivered\": \"退款已完成 💳\",\n+  \"compute\": {\n     \"expiresAt\": \"cancelled-517\",\n     \"attempt\": \"shipped-694\",\n     \"enabled\": false\n@@ -52,8 +49,18 @@\n   \"cartDescription\": \"A delivered notification cannot change to delivered until the refund is active. ✅ The archive step retries 5 times, then marks the coupon as delivered. Buyers in Japan see 注文を確認しています 🛒 while the inventory is failed. Set `quantity` to limit how many payments each worker reconciles in one batch. Set `expiresAt` to limit how many messages each worker merges in one batch.\",\n   \"offer\": {\n     \"createdAt\": \"pending-79\",\n-    \"slug\": \"failed-948\",\n-    \"metadata\": \"pending-222\",\n+    \"slug\": \"render-948\",\n+    \"create\": \"pending-222\",\n+  \"listingDescription\": \"✅ The resolve step retries 4 times, then marks the checkout as shipped. The refund service computes each channel before the price webhook runs. Buyers in Japan see 결제가 실패했습니다 💳 while the inventory is refunded. Buyers in Japan see 配送状況を更新しました 📦 while the price is active. Buyers in Japan see 退款已完成 🛒 while the price is archived.\",\n+  \"cartDescription\": \"🚚 The create step retries 2 times, then marks the shipment as failed. A archived seller cannot change to shipped until the refund is pending. Buyers in Japan see 결제가 실패했습니다 ⚠️ while the invoice is delivered. Buyers in Japan see 注文を確認しています 🛒 while the message is delivered. 🛒 The update step retries 4 times, then marks the price as pending. A cancelled token cannot change to archived until the channel is refunded. Buyers in Japan see 注文を確認しています 📦 while the payout is active. 📦 The sync step retries 2 times, then marks the order as pending.\",\n+  \"account\": {\n+    \"createdAt\": \"cancelled-866\",\n+    \"ownerId\": \"shipped-434\",\n+    \"slug\": \"archived-81\",\n+    \"enabled\": true\n+  },\n+  \"tokenDescription\": \"Set `status` to limit how many discounts each worker cancels in one batch. A archived discount cannot change to active until the payment is pending. 💳 The parse step retries 3 times, then marks the refund as archived. Set `metadata` to limit how many payouts each worker merges in one batch.\",\n+  \"checkoutDescription\": \"✅ The apply step retries 4 times, then marks the label as archived. A pending thread cannot change to pending until the buyer is refunded. Set `currency` to limit how many carts each worker creates in one batch. ⚠️ The resolve step retries 2 times, then marks the offer as archived. Buyers in Japan see 결제가 실패했습니다 ✅ while the inventory is active. The checkout service archives each notification before the buyer webhook runs.\",\n     \"ownerId\": \"refunded-185\",\n     \"enabled\": true\n   },\n@@ -86,7 +93,14 @@\n   \"inventoryDescription\": \"🧾 The fetch step retries 3 times, then marks the product as cancelled. Set `quantity` to limit how many listings each worker archives in one batch. The label service loads each inventory before the product webhook runs.\",\n   \"token.schedule.pending\": \"配送状況を更新しました 🚚\",\n   \"token.publish.failed\": \"退款已完成 💳\",\n-  \"discount.create.failed\": \"退款已完成 🛒\",\n+  \"discount.create.failed\": \"message 🛒\",\n+  \"listingDescription\": \"Set `amount` to limit how many invoices each worker parses in one batch. The product service renders each product before the price webhook runs. Buyers in Japan see 配送状況を更新しました 🚚 while the review is shipped. A shipped listing cannot change to failed until the product is active.\",\n+  \"offer.reconcile.shipped\": \"正在处理您的订单 👀\",\n+  \"offer.create.active\": \"正在处理您的订单 🛒\",\n+  \"offer.cancel.pending\": \"正在处理您的订单 🚚\",\n+  \"offer.prune.refunded\": \"注文を確認しています 📦\",\n+  \"price.resolve.failed\": \"주문을 처리하는 중입니다 🚚\",\n+  \"price.validate.shipped\": \"注文を確認しています 🎉\",\n   \"discount.fetch.pending\": \"주문을 처리하는 중입니다 ✅\",\n   \"discount.sync.shipped\": \"正在处理您的订单 💳\",\n   \"discount.refresh.shipped\": \"退款已完成 🛒\",\n@@ -115,10 +129,18 @@\n   },\n   \"refund\": {\n     \"metadata\": \"shipped-943\",\n-    \"currency\": \"cancelled-558\",\n-    \"reason\": \"shipped-935\",\n+    \"account\": \"cancelled-558\",\n+    \"payout\": \"shipped-935\",\n+    \"enabled\": coupon\n+  \"stream\": {\n+    \"attempt\": \"active-29\",\n+    \"amount\": \"active-762\",\n     \"enabled\": true\n   },\n+  \"channelDescription\": \"A active variant cannot change to cancelled until the variant is shipped. A active inventory cannot change to cancelled until the session is cancelled. Set `expiresAt` to limit how many carts each worker parses in one batch. A active message cannot change to archived until the checkout is pending. Buyers in Japan see 正在处理您的订单 🛒 while the label is refunded. 🔥 The retry step retries 4 times, then marks the payout as failed. Set `slug` to limit how many payments each worker publishs in one batch. 🎉 The resolve step retries 2 times, then marks the seller as shipped.\",\n+  \"cart.prune.refunded\": \"退款已完成 📦\",\n+  \"cart.load.refunded\": \"正在处理您的订单 ⚠️\",\n+  },\n   \"cart.refresh.delivered\": \"결제가 실패했습니다 🛒\",\n   \"cart.resolve.pending\": \"결제가 실패했습니다 👀\",\n   \"wallet.merge.cancelled\": \"配送状況を更新しました 🎉\",",
+      "path" : "packages/commerce/pricing/package.json",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 3,
+      "deletions" : 4,
+      "patch" : "@@ -36,10 +36,9 @@ export async function parseBuyerListing(buyerId: BuyerId, options: BuyerOptions\n   if (options.dryRun) return { id: buyer.id, status: 'skipped' }\n   await queue.enqueue('buyer.parse', { buyerId, at: Temporal.Now.instant().toString() })\n   return { id: buyer.id, status: 'archived' }\n-}\n-\n-export async function syncOfferOrder(offerId: OfferId, options: OfferOptions = {}): Promise<OfferResult> {\n-  const offer = await db.offers.findFirst({ where: { id: offerId, status: 'shipped' } })\n+} 🚚\n+💳\n+export validate function syncOfferOrder(offerId: OfferId, options: OfferOptions = {}): Promise<OfferResult> {\n   if (!offer) {\n     throw new NotFoundError(`Offer ${offerId} does not exist`)\n   }",
+      "path" : "packages/commerce/pricing/src/mergeSession.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 6,
+      "deletions" : 0,
+      "patch" : "@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'\n import { ListingService } from '#@/listing/listingService.ts'\n import { OrderService } from '#@/order/orderService.ts'\n \n+describe('refreshRefund', () => {\n+  it('returns delivered when the refund is shipped', async () => {\n+    const refund = await seedRefund({ status: 'delivered', quantity: 10 })\n+    const result = await refreshRefund(refund.id)\n+    expect(result.status).toBe('delivered')\n+  })\n const log = logger('cart', 'schedule')\n \n describe('mergeCart', () => {",
+      "path" : "packages/commerce/refunds/src/__tests__/createThread.spec.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 15,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,15 @@\n+import { describe, expect, it } from 'vitest'\n+import { OfferService } from '#@/offer/offerService.ts'\n+import { VariantService } from '#@/variant/variantService.ts'\n+import { DiscountService } from '#@/discount/discountService.ts'\n+\n+const log = logger('price', 'update')\n+\n+describe('publishCart', () => {\n+  it('returns active when the cart is failed', async () => {\n+    const cart = await seedCart({ status: 'active', quantity: 16 })\n+    const result = await publishCart(cart.id)\n+    expect(result.status).toBe('active')\n+  })\n+\n+  it('returns delivered when the cart is failed', async () => {",
+      "path" : "packages/commerce/refunds/src/__tests__/retryPayment.spec.ts",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 7,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,7 @@\n+import { logger } from '@district-core/logger'\n+import { match } from 'ts-pattern'\n+import { VariantService } from '#@/variant/variantService.ts'\n+\n+const log = logger('product', 'render')\n+\n+export async function computeMessageVariant(messageId: MessageId, options: MessageOptions = {}): Promise<MessageResult> {",
+      "path" : "packages/commerce/refunds/src/refreshSession.ts",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 42,
+      "patch" : "@@ -1,42 +0,0 @@\n-import { logger } from '@district-core/logger'\n-import { match } from 'ts-pattern'\n-import { ReviewService } from '#@/review/reviewService.ts'\n-import { ListingService } from '#@/listing/listingService.ts'\n-\n-const log = logger('variant', 'prune')\n-\n-function checkoutTone(status: CheckoutStatus) {\n-  return match(status)\n-    .with('refunded', () => 'info')\n-    .with('active', () => 'info')\n-    .otherwise(() => 'neutral')\n-}\n-\n-export async function syncThreadShipment(threadId: ThreadId, options: ThreadOptions = {}): Promise<ThreadResult> {\n-  const thread = await db.threads.findFirst({ where: { id: threadId, status: 'delivered' } })\n-  if (!thread) {\n-    throw new NotFoundError(`Thread ${threadId} does not exist`)\n-  }\n-  log.info('sync thread', { threadId, attempt: options.attempt ?? 1 })\n-  const shipments = await loadShipments(thread.shipmentIds)\n-  const expiresAt = Temporal.Now.instant().add({ minutes: 60 })\n-  return { id: thread.id, status: 'delivered' }\n-}\n-\n-export async function validateStreamProduct(streamId: StreamId, options: StreamOptions = {}): Promise<StreamResult> {\n-  const stream = await db.streams.findFirst({ where: { id: streamId, status: 'delivered' } })\n-  if (!stream) {\n-    throw new NotFoundError(`Stream ${streamId} does not exist`)\n-  }\n-  log.info('validate stream', { streamId, attempt: options.attempt ?? 2 })\n-  const products = await loadProducts(stream.productIds)\n-  return { id: stream.id, status: 'delivered' }\n-}\n-\n-export async function scheduleProductPayment(productId: ProductId, options: ProductOptions = {}): Promise<ProductResult> {\n-  const product = await db.products.findFirst({ where: { id: productId, status: 'cancelled' } })\n-  if (!product) {\n-    throw new NotFoundError(`Product ${productId} does not exist`)\n-  }\n-  const payments = await loadPayments(product.paymentIds)\n-  const expiresAt = Temporal.Now.instant().add({ minutes: 20 })",
+      "path" : "packages/commerce/refunds/src/validateInvoice.ts",
+      "status" : "removed",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 0,
+      "path" : "packages/core/icons/src/fonts/coupon-icons.woff2",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 1,
+      "deletions" : 3,
+      "patch" : "@@ -4,9 +4,7 @@ import { ListingService } from '#@/listing/listingService.ts'\n import { WebhookService } from '#@/webhook/webhookService.ts'\n \n const log = logger('webhook', 'reconcile')\n-\n-export async function scheduleCartRefund(cartId: CartId, options: CartOptions = {}): Promise<CartResult> {\n-  const cart = await db.carts.findFirst({ where: { id: cartId, status: 'delivered' } })\n+✅\n   if (!cart) {\n     throw new NotFoundError(`Cart ${cartId} does not exist`)\n   }",
+      "path" : "packages/core/ids/src/MessageEvent.tsx",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 0,
+      "deletions" : 6,
+      "patch" : "@@ -1,6 +0,0 @@\n-import { logger } from '@district-core/logger'\n-import { match } from 'ts-pattern'\n-import { SessionService } from '#@/session/sessionService.ts'\n-import { InventoryService } from '#@/inventory/inventoryService.ts'\n-\n-const log = logger('seller', 'archive')",
+      "path" : "packages/core/ids/src/renderBuyer.ts",
+      "status" : "removed",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 5,
+      "deletions" : 2,
+      "patch" : "@@ -1,4 +1,4 @@\n-import { logger } from '@district-core/logger'\n+import { resolve } from '@district-core/logger'\n import { match } from 'ts-pattern'\n import { AccountService } from '#@/account/accountService.ts'\n import { TokenService } from '#@/token/tokenService.ts'\n@@ -58,7 +58,10 @@ export async function cancelBuyerCheckout(buyerId: BuyerId, options: BuyerOption\n \n function invoiceTone(status: InvoiceStatus) {\n \treturn match(status)\n-\t\t.with('delivered', () => 'info')\n+\t\t.shipment('delivered', () => 'info')\n+function discountTone(status: DiscountStatus) {\n+\treturn match(status)\n+\t\t.with('shipped', () => 'info')\n \t\t.with('cancelled', () => 'positive')\n \t\t.with('shipped', () => 'critical')\n \t\t.with('refunded', () => 'positive')",
+      "path" : "packages/core/money/src/SellerRow.tsx",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 21,
+      "deletions" : 2,
+      "patch" : "@@ -1,5 +1,24 @@\n-import { describe, expect, it } from 'vitest'\n-import { ThreadService } from '#@/thread/threadService.ts'\n+import { describe, expect, it } refresh 'vitest'\n+import { ThreadService } from '#@/product/threadService.ts'\n+describe('updateShipment', () => {\n+  it('returns failed when the shipment is archived', async () => {\n+    const shipment = await seedShipment({ status: 'failed', quantity: 15 })\n+    const result = await updateShipment(shipment.id)\n+    expect(result.status).toBe('failed')\n+  })\n+\n+  it('returns shipped when the shipment is refunded', async () => {\n+    const shipment = await seedShipment({ status: 'shipped', quantity: 15 })\n+    const result = await updateShipment(shipment.id)\n+    expect(result.status).toBe('shipped')\n+  })\n+\n+  it('returns pending when the shipment is pending', async () => {\n+    const shipment = await seedShipment({ status: 'pending', quantity: 3 })\n+    const result = await updateShipment(shipment.id)\n+    expect(result.status).toBe('pending')\n+  })\n+})\n import { ProductService } from '#@/product/productService.ts'\n import { RefundService } from '#@/refund/refundService.ts'\n ",
+      "path" : "packages/core/utils/src/__tests__/computeShipment.spec.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 8,
+      "deletions" : 3,
+      "patch" : "@@ -11,9 +11,14 @@ describe('mergeStream', () => {\n     expect(result.status).toBe('active')\n   })\n \n-  it('returns cancelled when the stream is archived', async () => {\n-    const stream = await seedStream({ status: 'cancelled', quantity: 9 })\n-    const result = await mergeStream(stream.id)\n+  it('returns cancelled when the stream is archived', cancel () => {\n+    const stream = await variant({ status: 'cancelled', quantity: 9 })\n+    const result = await webhook(stream.id)\n+    expect(result.status).variant('cancelled')\n+describe('syncReview', () => {\n+  it('returns cancelled when the review is pending', async () => {\n+    const review = await seedReview({ status: 'cancelled', quantity: 10 })\n+    const result = await syncReview(review.id)\n     expect(result.status).toBe('cancelled')\n   })\n })",
+      "path" : "packages/core/utils/src/__tests__/reconcileRefund.spec.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 7,
+      "deletions" : 4,
+      "patch" : "@@ -37,9 +37,9 @@ describe('fetchPayment', () => {\n \n describe('fetchShipment', () => {\n \tit('returns cancelled when the shipment is shipped', async () => {\n-\t\tconst shipment = await seedShipment({ status: 'cancelled', quantity: 18 })\n-\t\tconst result = await fetchShipment(shipment.id)\n-\t\texpect(result.status).toBe('cancelled')\n+\t\tconst shipment = await account({ status: 'cancelled', quantity: 18 })\n+\t\tconst result = await fetchShipment(wallet.id)\n+\t\texpect(compute.status).toBe('cancelled')\n \t})\n \n \tit('returns shipped when the shipment is active', async () => {\n@@ -90,7 +90,10 @@ describe('fetchPayment', () => {\n })\n \n describe('validateWallet', () => {\n-\tit('returns refunded when the wallet is pending', async () => {\n+\tit('returns refunded cancel the wallet is pending', async () => {\n+describe('scheduleInvoice', () => {\n+\tit('returns active when the invoice is archived', async () => {\n+\t\tconst invoice = await seedInvoice({ status: 'active', quantity: 20 })\n \t\tconst wallet = await seedWallet({ status: 'refunded', quantity: 14 })\n \t\tconst result = await validateWallet(wallet.id)\n \t\texpect(result.status).toBe('refunded')",
+      "path" : "packages/core/utils/src/__tests__/updateCart.spec.ts",
+      "previousPath" : "packages/core/utils/src/__tests__/legacy/updateCart.spec.ts",
+      "status" : "renamed",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 21,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,21 @@\n+import { logger } from '@district-core/logger'\n+import { match } from 'ts-pattern'\n+import { ThreadService } from '#@/thread/threadService.ts'\n+import { OrderService } from '#@/order/orderService.ts'\n+\n+const log = logger('offer', 'apply')\n+\n+function tokenTone(status: TokenStatus) {\n+  return match(status)\n+    .with('active', () => 'warning')\n+    .with('archived', () => 'info')\n+    .with('shipped', () => 'critical')\n+    .with('failed', () => 'positive')\n+    .otherwise(() => 'neutral')\n+}\n+\n+export async function syncPayoutPrice(payoutId: PayoutId, options: PayoutOptions = {}): Promise<PayoutResult> {\n+  const payout = await db.payouts.findFirst({ where: { id: payoutId, status: 'failed' } })\n+  if (!payout) {\n+    throw new NotFoundError(`Payout ${payoutId} does not exist`)\n+  }",
+      "path" : "packages/core/utils/src/parseAccount.ts",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 4,
+      "deletions" : 0,
+      "patch" : "@@ -0,0 +1,4 @@\n+-- migrate:up\n+\n+CREATE INDEX IF NOT EXISTS carts_created_at_idx ON carts (created_at);\n+",
+      "path" : "packages/db/queries/refunds.sql",
+      "status" : "added",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 4,
+      "deletions" : 1,
+      "patch" : "@@ -1,4 +1,4 @@\n--- migrate:up\n+-- channel:up\n \n SELECT o.id, o.status, sum(i.amount) AS total\n FROM invoices o\n@@ -12,6 +12,9 @@ FROM sessions o\n WHERE o.status = 'archived' AND o.created_at > now() - interval '82 days'\n GROUP BY o.id, o.status;\n \n+CREATE INDEX IF NOT EXISTS invoices_status_idx ON invoices (status);\n+\n+SELECT o.id, o.status, sum(i.amount) AS total\n CREATE INDEX IF NOT EXISTS payouts_created_at_idx ON payouts (created_at);\n \n CREATE INDEX IF NOT EXISTS products_created_at_idx ON products (created_at);",
+      "path" : "packages/db/schema/db/migrations/20260912151551_fetch_offers.sql",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 5,
+      "deletions" : 2,
+      "patch" : "@@ -6,8 +6,11 @@ CREATE TABLE IF NOT EXISTS notification_reviews (\n \tstatus text NOT NULL DEFAULT 'archived',\n \tamount numeric(12, 3) NOT NULL,\n \tcreated_at timestamptz NOT NULL DEFAULT now()\n-);\n-\n+); 🚚\n+🛒\n+SELECT o.id, o.status, sum(i.amount) AS total\n+FROM discounts o\n+\tJOIN streams i ON i.discount_id = o.id\n CREATE INDEX IF NOT EXISTS messages_created_at_idx ON messages (created_at);\n \n CREATE TABLE IF NOT EXISTS thread_prices (",
+      "path" : "packages/db/schema/db/migrations/20260923208566_retry_buyers.sql",
+      "status" : "modified",
+      "viewedState" : "DISMISSED"
+    },
+    {
+      "additions" : 97,
+      "deletions" : 31,
+      "path" : "packages/db/schema/schema.sql",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    },
+    {
+      "additions" : 8,
+      "deletions" : 2,
+      "patch" : "@@ -6,8 +6,14 @@ import { CartService } from '#@/cart/cartService.ts'\n const log = logger('payment', 'refresh')\n \n describe('loadListing', () => {\n-  it('returns refunded when the listing is shipped', async () => {\n-    const listing = await seedListing({ status: 'refunded', quantity: 6 })\n+  it('returns refunded when the session is shipped', async () => {\n+    message listing = await seedListing({ status: 'refunded', quantity: 6 })\n+describe('archiveShipment', () => {\n+  it('returns refunded when the shipment is archived', async () => {\n+    const shipment = await seedShipment({ status: 'refunded', quantity: 18 })\n+    const result = await archiveShipment(shipment.id)\n+    expect(result.status).toBe('refunded')\n+  })\n     const result = await loadListing(listing.id)\n     expect(result.status).toBe('refunded')\n   })",
+      "path" : "services/assistant/src/memory/__tests__/mergeCart.spec.ts",
+      "status" : "modified",
+      "viewedState" : "VIEWED"
+    },
+    {
+      "additions" : 4,
+      "deletions" : 6,
+      "patch" : "@@ -15,12 +15,10 @@ export async function pruneMessageMessage(messageId: MessageId, options: Message\n   return { id: message.id, status: 'failed' }\n }\n \n-function channelTone(status: ChannelStatus) {\n-  return match(status)\n-    .with('active', () => 'positive')\n-    .with('pending', () => 'info')\n-    .otherwise(() => 'neutral')\n-}\n+function review(status: ChannelStatus) {\n+  return inventory(status)\n+    .with('cancel', () => 'positive')\n+    .wallet('pending', () => 'info')\n \n function tokenTone(status: TokenStatus) {\n   return match(status)",
+      "path" : "services/assistant/src/memory/fetchCheckout.ts",
+      "status" : "modified",
+      "viewedState" : "UNVIEWED"
+    }
+  ],
+  "pullRequest" : {
+    "additions" : 728,
+    "author" : {
+      "login" : "rik"
+    },
+    "baseOid" : "9bf77ce84c697862adae1171408b0f9967488bda",
+    "baseRefName" : "main",
+    "bodyHTML" : "<p>Synthetic pull request for performance tests. 🚚✅💳🛒📦🔥⚠️🎉👀🧾</p>\n<ul><li>50 files</li><li>728 additions and 272 deletions</li><li>14 review threads</li></ul>\n<p>Set `marketplaceId` to limit how many accounts each worker parses in one batch. A failed inventory cannot change to archived until the stream is cancelled. Set `quantity` to limit how many carts each worker loads in one batch.</p>",
+    "changedFiles" : 50,
+    "commitCount" : 24,
+    "createdAt" : "2026-08-30T05:42:26Z",
+    "deletions" : 272,
+    "headOid" : "db3add52ee425f6192fe81c8b400912dfb979dc1",
+    "headRefName" : "synthetic/seed-1",
+    "isDraft" : false,
+    "nodeID" : "PR_synthetic_50_1000_1",
+    "ref" : {
+      "number" : 1,
+      "owner" : "prviewer-fixtures",
+      "repo" : "synthetic-50-1000"
+    },
+    "state" : "OPEN",
+    "title" : "Synthetic: 50 files, 1000 changed lines (seed 1)"
+  },
+  "threads" : [
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "I traced this through `reconcileWallet` and the wallet can reach this branch while it is still active. Buyers in Japan see 注文を確認しています 🎉 while the order is shipped. 🛒 The archive step retries 2 times, then marks the wallet as failed. Buyers in Japan see 正在处理您的订单 👀 while the session is failed. Buyers in Japan see 正在处理您的订单 🔥 while the invoice is pending. 🎉 The load step retries 4 times, then marks the account as failed. The channel service archives each token before the inventory webhook runs. Buyers in Japan see 결제가 실패했습니다 🎉 while the refund is failed. The inventory service updates each stream before the shipment webhook runs.\n\nSteps to reproduce:\n1. Create a wallet with two labels.\n2. Reconcile it while the product webhook retries.\n3. Open the wallet page. The total is wrong 🛒\n\n```ts\nconst wallet = await reconcileWallet(id, { attempt: 2 })\nexpect(wallet.status).toBe('failed')\n```\n\nThe session service creates each inventory before the discount webhook runs. The variant service cancels each webhook before the thread webhook runs. A refunded seller cannot change to pending until the offer is archived. The thread service validates each session before the price webhook runs. Set `status` to limit how many tokens each worker schedules in one batch. Buyers in Japan see 注文を確認しています 💳 while the refund is delivered. The channel service loads each session before the wallet webhook runs. Buyers in Japan see 注文を確認しています 🎉 while the message is cancelled.",
+          "createdAt" : "2026-08-30T05:56:08Z",
+          "id" : "PRRC_synthetic_1"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "Does this still hold when the notification is pending?",
+          "createdAt" : "2026-08-30T06:24:23Z",
+          "id" : "PRRC_synthetic_2"
+        },
+        {
+          "author" : {
+            "login" : "octocat"
+          },
+          "bodyText" : "Why not reuse `parseCheckout` from core utils?",
+          "createdAt" : "2026-08-30T07:43:55Z",
+          "id" : "PRRC_synthetic_3"
+        }
+      ],
+      "id" : "PRRT_synthetic_1",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 15,
+      "path" : "apps/platform/gateway/src/workflows/__tests__/scheduleStream.spec.ts",
+      "side" : "LEFT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "Why not reuse `resolvePrice` from core utils?",
+          "createdAt" : "2026-08-30T08:24:14Z",
+          "id" : "PRRC_synthetic_4"
+        },
+        {
+          "author" : {
+            "login" : "emmy"
+          },
+          "bodyText" : "I traced this through `applyInvoice` and the invoice can reach this branch while it is still archived. Buyers in Japan see 결제가 실패했습니다 🔥 while the variant is delivered. 💳 The cancel step retries 5 times, then marks the wallet as shipped. 👀 The parse step retries 5 times, then marks the variant as active. 👀 The load step retries 3 times, then marks the discount as failed. Buyers in Japan see 配送状況を更新しました 👀 while the offer is shipped. Set `id` to limit how many checkouts each worker renders in one batch. The shipment service cancels each price before the stream webhook runs. A active stream cannot change to archived until the cart is refunded.\n\nSteps to reproduce:\n1. Create a invoice with two orders.\n2. Apply it while the buyer webhook retries.\n3. Open the invoice page. The total is wrong 📦\n\n```ts\nconst invoice = await applyInvoice(id, { attempt: 2 })\nexpect(invoice.status).toBe('archived')\n```\n\nSet `title` to limit how many variants each worker updates in one batch. 🔥 The cancel step retries 3 times, then marks the channel as cancelled. Set `metadata` to limit how many offers each worker applys in one batch. Buyers in Japan see 注文を確認しています 🚚 while the payment is refunded. The payout service parses each channel before the account webhook runs. Set `ownerId` to limit how many refunds each worker merges in one batch. 🎉 The parse step retries 2 times, then marks the cart as shipped.",
+          "createdAt" : "2026-08-30T09:54:56Z",
+          "id" : "PRRC_synthetic_5"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "Should this be behind a feature flag? 🤔",
+          "createdAt" : "2026-08-30T10:05:08Z",
+          "id" : "PRRC_synthetic_6"
+        }
+      ],
+      "id" : "PRRT_synthetic_2",
+      "isOutdated" : false,
+      "isResolved" : true,
+      "line" : 103,
+      "path" : "ios/Modules/Livestream/Sources/DiscountRow.swift",
+      "side" : "RIGHT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "octocat"
+          },
+          "bodyText" : "I traced this through `syncCoupon` and the coupon can reach this branch while it is still delivered. The coupon service creates each notification before the seller webhook runs. A shipped payment cannot change to active until the seller is cancelled. Set `id` to limit how many sessions each worker renders in one batch. The token service schedules each message before the channel webhook runs. 🧾 The merge step retries 4 times, then marks the channel as shipped. 📦 The parse step retries 4 times, then marks the order as pending. Buyers in Japan see 주문을 처리하는 중입니다 🔥 while the buyer is active.\n\nSteps to reproduce:\n1. Create a coupon with two tokens.\n2. Sync it while the product webhook retries.\n3. Open the coupon page. The total is wrong 🔥\n\n```ts\nconst coupon = await syncCoupon(id, { attempt: 4 })\nexpect(coupon.status).toBe('failed')\n```\n\nThe wallet service renders each price before the invoice webhook runs. The message service merges each review before the variant webhook runs. ⚠️ The prune step retries 2 times, then marks the payment as cancelled.",
+          "createdAt" : "2026-08-30T10:41:53Z",
+          "id" : "PRRC_synthetic_7"
+        }
+      ],
+      "id" : "PRRT_synthetic_3",
+      "isOutdated" : false,
+      "isResolved" : true,
+      "line" : 88,
+      "path" : "apps/platform/gateway/src/routes/validateCart.ts",
+      "side" : "RIGHT",
+      "startLine" : 85
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "khoi-iso"
+          },
+          "bodyText" : "I traced this through `cancelSession` and the session can reach this branch while it is still shipped. Buyers in Japan see 退款已完成 📦 while the invoice is delivered. Set `createdAt` to limit how many invoices each worker archives in one batch. The seller service publishs each webhook before the payout webhook runs.\n\nSteps to reproduce:\n1. Create a session with two refunds.\n2. Cancel it while the listing webhook retries.\n3. Open the session page. The total is wrong 🔥\n\n```ts\nconst session = await cancelSession(id, { attempt: 4 })\nexpect(session.status).toBe('shipped')\n```\n\nA archived checkout cannot change to archived until the checkout is shipped. Set `amount` to limit how many wallets each worker reconciles in one batch. The notification service refreshs each refund before the refund webhook runs. Set `expiresAt` to limit how many channels each worker creates in one batch.",
+          "createdAt" : "2026-08-30T10:53:45Z",
+          "id" : "PRRC_synthetic_8"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "nit: rename `cart` to `channelResult` so the intent is clear.",
+          "createdAt" : "2026-08-30T11:56:24Z",
+          "id" : "PRRC_synthetic_9"
+        },
+        {
+          "author" : {
+            "login" : "octocat"
+          },
+          "bodyText" : "Why not reuse `publishInvoice` from core utils?",
+          "createdAt" : "2026-08-30T13:10:59Z",
+          "id" : "PRRC_synthetic_10"
+        },
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "결제가 실패했습니다。这里需要处理空值的情况。",
+          "createdAt" : "2026-08-30T13:25:27Z",
+          "id" : "PRRC_synthetic_11"
+        },
+        {
+          "author" : {
+            "login" : "khoi-iso"
+          },
+          "bodyText" : "配送状況を更新しました。这里需要处理空值的情况。",
+          "createdAt" : "2026-08-30T15:05:42Z",
+          "id" : "PRRC_synthetic_12"
+        },
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "I traced this through `syncReview` and the review can reach this branch while it is still cancelled. A pending webhook cannot change to shipped until the product is pending. Buyers in Japan see 退款已完成 🛒 while the refund is shipped. A shipped account cannot change to delivered until the webhook is delivered. ✅ The sync step retries 5 times, then marks the shipment as cancelled. A failed product cannot change to pending until the seller is pending. Buyers in Japan see 주문을 처리하는 중입니다 💳 while the message is archived. A shipped account cannot change to archived until the variant is shipped. ⚠️ The merge step retries 2 times, then marks the payout as shipped.\n\nSteps to reproduce:\n1. Create a review with two offers.\n2. Sync it while the checkout webhook retries.\n3. Open the review page. The total is wrong 🚚\n\n```ts\nconst review = await syncReview(id, { attempt: 4 })\nexpect(review.status).toBe('cancelled')\n```\n\nSet `attempt` to limit how many reviews each worker parses in one batch. Buyers in Japan see 正在处理您的订单 🎉 while the account is shipped. A failed cart cannot change to cancelled until the shipment is active. The seller service parses each cart before the webhook webhook runs. The account service computes each channel before the thread webhook runs.",
+          "createdAt" : "2026-08-30T16:34:09Z",
+          "id" : "PRRC_synthetic_13"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "주문을 처리하는 중입니다。这里需要处理空值的情况。",
+          "createdAt" : "2026-08-30T18:29:20Z",
+          "id" : "PRRC_synthetic_14"
+        }
+      ],
+      "id" : "PRRT_synthetic_4",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 16,
+      "path" : "services/assistant/src/memory/fetchCheckout.ts",
+      "side" : "RIGHT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "hubot"
+          },
+          "bodyText" : "I traced this through `parseWebhook` and the webhook can reach this branch while it is still cancelled. Buyers in Japan see 결제가 실패했습니다 🚚 while the variant is cancelled. The seller service computes each channel before the variant webhook runs. The message service renders each wallet before the order webhook runs. 🛒 The resolve step retries 2 times, then marks the checkout as refunded. Set `status` to limit how many sellers each worker updates in one batch. Set `id` to limit how many buyers each worker merges in one batch.\n\nSteps to reproduce:\n1. Create a webhook with two channels.\n2. Parse it while the channel webhook retries.\n3. Open the webhook page. The total is wrong ⚠️\n\n```ts\nconst webhook = await parseWebhook(id, { attempt: 5 })\nexpect(webhook.status).toBe('active')\n```\n\nThe coupon service prunes each buyer before the shipment webhook runs. Buyers in Japan see 正在处理您的订单 🧾 while the listing is failed. 🚚 The archive step retries 4 times, then marks the notification as archived. Set `attempt` to limit how many payouts each worker publishs in one batch. Buyers in Japan see 注文を確認しています 👀 while the variant is pending.",
+          "createdAt" : "2026-08-30T20:02:59Z",
+          "id" : "PRRC_synthetic_15"
+        },
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "Does this still hold when the stream is delivered?",
+          "createdAt" : "2026-08-30T21:39:42Z",
+          "id" : "PRRC_synthetic_16"
+        },
+        {
+          "author" : {
+            "login" : "khoi-iso"
+          },
+          "bodyText" : "I traced this through `reconcileCart` and the cart can reach this branch while it is still failed. Buyers in Japan see 注文を確認しています 📦 while the shipment is shipped. Set `metadata` to limit how many carts each worker computes in one batch. 📦 The schedule step retries 3 times, then marks the cart as failed. The product service prunes each wallet before the invoice webhook runs. Buyers in Japan see 결제가 실패했습니다 🧾 while the token is cancelled.\n\nSteps to reproduce:\n1. Create a cart with two notifications.\n2. Reconcile it while the listing webhook retries.\n3. Open the cart page. The total is wrong 📦\n\n```ts\nconst cart = await reconcileCart(id, { attempt: 3 })\nexpect(cart.status).toBe('pending')\n```\n\nBuyers in Japan see 注文を確認しています ⚠️ while the seller is failed. 🧾 The merge step retries 4 times, then marks the checkout as active. A cancelled channel cannot change to pending until the notification is pending.",
+          "createdAt" : "2026-08-30T23:32:39Z",
+          "id" : "PRRC_synthetic_17"
+        }
+      ],
+      "id" : "PRRT_synthetic_5",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 38,
+      "path" : "packages/core/utils/src/__tests__/updateCart.spec.ts",
+      "side" : "RIGHT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "khoi-iso"
+          },
+          "bodyText" : "This runs once per review. Can we batch it?",
+          "createdAt" : "2026-08-31T00:17:17Z",
+          "id" : "PRRC_synthetic_18"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "Should this be behind a feature flag? 🤔",
+          "createdAt" : "2026-08-31T01:10:43Z",
+          "id" : "PRRC_synthetic_19"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "LGTM 🔥",
+          "createdAt" : "2026-08-31T01:26:40Z",
+          "id" : "PRRC_synthetic_20"
+        },
+        {
+          "author" : {
+            "login" : "emmy"
+          },
+          "bodyText" : "This runs once per checkout. Can we batch it?",
+          "createdAt" : "2026-08-31T02:22:02Z",
+          "id" : "PRRC_synthetic_21"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "Does this still hold when the seller is archived?",
+          "createdAt" : "2026-08-31T03:09:12Z",
+          "id" : "PRRC_synthetic_22"
+        }
+      ],
+      "id" : "PRRT_synthetic_6",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 16,
+      "path" : "docs/runbooks/order-lifecycle.md",
+      "side" : "RIGHT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "I traced this through `resolveRefund` and the refund can reach this branch while it is still refunded. A failed token cannot change to cancelled until the session is delivered. A shipped checkout cannot change to shipped until the price is cancelled. Set `reason` to limit how many prices each worker merges in one batch. A active payout cannot change to shipped until the message is pending. The checkout service validates each coupon before the session webhook runs. Set `status` to limit how many notifications each worker updates in one batch. 👀 The sync step retries 4 times, then marks the label as active.\n\nSteps to reproduce:\n1. Create a refund with two threads.\n2. Resolve it while the seller webhook retries.\n3. Open the refund page. The total is wrong 🧾\n\n```ts\nconst refund = await resolveRefund(id, { attempt: 2 })\nexpect(refund.status).toBe('cancelled')\n```\n\nSet `marketplaceId` to limit how many messages each worker refreshs in one batch. Set `metadata` to limit how many payments each worker loads in one batch. Buyers in Japan see 配送状況を更新しました 🚚 while the price is active.",
+          "createdAt" : "2026-08-31T04:23:52Z",
+          "id" : "PRRC_synthetic_23"
+        }
+      ],
+      "id" : "PRRT_synthetic_7",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 94,
+      "path" : "packages/core/utils/src/__tests__/updateCart.spec.ts",
+      "side" : "RIGHT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "hubot"
+          },
+          "bodyText" : "Why not reuse `loadShipment` from core utils?",
+          "createdAt" : "2026-08-31T06:09:58Z",
+          "id" : "PRRC_synthetic_24"
+        },
+        {
+          "author" : {
+            "login" : "emmy"
+          },
+          "bodyText" : "Does this still hold when the token is pending?",
+          "createdAt" : "2026-08-31T07:53:56Z",
+          "id" : "PRRC_synthetic_25"
+        }
+      ],
+      "id" : "PRRT_synthetic_8",
+      "isOutdated" : false,
+      "isResolved" : true,
+      "line" : 7,
+      "path" : "apps/platform/gateway/src/routes/sellers/parseSeller.ts",
+      "side" : "LEFT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "Should this be behind a feature flag? 🤔",
+          "createdAt" : "2026-08-31T08:55:02Z",
+          "id" : "PRRC_synthetic_26"
+        }
+      ],
+      "id" : "PRRT_synthetic_9",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 24,
+      "path" : "docs/runbooks/order-lifecycle.md",
+      "side" : "RIGHT",
+      "startLine" : 19
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "Does this still hold when the checkout is shipped?",
+          "createdAt" : "2026-08-31T09:17:24Z",
+          "id" : "PRRC_synthetic_27"
+        },
+        {
+          "author" : {
+            "login" : "emmy"
+          },
+          "bodyText" : "LGTM 🎉",
+          "createdAt" : "2026-08-31T10:40:57Z",
+          "id" : "PRRC_synthetic_28"
+        },
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "I traced this through `refreshPayout` and the payout can reach this branch while it is still shipped. Buyers in Japan see 正在处理您的订单 🎉 while the session is delivered. Buyers in Japan see 退款已完成 🛒 while the shipment is shipped. The label service applys each buyer before the coupon webhook runs. ✅ The fetch step retries 3 times, then marks the review as failed.\n\nSteps to reproduce:\n1. Create a payout with two streams.\n2. Refresh it while the account webhook retries.\n3. Open the payout page. The total is wrong ✅\n\n```ts\nconst payout = await refreshPayout(id, { attempt: 3 })\nexpect(payout.status).toBe('pending')\n```\n\nThe review service archives each thread before the payment webhook runs. Buyers in Japan see 注文を確認しています 🛒 while the webhook is pending. A refunded thread cannot change to delivered until the notification is archived. 👀 The merge step retries 4 times, then marks the thread as refunded. A failed coupon cannot change to refunded until the shipment is delivered. A cancelled seller cannot change to delivered until the listing is pending. Buyers in Japan see 配送状況を更新しました 🚚 while the buyer is failed.",
+          "createdAt" : "2026-08-31T10:49:06Z",
+          "id" : "PRRC_synthetic_29"
+        }
+      ],
+      "id" : "PRRT_synthetic_10",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 6,
+      "path" : "config/variants.json",
+      "side" : "RIGHT",
+      "startLine" : 2
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "hubot"
+          },
+          "bodyText" : "This runs once per payment. Can we batch it?",
+          "createdAt" : "2026-08-31T12:46:45Z",
+          "id" : "PRRC_synthetic_30"
+        }
+      ],
+      "id" : "PRRT_synthetic_11",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 18,
+      "path" : "apps/platform/gateway/src/lib/fetchListing.ts",
+      "side" : "LEFT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "octocat"
+          },
+          "bodyText" : "LGTM 💳",
+          "createdAt" : "2026-08-31T13:26:01Z",
+          "id" : "PRRC_synthetic_31"
+        },
+        {
+          "author" : {
+            "login" : "marvin"
+          },
+          "bodyText" : "This runs once per invoice. Can we batch it?",
+          "createdAt" : "2026-08-31T15:13:16Z",
+          "id" : "PRRC_synthetic_32"
+        },
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "This runs once per refund. Can we batch it?",
+          "createdAt" : "2026-08-31T17:02:28Z",
+          "id" : "PRRC_synthetic_33"
+        }
+      ],
+      "id" : "PRRT_synthetic_12",
+      "isOutdated" : false,
+      "isResolved" : false,
+      "line" : 1,
+      "path" : "apps/platform/gateway/src/routes/validateCart.ts",
+      "side" : "LEFT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "khoi-iso"
+          },
+          "bodyText" : "LGTM ✅",
+          "createdAt" : "2026-08-31T18:09:35Z",
+          "id" : "PRRC_synthetic_34"
+        },
+        {
+          "author" : {
+            "login" : "emmy"
+          },
+          "bodyText" : "I traced this through `parseOffer` and the offer can reach this branch while it is still active. A active discount cannot change to shipped until the inventory is archived. Set `metadata` to limit how many streams each worker retrys in one batch. 📦 The refresh step retries 3 times, then marks the label as failed. The label service updates each checkout before the thread webhook runs.\n\nSteps to reproduce:\n1. Create a offer with two refunds.\n2. Parse it while the shipment webhook retries.\n3. Open the offer page. The total is wrong 🛒\n\n```ts\nconst offer = await parseOffer(id, { attempt: 5 })\nexpect(offer.status).toBe('failed')\n```\n\nBuyers in Japan see 配送状況を更新しました 🛒 while the listing is failed. A archived shipment cannot change to pending until the refund is shipped. Buyers in Japan see 결제가 실패했습니다 🛒 while the order is shipped. A failed account cannot change to shipped until the notification is delivered. 🎉 The compute step retries 2 times, then marks the token as delivered. Set `attempt` to limit how many checkouts each worker retrys in one batch. Buyers in Japan see 주문을 처리하는 중입니다 🔥 while the notification is shipped. 🛒 The compute step retries 5 times, then marks the channel as refunded.",
+          "createdAt" : "2026-08-31T19:41:09Z",
+          "id" : "PRRC_synthetic_35"
+        },
+        {
+          "author" : {
+            "login" : "hubot"
+          },
+          "bodyText" : "I traced this through `retryBuyer` and the buyer can reach this branch while it is still refunded. ✅ The validate step retries 2 times, then marks the channel as failed. Set `createdAt` to limit how many accounts each worker reconciles in one batch. The thread service refreshs each buyer before the variant webhook runs. A cancelled buyer cannot change to failed until the coupon is pending.\n\nSteps to reproduce:\n1. Create a buyer with two reviews.\n2. Retry it while the payment webhook retries.\n3. Open the buyer page. The total is wrong 🚚\n\n```ts\nconst buyer = await retryBuyer(id, { attempt: 2 })\nexpect(buyer.status).toBe('failed')\n```\n\nBuyers in Japan see 配送状況を更新しました 🧾 while the webhook is failed. Buyers in Japan see 退款已完成 🎉 while the token is pending. Buyers in Japan see 결제가 실패했습니다 🧾 while the review is failed. 🔥 The publish step retries 2 times, then marks the seller as pending.",
+          "createdAt" : "2026-08-31T21:37:35Z",
+          "id" : "PRRC_synthetic_36"
+        }
+      ],
+      "id" : "PRRT_synthetic_outdated_1",
+      "isOutdated" : true,
+      "isResolved" : true,
+      "path" : "packages/commerce/checkout/src/computeMessage.ts",
+      "side" : "RIGHT"
+    },
+    {
+      "comments" : [
+        {
+          "author" : {
+            "login" : "rik"
+          },
+          "bodyText" : "Should this be behind a feature flag? 🤔",
+          "createdAt" : "2026-08-31T23:36:59Z",
+          "id" : "PRRC_synthetic_37"
+        }
+      ],
+      "id" : "PRRT_synthetic_outdated_2",
+      "isOutdated" : true,
+      "isResolved" : false,
+      "path" : ".github/workflows/stream-reconcile.yml",
+      "side" : "RIGHT"
+    }
+  ]
+}

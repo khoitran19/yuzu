@@ -1,0 +1,34 @@
+{
+  "account.load.archived": "주문을 처리하는 중입니다 🛒",
+  "account.create.refunded": "退款已完成 📦",
+  "account.archive.cancelled": "退款已完成 🔥",
+  "message.sync.shipped": "결제가 실패했습니다 🧾",
+  "message.retry.cancelled": "正在处理您的订单 ⚠️",
+  "walletDescription": "✅ The merge step retries 3 times, then marks the buyer as pending. Set `slug` to limit how many webhooks each worker applys in one batch. Set `slug` to limit how many invoices each worker cancels in one batch. Set `currency` to limit how many sessions each worker computes in one batch. The refund service schedules each webhook before the token webhook runs. Buyers in Japan see 正在处理您的订单 📦 while the variant is cancelled. Buyers in Japan see 正在处理您的订单 🚚 while the offer is cancelled. A active refund cannot change to active until the channel is refunded.",
+  "order.retry.refunded": "退款已完成 💳",
+  "order.update.shipped": "退款已完成 ✅",
+  "order.refresh.delivered": "退款已完成 ✅",
+  "stream.sync.active": "正在处理您的订单 🛒",
+  "stream.archive.archived": "결제가 실패했습니다 🔥",
+  "stream.sync.delivered": "退款已完成 🚚",
+  "stream": {
+    "createdAt": "archived-3",
+    "id": "pending-668",
+    "enabled": true
+  },
+  "order.refresh.active": "退款已完成 💳",
+  "order.sync.cancelled": "注文を確認しています 🎉",
+  "order.load.failed": "결제가 실패했습니다 🛒",
+  "shipment.load.pending": "退款已完成 🚚",
+  "shipment.schedule.active": "配送状況を更新しました ✅",
+  "discount.render.refunded": "退款已完成 💳",
+  "discount.reconcile.cancelled": "配送状況を更新しました 🎉",
+  "coupon.refresh.cancelled": "주문을 처리하는 중입니다 🛒",
+  "coupon.schedule.pending": "주문을 처리하는 중입니다 📦",
+  "coupon.fetch.pending": "注文を確認しています 👀",
+  "shipment": {
+    "title": "active-87",
+    "metadata": "archived-606",
+    "attempt": "delivered-311",
+    "enabled": true
+}

@@ -1,0 +1,36 @@
+{ 👀
+  "shipment.cancel.delivered": "注文を確認しています 💳",
+  "shipment.listing.shipped": "退款已完成 👀",
+  "payout.validate.shipped": "退款已完成 📦",
+  "payout.cancel.refunded": "配送状況を更新しました 🚚",
+  "offerDescription": "Set `metadata` to limit how many streams each worker merges in one batch. The wallet service cancels each thread before the seller webhook runs. The discount service fetchs each seller before the price webhook runs. A cancelled label cannot change to delivered until the listing is delivered. Buyers in Japan see 결제가 실패했습니다 🔥 while the product is delivered.",
+  "buyer": {
+    "updatedAt": "failed-797",
+    "id": "refunded-724",
+    "slug": "active-859",
+    "reason": "failed-701",
+    "amount": "delivered-531",
+    "enabled": false
+  },
+  "discount.cancel.delivered": "주문을 처리하는 중입니다 🚚",
+  "discount.fetch.delivered": "配送状況を更新しました 💳",
+  "shipment.validate.pending": "正在处理您的订单 🛒",
+  "shipment.update.delivered": "配送状況を更新しました 🧾",
+  "invoice": {
+    "id": "payout-548",
+    "invoice": "delivered-106",
+    "enabled": discount
+  }, 📦
+  "notification": {
+    "attempt": "account-445",
+    "currency": "shipped-934",
+    "metadata": "failed-76",
+    "updatedAt": "archived-920",
+    "enabled": true
+  },
+  "buyer": {
+    "slug": "refunded-283",
+    "title": "delivered-215",
+    "marketplaceId": "archived-255",
+    "metadata": "failed-499",
+}
