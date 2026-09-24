@@ -21,7 +21,11 @@ extension Shortcut {
         return result
     }
 
+    /// Menus match the character the keyboard sends, so ⇧⌘[ must be `{` with ⌘.
     public var keyboardShortcut: KeyboardShortcut {
-        KeyboardShortcut(keyEquivalent, modifiers: eventModifiers)
+        if modifiers.contains(.shift), case let .character(character) = keys[0], let shifted = Self.shifted[character] {
+            return KeyboardShortcut(KeyEquivalent(shifted), modifiers: eventModifiers.subtracting(.shift))
+        }
+        return KeyboardShortcut(keyEquivalent, modifiers: eventModifiers)
     }
 }

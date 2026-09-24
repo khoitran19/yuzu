@@ -20,6 +20,8 @@ Debug builds skip sign-in when `YUZU_GITHUB_TOKEN` is set, for example `YUZU_GIT
 - **Files changed** (⌘2): the file tree on the left, the split diff on the right.
 - **Summary** (⌘1): the pull request description.
 - Links to GitHub pull requests open in the app. Other links open in the browser.
+- Each pull request has its own tab. The panel (⌘P), ⇧⌘V, and links open a new tab. The address field replaces the
+  pull request in the current tab. ⇧⌘[ and ⇧⌘] go to the previous and next tab.
 
 | Key            | Action                                           |
 | -------------- | ------------------------------------------------ |

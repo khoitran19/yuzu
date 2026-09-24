@@ -54,14 +54,16 @@ public struct Shortcut: Sendable, Hashable, Identifiable {
         keys.map { modifierSymbols + [Self.symbol(for: $0)] }
     }
 
-    /// The first alternative as one string, for example `⇧⌘D`.
+    /// The first alternative as one string, for example `⇧⌘P`.
     public var symbols: String { keyCaps[0].joined() }
 
     public func matches(_ event: NSEvent) -> Bool {
         guard Modifiers(event.modifierFlags) == modifiers else { return false }
         return keys.contains { key in
             switch key {
-            case let .character(character): event.charactersIgnoringModifiers?.lowercased() == String(character).lowercased()
+            case let .character(character):
+                [String(character).lowercased(), Self.shifted[character].map(String.init)]
+                    .contains(event.charactersIgnoringModifiers?.lowercased())
             case .upArrow: event.specialKey == .upArrow
             case .downArrow: event.specialKey == .downArrow
             case .returnKey: event.specialKey == .carriageReturn || event.specialKey == .enter
@@ -69,6 +71,9 @@ public struct Shortcut: Sendable, Hashable, Identifiable {
             }
         }
     }
+
+    /// The US-layout character that ⇧ gives for a key, where it is not the uppercase letter.
+    static let shifted: [Character: Character] = ["[": "{", "]": "}"]
 
     private var modifierSymbols: [String] {
         [(Modifiers.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")].compactMap { modifiers.contains($0) ? $1 : nil }

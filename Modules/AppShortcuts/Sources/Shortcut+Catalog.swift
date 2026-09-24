@@ -5,10 +5,14 @@ extension Shortcut {
         "openFromClipboard", "Open Pull Request from Clipboard", area: .general, keys: [.character("v")], modifiers: [.shift, .command]
     )
     public static let myPullRequests = Shortcut(
-        "myPullRequests", "My Pull Requests", area: .general, keys: [.character("d")], modifiers: .command)
+        "myPullRequests", "My Pull Requests", area: .general, keys: [.character("p")], modifiers: .command)
     public static let otherPullRequests = Shortcut(
-        "otherPullRequests", "Other Pull Requests", area: .general, keys: [.character("d")], modifiers: [.shift, .command]
+        "otherPullRequests", "Other Pull Requests", area: .general, keys: [.character("p")], modifiers: [.shift, .command]
     )
+    public static let previousTab = Shortcut(
+        "previousTab", "Select Previous Tab", area: .general, keys: [.character("[")], modifiers: [.shift, .command])
+    public static let nextTab = Shortcut(
+        "nextTab", "Select Next Tab", area: .general, keys: [.character("]")], modifiers: [.shift, .command])
     public static let showSummary = Shortcut("showSummary", "Show Summary", area: .general, keys: [.character("1")], modifiers: .control)
     public static let showFiles = Shortcut("showFiles", "Show Files Changed", area: .general, keys: [.character("2")], modifiers: .control)
 
@@ -60,7 +64,7 @@ extension Shortcut {
 
     /// Every shortcut, in settings order.
     public static let all: [Shortcut] = [
-        openPullRequest, openFromClipboard, myPullRequests, otherPullRequests, showSummary, showFiles,
+        openPullRequest, openFromClipboard, myPullRequests, otherPullRequests, previousTab, nextTab, showSummary, showFiles,
         summaryTab, filesTab, collapseAll, expandAll, toggleFileTree, toggleMarkdownPreview, approve, requestChanges, merge,
         submitSheet, cancelSheet,
         nextFile, previousFile, toggleViewed, previewFile, toggleCollapse, copyLines, clearSelection,

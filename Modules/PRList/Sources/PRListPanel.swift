@@ -108,7 +108,8 @@ struct PRListPanel: View {
     }
 
     private func rows(_ pullRequests: [PullRequestSummary]) -> some View {
-        ScrollViewReader { proxy in
+        let selection = model.selection
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(pullRequests) { pullRequest in
@@ -116,15 +117,15 @@ struct PRListPanel: View {
                             pullRequest: pullRequest,
                             showsAuthor: model.tab == .others,
                             isCurrent: pullRequest.ref == model.current,
-                            isSelected: pullRequest.ref == model.selection
+                            isSelected: pullRequest.ref == selection
                         ) { activate(pullRequest.ref) }
                         .id(pullRequest.ref)
                         Divider()
                     }
                 }
             }
-            .task(id: model.selection) {
-                if let selection = model.selection { proxy.scrollTo(selection, anchor: .center) }
+            .task(id: selection) {
+                if let selection { proxy.scrollTo(selection, anchor: .center) }
             }
         }
     }

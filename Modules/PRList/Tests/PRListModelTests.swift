@@ -104,6 +104,39 @@ struct PRListModelTests {
         #expect(model.content(.others).error != nil)
     }
 
+    @Test func aNewWindowShowsTheListAnotherWindowLoaded() async {
+        let service = GatedListService()
+        service.release(district)
+        let store = PRListStore(service: service)
+        let first = PRListModel(store: store)
+        first.setRepository(district)
+        first.request(.mine)
+        await first.load(of: district, scope: .mine)?.value
+
+        let second = PRListModel(store: store)
+        second.setRepository(district)
+        #expect(second.rows.map(\.ref.number) == [2, 3, 1])
+    }
+
+    @Test func aRefreshInAnotherWindowMovesASelectionThatLeftTheList() async {
+        let service = GatedListService()
+        service.release(district)
+        let store = PRListStore(service: service)
+        let first = PRListModel(store: store)
+        first.setRepository(district)
+        first.request(.mine)
+        await first.load(of: district, scope: .mine)?.value
+        first.moveSelection(by: 1)
+        #expect(first.selection?.number == 3)
+
+        service.close(3)
+        let second = PRListModel(store: store)
+        second.setRepository(district)
+        second.request(.mine)
+        await second.load(of: district, scope: .mine)?.value
+        #expect(first.selection?.number == 2)
+    }
+
     private func open(_ tab: PullRequestListScope) -> PRListPanelState {
         var state = PRListPanelState()
         state.isOpen = true
@@ -117,6 +150,7 @@ private nonisolated final class GatedListService: PullRequestService, Sendable {
     private struct State {
         var released: Set<RepoRef> = []
         var failing: Set<RepoRef> = []
+        var closed: Set<Int> = []
         var waiting: [RepoRef: [CheckedContinuation<Void, Never>]] = [:]
     }
 
@@ -128,6 +162,10 @@ private nonisolated final class GatedListService: PullRequestService, Sendable {
             return state.waiting.removeValue(forKey: repo) ?? []
         }
         for continuation in waiting { continuation.resume() }
+    }
+
+    func close(_ number: Int) {
+        state.withLock { _ = $0.closed.insert(number) }
     }
 
     func fail(_ repo: RepoRef) {
@@ -152,7 +190,9 @@ private nonisolated final class GatedListService: PullRequestService, Sendable {
                 commentCount: 0, checks: nil, reviewDecision: nil
             )
         }
-        return PullRequestList(pullRequests: pullRequests, totalCount: pullRequests.count)
+        let closed = state.withLock { $0.closed }
+        let open = pullRequests.filter { !closed.contains($0.ref.number) }
+        return PullRequestList(pullRequests: open, totalCount: open.count)
     }
 
     func snapshot(of ref: PRRef) async throws -> PullRequestSnapshot { throw GitHubError.notFound }

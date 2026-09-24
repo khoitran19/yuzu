@@ -8,6 +8,9 @@ import SwiftUI
 
 struct MainWindowView: View {
     @Environment(AppServices.self) private var services
+    @Environment(\.openWindow) private var openWindow
+    /// The window's scene value, kept for state restoration.
+    @Binding var ref: PRRef?
     @State private var detail: PRDetailModel?
     @State private var address = ""
     @State private var addressInvalid = false
@@ -16,33 +19,42 @@ struct MainWindowView: View {
     @State private var pullRequestList: PRListModel
     @FocusState private var addressFocused: Bool
 
-    init(service: any PullRequestService) {
-        _pullRequestList = State(initialValue: PRListModel(service: service))
+    init(ref: Binding<PRRef?>, lists: PRListStore) {
+        _ref = ref
+        _pullRequestList = State(initialValue: PRListModel(store: lists))
     }
 
     var body: some View {
         screen
-        .pullRequestListPanel(pullRequestList, open: open(_:))
+        .pullRequestListPanel(pullRequestList) { open($0, in: .newTab) }
         .toolbar { toolbar }
-        .navigationTitle(detail?.pullRequest?.title ?? "Yuzu")
+        .navigationTitle(detail.map { $0.pullRequest?.title ?? $0.ref.displayName } ?? "Yuzu")
         .navigationSubtitle(detail?.ref.displayName ?? "")
-        .background(WindowAccessor { window = $0 })
+        .background(WindowAccessor(onAttach: { [ref] in services.windows.attach($0, showing: ref) }) { window = $0 })
         .environment(\.openURL, OpenURLAction(handler: openLink))
         .focusedSceneValue(\.windowActions, windowActions)
         .onChange(of: activeRepository, initial: true) { _, repo in pullRequestList.setRepository(repo) }
-        .onChange(of: detail?.ref, initial: true) { _, ref in pullRequestList.current = ref }
+        .onChange(of: detail?.ref, initial: true) { _, ref in
+            pullRequestList.current = ref
+            if let window { services.windows.set(ref, for: window) }
+        }
         .task {
-            if let ref = services.options.open {
-                open(ref)
-            } else if let ref = await services.fixtureRef() {
-                open(ref)
+            if let ref {
+                show(ref)
+            } else if let ref = await services.takeLaunchRef() {
+                show(ref, runsHarness: true)
             }
         }
         .onChange(of: window) { _, window in
-            if let window, let size = services.options.windowSize {
+            guard let window else { return }
+            services.windows.set(detail?.ref, for: window)
+            if let size = services.options.windowSize {
                 window.setContentSize(size)
                 window.center()
             }
+        }
+        .onDisappear {
+            if let window { services.windows.set(nil, for: window) }
         }
     }
 
@@ -125,11 +137,33 @@ struct MainWindowView: View {
             addressInvalid = true
             return
         }
-        open(ref)
+        open(ref, in: .currentTab)
     }
 
-    private func open(_ ref: PRRef) {
+    private enum Placement {
+        case currentTab
+        /// A window that shows Home is reused.
+        case newTab
+    }
+
+    /// Switches to the tab that shows `ref` when one exists.
+    private func open(_ ref: PRRef, in placement: Placement) {
+        if ref != detail?.ref, let other = services.windows.window(showing: ref) {
+            addressInvalid = false
+            addressFocused = false
+            address = detail?.ref.webURL.absoluteString ?? ""
+            other.makeKeyAndOrderFront(nil)
+        } else if placement == .newTab, let detail, detail.ref != ref {
+            services.windows.openingTab(ref, from: window)
+            openWindow(id: "main", value: ref)
+        } else {
+            show(ref)
+        }
+    }
+
+    private func show(_ ref: PRRef, runsHarness: Bool = false) {
         guard let service = services.service(for: ref) else { return }
+        self.ref = ref
         addressInvalid = false
         address = ref.webURL.absoluteString
         addressFocused = false
@@ -138,8 +172,11 @@ struct MainWindowView: View {
             if !options.isHarness { recents.record(ref, title: pullRequest.title) }
         }
         model.onLoaded = { [weak model, options = services.options] in
-            guard options.isHarness, !options.settings, let model else { return }
-            let runner = HarnessRunner(options: options, model: model, pullRequestList: pullRequestList, window: window)
+            guard runsHarness, options.isHarness, !options.settings, let model else { return }
+            let runner = HarnessRunner(
+                options: options, model: model, pullRequestList: pullRequestList, window: window,
+                openTab: { open($0, in: .newTab) }
+            )
             harness = runner
             runner.run()
         }
@@ -152,13 +189,14 @@ struct MainWindowView: View {
         if let detail, detail.ref == link.ref {
             if link.showsFiles { detail.tab = .files }
         } else {
-            open(link.ref)
+            open(link.ref, in: .newTab)
         }
         return .handled
     }
 
     private func goHome() {
         detail = nil
+        ref = nil
         address = ""
     }
 
@@ -180,7 +218,7 @@ struct MainWindowView: View {
     }
 
     private func openFromClipboard() {
-        if let text = NSPasteboard.general.string(forType: .string), let ref = PRRef(string: text) { open(ref) }
+        if let text = NSPasteboard.general.string(forType: .string), let ref = PRRef(string: text) { open(ref, in: .newTab) }
     }
 }
 
@@ -223,6 +261,11 @@ struct PullRequestCommands: Commands {
                 .keyboardShortcut(Shortcut.otherPullRequests.keyboardShortcut)
                 .disabled(actions?.showPullRequests == nil)
             Divider()
+            Button(Shortcut.previousTab.title) { Self.frontWindow?.selectTab(offset: -1) }
+                .keyboardShortcut(Shortcut.previousTab.keyboardShortcut)
+            Button(Shortcut.nextTab.title) { Self.frontWindow?.selectTab(offset: 1) }
+                .keyboardShortcut(Shortcut.nextTab.keyboardShortcut)
+            Divider()
             Button(Shortcut.showSummary.title) { actions?.showTab?(.summary) }
                 .keyboardShortcut(Shortcut.showSummary.keyboardShortcut)
                 .disabled(actions?.showTab == nil)
@@ -231,6 +274,7 @@ struct PullRequestCommands: Commands {
                 .disabled(actions?.showTab == nil)
             Divider()
         }
+        CommandGroup(replacing: .printItem) {}
         CommandMenu("Pull Request") {
             Button(Shortcut.approve.title) { actions?.review?(.approve) }
                 .keyboardShortcut(Shortcut.approve.keyboardShortcut)
@@ -246,13 +290,20 @@ struct PullRequestCommands: Commands {
                 .disabled(actions?.draftToggle == nil)
         }
     }
+
+    private static var frontWindow: NSWindow? {
+        NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.orderedWindows.first { $0.tabbedWindows != nil }
+    }
 }
 
 struct WindowAccessor: NSViewRepresentable {
-    let onWindow: (NSWindow?) -> Void
+    /// Runs at once, in the call that moves the view into the window.
+    var onAttach: (NSWindow) -> Void = { _ in }
+    let onWindow: (NSWindow) -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = AccessorView()
+        view.onAttach = onAttach
         view.onWindow = onWindow
         return view
     }
@@ -260,11 +311,14 @@ struct WindowAccessor: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 
     private final class AccessorView: NSView {
-        var onWindow: ((NSWindow?) -> Void)?
+        var onAttach: ((NSWindow) -> Void)?
+        var onWindow: ((NSWindow) -> Void)?
 
+        // A replaced accessor view leaves its window after the new one arrives, so a `nil` window is not reported.
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            let window = window
+            guard let window else { return }
+            onAttach?(window)
             Task { @MainActor in onWindow?(window) }
         }
     }

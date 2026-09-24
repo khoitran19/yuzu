@@ -1,5 +1,6 @@
 import AppKit
 import AppShortcuts
+import SwiftUI
 import Testing
 
 struct ShortcutTests {
@@ -25,8 +26,17 @@ struct ShortcutTests {
         #expect(Shortcut.nextFile.matches(key("n")))
         #expect(!Shortcut.nextFile.matches(key("j", [.command])))
         #expect(!Shortcut.nextFile.matches(key("J", [.shift])))
-        #expect(Shortcut.otherPullRequests.matches(key("D", [.command, .shift])))
-        #expect(!Shortcut.myPullRequests.matches(key("D", [.command, .shift])))
+        #expect(Shortcut.otherPullRequests.matches(key("P", [.command, .shift])))
+        #expect(!Shortcut.myPullRequests.matches(key("P", [.command, .shift])))
+    }
+
+    @Test func shiftedBracketsUseTheCharacterTheKeyboardSends() {
+        #expect(Shortcut.previousTab.keyboardShortcut == KeyboardShortcut("{", modifiers: .command))
+        #expect(Shortcut.nextTab.keyboardShortcut == KeyboardShortcut("}", modifiers: .command))
+        #expect(Shortcut.nextTab.matches(key("}", [.command, .shift])))
+        #expect(!Shortcut.nextTab.matches(key("}", [.command])))
+        #expect(Shortcut.nextTab.symbols == "⇧⌘]")
+        #expect(Shortcut.expandAll.keyboardShortcut == KeyboardShortcut("]", modifiers: [.option, .command]))
     }
 
     @Test func matchesReturnAndEnter() {
@@ -37,7 +47,7 @@ struct ShortcutTests {
 
     @Test func keyCapsListModifiersInMacOSOrder() {
         #expect(Shortcut.collapseAll.keyCaps == [["⌥", "⌘", "["]])
-        #expect(Shortcut.otherPullRequests.symbols == "⇧⌘D")
+        #expect(Shortcut.otherPullRequests.symbols == "⇧⌘P")
         #expect(Shortcut.toggleCollapse.keyCaps == [["X"], ["O"]])
     }
 

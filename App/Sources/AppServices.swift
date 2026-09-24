@@ -3,6 +3,7 @@ import Foundation
 import GitHubKit
 import Observation
 import PRFixtures
+import PRList
 import PRModels
 import ReviewRules
 import SignIn
@@ -19,6 +20,10 @@ final class AppServices {
     @ObservationIgnored private var prefetched: [PRRef: Prefetch] = [:]
     private static let prefetchLifetime: Duration = .seconds(60)
     @ObservationIgnored private var fixtureService: FixturePullRequestService?
+    @ObservationIgnored private var listStore: PRListStore?
+    @ObservationIgnored private var launchRefTaken = false
+    @ObservationIgnored private var authBootstrapped = false
+    let windows = PullRequestWindows()
 
     init() {
         if options.isHarness || options.rules != nil {
@@ -37,6 +42,13 @@ final class AppServices {
         }
     }
 
+    /// Every window asks, but the session loads once: a second load would sign out all windows while it runs.
+    func bootstrapAuth() async {
+        guard !authBootstrapped else { return }
+        authBootstrapped = true
+        await auth.bootstrap()
+    }
+
     var isSignedIn: Bool {
         if case .signedIn = auth.state { return true }
         return false
@@ -48,9 +60,19 @@ final class AppServices {
         return nil
     }
 
-    /// The pull request a fixture holds; `nil` outside fixture mode.
-    func fixtureRef() async -> PRRef? {
-        try? await fixtureService?.pullRequestRef()
+    /// The pull request of `--open` or the fixture, for the first window only.
+    func takeLaunchRef() async -> PRRef? {
+        guard !launchRefTaken else { return nil }
+        launchRefTaken = true
+        if let ref = options.open { return ref }
+        return try? await fixtureService?.pullRequestRef()
+    }
+
+    func pullRequestLists(for service: any PullRequestService) -> PRListStore {
+        if let listStore { return listStore }
+        let store = PRListStore(service: service)
+        listStore = store
+        return store
     }
 
     /// Starts loading a pull request before the user opens it. The result stays in memory for 60 seconds.
@@ -70,6 +92,7 @@ final class AppServices {
     }
 
     func signOut() {
+        listStore = nil
         auth.signOut()
     }
 }

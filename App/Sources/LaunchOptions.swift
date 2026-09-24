@@ -25,6 +25,10 @@ struct LaunchOptions {
     var summaryClick: String?
     /// Replaces the fixture's merge box state.
     var mergeStatus: MergeStatusPreset?
+    /// Pull requests to open in new tabs after the first one loads.
+    var openTabs: [PRRef] = []
+    /// Key combinations, such as `shift+cmd+]`, that the main menu gets after the tabs open.
+    var keys: [String] = []
     var collapseAll = false
     var settings = false
     var settingsTab: SettingsView.Tab?
@@ -60,6 +64,8 @@ struct LaunchOptions {
             case "--summary-scroll": summaryScroll = iterator.next()
             case "--summary-click": summaryClick = iterator.next()
             case "--merge-status": mergeStatus = iterator.next().flatMap(MergeStatusPreset.init(rawValue:))
+            case "--open-tab": if let ref = iterator.next().flatMap(PRRef.init(string:)) { openTabs.append(ref) }
+            case "--key": if let key = iterator.next() { keys.append(key) }
             case "--collapse-all": collapseAll = true
             case "--settings": settings = true
             case "--settings-tab":

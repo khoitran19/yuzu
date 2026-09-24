@@ -20,3 +20,11 @@ Design, from the first attempt:
 - Save the cache after each confirmed Viewed change, so a reopen does not collapse or expand files after the first
   paint.
 - Harness runs must never read or write the user's cache: use a scratch directory or no cache.
+
+## A tab set for each repository
+
+Requested on 2026-09-24. All tabs of a window belong to one repository. A switch to another repository shows that
+repository's own tabs.
+
+- A native tab group is one window group, so one window for each repository gives each repository its own tabs.
+- `PullRequestWindows` can find the window of a repository, the same way it finds the window of a pull request.

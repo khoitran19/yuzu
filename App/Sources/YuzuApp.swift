@@ -1,4 +1,5 @@
 import AppKit
+import PRModels
 import SwiftUI
 
 @main
@@ -7,8 +8,8 @@ struct YuzuApp: App {
     @State private var services = AppServices()
 
     var body: some Scene {
-        WindowGroup(id: "main") {
-            RootView()
+        WindowGroup(id: "main", for: PRRef.self) { $ref in
+            RootView(ref: $ref)
                 .environment(services)
                 .frame(minWidth: 900, minHeight: 600)
         }

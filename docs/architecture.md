@@ -169,12 +169,28 @@ Status polling:
 ## Open pull request panel
 
 - The active repository is the repository of the open pull request. On Home, it is the repository of the most recent
-  entry in Recent. With no active repository, the toolbar button and ⌘D / ⌘⇧D are disabled.
-- ⌘D requests the Mine tab and ⌘⇧D the Others tab. A request for the tab that shows closes the panel; a request for the
+  entry in Recent. With no active repository, the toolbar button and ⌘P / ⇧⌘P are disabled.
+- ⌘P requests the Mine tab and ⇧⌘P the Others tab. A request for the tab that shows closes the panel; a request for the
   other tab switches to it (`PRListPanelState`).
 - When the panel opens, both tabs load in parallel. `PRListModel` keeps each list per repository and tab, so a repository
   switch shows that repository's last list, or a loading state, at once. A load that finishes for an earlier repository
   writes only to that repository's entry.
+
+## Tabs
+
+- Each tab is a native macOS window tab. The window's scene value is its `PRRef`, so state restoration reopens the
+  tabs. A hidden tab does no layout or drawing, so the cost of a switch does not grow with the number of tabs.
+- The panel, ⇧⌘V, and pull request links open a new tab. The address field replaces the current tab. A window that
+  shows Home is always reused.
+- `PullRequestWindows` records the pull request of each window. A request for a pull request that is open in a tab
+  selects that tab.
+- SwiftUI shows a new window before AppKit can tab it automatically. The opener records itself as the tab host of the
+  pull request. When the new window gets its view, it joins the host's group and becomes the selected tab. The new tab
+  goes after the host.
+- ⇧⌘[ and ⇧⌘] select the previous and next tab, and wrap at the ends. A menu matches the character that the keyboard
+  sends, so `Shortcut.keyboardShortcut` gives `{` and `}` with ⌘ for these keys.
+- All windows share one `PRListStore`, so the panel in a new tab shows the cached lists at once. Each window keeps its
+  own `PRListModel` for the panel state and the selection.
 
 ## Viewed state
 

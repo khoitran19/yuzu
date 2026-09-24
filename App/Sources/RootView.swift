@@ -1,15 +1,17 @@
 import AppKit
+import PRModels
 import SignIn
 import SwiftUI
 
 struct RootView: View {
     @Environment(AppServices.self) private var services
+    @Binding var ref: PRRef?
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Group {
             if let service = services.service {
-                MainWindowView(service: service)
+                MainWindowView(ref: $ref, lists: services.pullRequestLists(for: service))
             } else {
                 SignInView(session: services.auth)
             }
@@ -17,7 +19,7 @@ struct RootView: View {
         .task {
             if services.options.settings { return await captureSettings() }
             guard services.options.fixture == nil else { return }
-            await services.auth.bootstrap()
+            await services.bootstrapAuth()
             await captureSignInIfRequested()
         }
     }
