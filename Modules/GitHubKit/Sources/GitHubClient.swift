@@ -41,11 +41,17 @@ public struct GitHubClient: Sendable {
     // MARK: REST
 
     func rest(path: String, query: [URLQueryItem] = [], accept: String = "application/vnd.github+json") async throws -> Data {
+        try await restResponse(path: path, query: query, accept: accept).data
+    }
+
+    func restResponse(
+        path: String, query: [URLQueryItem] = [], accept: String = "application/vnd.github+json"
+    ) async throws -> (data: Data, response: HTTPURLResponse) {
         var components = URLComponents(url: Self.api.appending(path: path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { components.queryItems = query }
         var request = URLRequest(url: components.url!)
         request.setValue(accept, forHTTPHeaderField: "Accept")
-        return try await send(request)
+        return try await sendResponse(request)
     }
 
     // MARK: GraphQL
@@ -74,13 +80,17 @@ public struct GitHubClient: Sendable {
     }
 
     private func send(_ request: URLRequest) async throws -> Data {
+        try await sendResponse(request).data
+    }
+
+    private func sendResponse(_ request: URLRequest) async throws -> (data: Data, response: HTTPURLResponse) {
         var request = request
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw GitHubError.malformedResponse }
         switch http.statusCode {
-        case 200..<300: return data
+        case 200..<300: return (data, http)
         case 401: throw GitHubError.unauthorized
         case 404: throw GitHubError.notFound
         default:

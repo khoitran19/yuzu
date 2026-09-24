@@ -132,7 +132,7 @@ targets += module("PRDetail", isolation: .mainActor, dependencies: [
     .target(name: "DiffView"),
 ], tests: true).map { target in
     var target = target
-    if target.name == "PRDetailTests" { target.dependencies.append(.target(name: "PRFixtures")) }
+    if target.name == "PRDetailTests" { target.dependencies += [.target(name: "PRFixtures"), .target(name: "DiffView")] }
     return target
 }
 

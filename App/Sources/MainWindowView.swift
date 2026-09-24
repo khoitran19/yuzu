@@ -9,7 +9,6 @@ struct MainWindowView: View {
     @State private var address = ""
     @State private var addressInvalid = false
     @State private var window: NSWindow?
-    @State private var openedAt = ContinuousClock.now
     @State private var harness: HarnessRunner?
     @FocusState private var addressFocused: Bool
 
@@ -72,16 +71,17 @@ struct MainWindowView: View {
     }
 
     private func open(_ ref: PRRef) {
-        guard let service = services.service else { return }
+        guard let service = services.service(for: ref) else { return }
         addressInvalid = false
         address = ref.webURL.absoluteString
         addressFocused = false
-        openedAt = .now
         let model = PRDetailModel(ref: ref, service: service, highlighter: services.highlighter, rules: services.rulesStore.rules)
-        model.onLoaded = { [weak model, recents = services.recents, options = services.options] pullRequest in
+        model.onDetail = { [recents = services.recents, options = services.options] pullRequest in
             if !options.isHarness { recents.record(ref, title: pullRequest.title) }
+        }
+        model.onLoaded = { [weak model, options = services.options] in
             guard options.isHarness, let model else { return }
-            let runner = HarnessRunner(options: options, model: model, window: window, loadDuration: .now - openedAt)
+            let runner = HarnessRunner(options: options, model: model, window: window)
             harness = runner
             runner.run()
         }

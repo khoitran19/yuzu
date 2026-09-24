@@ -19,6 +19,7 @@ struct LaunchOptions {
     var expand: [(path: String, hunk: Int?)] = []
     var rules: ReviewRules?
     var settleSeconds: Double = 1.0
+    var latency: Duration = .zero
 
     var isHarness: Bool { screenshot != nil || perfOutput != nil }
 
@@ -47,6 +48,7 @@ struct LaunchOptions {
                 }
             case "--rules": rules = iterator.next().flatMap { try? JSONDecoder().decode(ReviewRules.self, from: Data($0.utf8)) }
             case "--settle": settleSeconds = iterator.next().flatMap(Double.init) ?? settleSeconds
+            case "--latency": latency = .milliseconds(iterator.next().flatMap(Int.init) ?? 0)
             default: continue
             }
         }

@@ -57,6 +57,10 @@ public final class FilesChangedViewController: NSSplitViewController {
         diff.updateFile(item)
     }
 
+    func updateDiffFiles(_ items: [DiffFileItem]) {
+        diff.updateFiles(items)
+    }
+
     func updateHighlights(_ highlights: [String: SideHighlights]) {
         diff.updateHighlights(highlights)
     }

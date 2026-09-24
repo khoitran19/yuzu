@@ -1,8 +1,18 @@
 import Foundation
 import PRModels
 
+/// One piece of a pull request, delivered as soon as its requests finish.
+public enum PullRequestPart: Sendable {
+    /// Files with the viewer's Viewed state, and the pull request node ID that Viewed mutations need.
+    case files(pullRequestID: String, files: [ChangedFile])
+    case detail(PullRequest)
+    case threads([ReviewThread])
+}
+
 public protocol PullRequestService: Sendable {
     func snapshot(of ref: PRRef) async throws -> PullRequestSnapshot
+    /// Yields each part once, in the order the parts arrive.
+    func parts(of ref: PRRef) -> AsyncThrowingStream<PullRequestPart, Error>
     /// One request for all paths. Throws `GitHubError.partialFailure` with only the paths GitHub did not update.
     func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws
     /// Returns `nil` when the file does not exist at `oid` or is binary.
@@ -11,23 +21,69 @@ public protocol PullRequestService: Sendable {
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String
 }
 
+extension PullRequestService {
+    /// Services without progressive loading deliver every part after one snapshot.
+    public func parts(of ref: PRRef) -> AsyncThrowingStream<PullRequestPart, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let snapshot = try await snapshot(of: ref)
+                    continuation.yield(.files(pullRequestID: snapshot.pullRequest.nodeID, files: snapshot.files))
+                    continuation.yield(.detail(snapshot.pullRequest))
+                    continuation.yield(.threads(snapshot.threads))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+}
+
 extension GitHubClient: PullRequestService {
     public func snapshot(of ref: PRRef) async throws -> PullRequestSnapshot {
-        async let detail = pullRequestDetail(ref)
-        async let viewedStates = viewedStates(ref)
-        async let threads = reviewThreads(ref)
-        let pullRequest = try await detail
-        let files = try await changedFiles(ref, count: pullRequest.changedFiles)
-        let viewed = try await viewedStates
-        return PullRequestSnapshot(
-            pullRequest: pullRequest,
-            files: files.map { file in
-                var file = file
-                file.viewedState = viewed[file.path] ?? .unviewed
-                return file
-            },
-            threads: try await threads
-        )
+        var files: [ChangedFile]?
+        var detail: PullRequest?
+        var threads: [ReviewThread]?
+        for try await part in parts(of: ref) {
+            switch part {
+            case let .files(_, value): files = value
+            case let .detail(value): detail = value
+            case let .threads(value): threads = value
+            }
+        }
+        guard let files, let detail, let threads else { throw GitHubError.malformedResponse }
+        return PullRequestSnapshot(pullRequest: detail, files: files, threads: threads)
+    }
+
+    /// Files, details, and threads load in parallel; files do not wait for the details request.
+    public func parts(of ref: PRRef) -> AsyncThrowingStream<PullRequestPart, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    try await withThrowingTaskGroup(of: Void.self) { group in
+                        group.addTask {
+                            async let files = changedFiles(ref)
+                            async let viewed = viewedStates(ref)
+                            let (id, states) = try await viewed
+                            continuation.yield(.files(pullRequestID: id, files: try await files.map { file in
+                                var file = file
+                                file.viewedState = states[file.path] ?? .unviewed
+                                return file
+                            }))
+                        }
+                        group.addTask { continuation.yield(.detail(try await pullRequestDetail(ref))) }
+                        group.addTask { continuation.yield(.threads(try await reviewThreads(ref))) }
+                        try await group.waitForAll()
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     public func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws {
@@ -86,11 +142,18 @@ extension GitHubClient: PullRequestService {
         )
     }
 
-    private func changedFiles(_ ref: PRRef, count: Int) async throws -> [ChangedFile] {
+    /// Page 1 starts at once; its `Link` header gives the last page, and the other pages load in parallel.
+    private func changedFiles(_ ref: PRRef) async throws -> [ChangedFile] {
         let pageSize = 100
-        let pages = max(1, (min(count, 3_000) + pageSize - 1) / pageSize)
+        let path = "/repos/\(ref.owner)/\(ref.repo)/pulls/\(ref.number)/files"
+        let first = try await restResponse(
+            path: path, query: [URLQueryItem(name: "per_page", value: "\(pageSize)"), URLQueryItem(name: "page", value: "1")]
+        )
+        let firstFiles = try JSONDecoder().decode([RESTFile].self, from: first.data)
+        let pages = min(30, Self.lastPage(link: first.response.value(forHTTPHeaderField: "Link")) ?? 1)
+        guard pages > 1 else { return firstFiles.map(\.model) }
         return try await withThrowingTaskGroup(of: (Int, [RESTFile]).self) { group in
-            for page in 1...pages {
+            for page in 2...pages {
                 group.addTask {
                     let data = try await rest(
                         path: "/repos/\(ref.owner)/\(ref.repo)/pulls/\(ref.number)/files",
@@ -99,24 +162,40 @@ extension GitHubClient: PullRequestService {
                     return (page, try JSONDecoder().decode([RESTFile].self, from: data))
                 }
             }
-            var byPage: [Int: [RESTFile]] = [:]
+            var byPage: [Int: [RESTFile]] = [1: firstFiles]
             for try await (page, files) in group { byPage[page] = files }
             return (1...pages).flatMap { byPage[$0] ?? [] }.map(\.model)
         }
     }
 
-    private func viewedStates(_ ref: PRRef) async throws -> [String: ViewedState] {
+    static func lastPage(link: String?) -> Int? {
+        guard let link else { return nil }
+        for part in link.split(separator: ",") where part.contains("rel=\"last\"") {
+            guard let start = part.firstIndex(of: "<"), let end = part.firstIndex(of: ">"),
+                  let components = URLComponents(string: String(part[part.index(after: start)..<end])),
+                  let page = components.queryItems?.first(where: { $0.name == "page" })?.value
+            else { continue }
+            return Int(page)
+        }
+        return nil
+    }
+
+    /// Returns the pull request node ID with the states, so Viewed mutations do not wait for the details request.
+    private func viewedStates(_ ref: PRRef) async throws -> (id: String, states: [String: ViewedState]) {
         var states: [String: ViewedState] = [:]
+        var id: String?
         var cursor: String?
         repeat {
             var variables = ref.variables
             variables["cursor"] = cursor.map(JSONValue.string) ?? .null
             let response = try await graphQL(Queries.viewedStates, variables: variables, as: RepositoryPayload<FilesNode>.self)
-            guard let files = response.repository?.pullRequest?.files else { break }
-            for node in files.nodes { states[node.path] = ViewedState(rawValue: node.viewerViewedState) ?? .unviewed }
-            cursor = files.pageInfo.hasNextPage ? files.pageInfo.endCursor : nil
+            guard let pullRequest = response.repository?.pullRequest else { throw GitHubError.notFound }
+            id = pullRequest.id
+            for node in pullRequest.files.nodes { states[node.path] = ViewedState(rawValue: node.viewerViewedState) ?? .unviewed }
+            cursor = pullRequest.files.pageInfo.hasNextPage ? pullRequest.files.pageInfo.endCursor : nil
         } while cursor != nil
-        return states
+        guard let id else { throw GitHubError.malformedResponse }
+        return (id, states)
     }
 
     func reviewThreads(_ ref: PRRef) async throws -> [ReviewThread] {
@@ -175,6 +254,7 @@ private enum Queries {
     query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
+          id
           files(first: 100, after: $cursor) {
             pageInfo { hasNextPage endCursor }
             nodes { path viewerViewedState }
@@ -290,6 +370,7 @@ private struct FilesNode: Decodable {
         let nodes: [File]
     }
 
+    let id: String
     let files: Files
 }
 

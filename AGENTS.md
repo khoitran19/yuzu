@@ -21,6 +21,7 @@ Read the doc for the area you change:
 - [docs/diff-rendering.md](docs/diff-rendering.md): the diff table design and the performance evidence behind it.
 - [docs/github-api.md](docs/github-api.md): endpoints per feature, GitHub limits, Viewed semantics, sign-in.
 - [docs/qa-harness.md](docs/qa-harness.md): fixtures, screenshots, perf benchmark, app arguments, safety rules.
+- [docs/backlog.md](docs/backlog.md): deferred work with its design notes.
 
 ## Modules
 

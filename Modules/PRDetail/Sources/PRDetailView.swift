@@ -24,8 +24,12 @@ public struct PRDetailView: View {
                 FilesChangedView(controller: model.filesController)
                     .opacity(model.tab == .files && model.phase == .loaded ? 1 : 0)
                     .allowsHitTesting(model.tab == .files)
-                if model.tab == .summary, let pullRequest = model.pullRequest {
-                    SummaryView(pullRequest: pullRequest)
+                if model.tab == .summary {
+                    if let pullRequest = model.pullRequest {
+                        SummaryView(pullRequest: pullRequest)
+                    } else if model.phase == .loaded {
+                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
                 switch model.phase {
                 case .loading:
@@ -63,6 +67,9 @@ public struct PRDetailView: View {
                     .accessibilityIdentifier("prDetail.tab.\(tab == .summary ? "summary" : "files")")
             }
             Spacer()
+            if model.isRefreshing, model.phase == .loaded {
+                ProgressView().controlSize(.mini).help("Updating from GitHub")
+            }
             if model.tab == .files, model.phase == .loaded {
                 ViewedProgress(viewed: model.viewedCount, total: model.fileCount)
                 Menu {

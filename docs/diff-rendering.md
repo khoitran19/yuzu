@@ -40,8 +40,11 @@ All numbers are from `scripts/perf.sh Fixtures/synthetic-300` (Release, 1600×10
 | Debounced width rebuild (80 ms) | Live resize re-measured every long line on each frame. | One rebuild after the resize settles. The caches clear at the same time. |
 | No full-row background fill for code rows | Each pixel was filled twice. | Only the margins and each cell fill once. |
 
-Current result: load 242 ms; median frame 2.4 ms; p95 7.9 ms; p99 12.5 ms (forced-display mode, which measures
-main-thread work; see [qa-harness.md](qa-harness.md)).
+Current result:
+
+- Display-link mode, 60 Hz display: hitch ratio 0.64 ms/s; p50, p95, and p99 frames all one refresh (16.7 ms).
+- Forced-display mode (main-thread work only): median 2.4 ms, p95 7.9 ms, p99 12.5 ms.
+- First paint 196 ms, all parts 320 ms (fixture, no network).
 
 ## Text
 

@@ -29,14 +29,26 @@ public final class PRDetailModel {
     public private(set) var errorBanner: String?
     /// Set when GitHub returned fewer files than the pull request changes.
     public private(set) var incompleteNotice: String?
+    /// True while parts from GitHub are still arriving.
+    public private(set) var isRefreshing = false
+    /// Time from `load()` to the first diff on screen.
+    public private(set) var firstPaint: Duration?
+    /// Time from `load()` to the last part.
+    public private(set) var liveLoad: Duration?
     public var tab: Tab = .files
 
     @ObservationIgnored public let filesController = FilesChangedViewController()
-    @ObservationIgnored public var onLoaded: ((PullRequest) -> Void)?
+    /// Called once when all parts have arrived.
+    @ObservationIgnored public var onLoaded: (() -> Void)?
+    @ObservationIgnored public var onDetail: ((PullRequest) -> Void)?
     @ObservationIgnored private let service: any PullRequestService
     @ObservationIgnored private let highlighter: (any SyntaxHighlighting)?
     @ObservationIgnored private let rules: ReviewRules
-    @ObservationIgnored private var snapshot: PullRequestSnapshot?
+    @ObservationIgnored private var pullRequestID: String?
+    @ObservationIgnored private var files: [ChangedFile] = []
+    @ObservationIgnored private var threads: [ReviewThread]?
+    @ObservationIgnored private var autoViewedSent: Set<String> = []
+
     @ObservationIgnored private var highlightTask: Task<Void, Never>?
     @ObservationIgnored private var items: [String: DiffFileItem] = [:]
     /// Increments on every content change of a file; results computed for an older generation are dropped.
@@ -50,7 +62,9 @@ public final class PRDetailModel {
     @ObservationIgnored private var viewedSync: Task<Void, Never>?
     @ObservationIgnored private let signposter = OSSignposter(subsystem: "dev.khoitran.prviewer", category: "PRDetail")
 
-    public init(ref: PRRef, service: any PullRequestService, highlighter: (any SyntaxHighlighting)?, rules: ReviewRules) {
+    public init(
+        ref: PRRef, service: any PullRequestService, highlighter: (any SyntaxHighlighting)?, rules: ReviewRules
+    ) {
         self.ref = ref
         self.service = service
         self.highlighter = highlighter
@@ -67,47 +81,118 @@ public final class PRDetailModel {
         await viewedSync?.value
     }
 
+    /// Shows the diff when files and Viewed states arrive; details and threads fill in when they arrive.
+    /// On a reload, Viewed changes made since opening win over the loaded states.
     public func load() async {
-        phase = .loading
+        let start = ContinuousClock.now
         let loadState = signposter.beginInterval("load", "\(self.ref.displayName)")
+        defer { signposter.endInterval("load", loadState) }
+        if items.isEmpty { phase = .loading }
+        isRefreshing = true
+        defer { isRefreshing = false }
         do {
-            var snapshot = try await service.snapshot(of: ref)
-            signposter.endInterval("load", loadState)
-            let matcher = rules.matcher
-            let autoViewed = snapshot.files
-                .filter { $0.viewedState != .viewed && matcher.isAutoViewed(file: $0.path) }
-                .map(\.path)
-            let autoViewedSet = Set(autoViewed)
-            for index in snapshot.files.indices where autoViewedSet.contains(snapshot.files[index].path) {
-                snapshot.files[index].viewedState = .viewed
+            for try await part in service.parts(of: ref) {
+                switch part {
+                case let .files(id, files):
+                    await receiveFiles(id: id, files: files)
+                    if firstPaint == nil { firstPaint = .now - start }
+                case let .detail(pullRequest):
+                    receiveDetail(pullRequest)
+                case let .threads(threads):
+                    receiveThreads(threads)
+                }
             }
-            self.snapshot = snapshot
-            pullRequest = snapshot.pullRequest
-            fileCount = snapshot.files.count
-            viewedPaths = Set(snapshot.files.filter { $0.viewedState == .viewed }.map(\.path))
-            confirmedViewed = Dictionary(
-                snapshot.files.map { ($0.path, $0.viewedState == .viewed && !autoViewedSet.contains($0.path)) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            let missing = snapshot.pullRequest.changedFiles - snapshot.files.count
-            incompleteNotice = missing > 0
-                ? "GitHub returns at most 3,000 files. \(missing) of \(snapshot.pullRequest.changedFiles) changed files are not shown."
-                : nil
-
-            let order = filesController.setTreeFiles(snapshot.files, matcher: matcher)
-            let buildState = signposter.beginInterval("build")
-            let items = await Self.buildItems(snapshot, order: order)
-            signposter.endInterval("build", buildState)
-            filesController.setDiffFiles(items)
-            self.items = Dictionary(items.map { ($0.file.path, $0) }, uniquingKeysWith: { first, _ in first })
-            generations = [:]
-            phase = .loaded
-            onLoaded?(snapshot.pullRequest)
-            startHighlighting(items)
-            if !autoViewed.isEmpty { sync(viewed: true, paths: autoViewed) }
+            liveLoad = .now - start
+            onLoaded?()
         } catch {
-            signposter.endInterval("load", loadState)
-            phase = .failed(error.localizedDescription)
+            if phase == .loaded {
+                errorBanner = "Could not refresh from GitHub: \(error.localizedDescription)"
+            } else {
+                phase = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func receiveDetail(_ pullRequest: PullRequest) {
+        self.pullRequest = pullRequest
+        updateIncompleteNotice()
+        onDetail?(pullRequest)
+    }
+
+    private func updateIncompleteNotice() {
+        guard let pullRequest, !files.isEmpty else { return }
+        let missing = pullRequest.changedFiles - files.count
+        incompleteNotice = missing > 0
+            ? "GitHub returns at most 3,000 files. \(missing) of \(pullRequest.changedFiles) changed files are not shown."
+            : nil
+    }
+
+    private func receiveFiles(id: String, files incoming: [ChangedFile]) async {
+        pullRequestID = id
+        let matcher = rules.matcher
+        var files = incoming
+        var autoViewed: [String] = []
+        for index in files.indices {
+            let path = files[index].path
+            confirmedViewed[path] = files[index].viewedState == .viewed
+            if viewedGenerations[path, default: 0] > 0 {
+                files[index].viewedState = viewedPaths.contains(path) ? .viewed : .unviewed
+            } else if files[index].viewedState != .viewed, matcher.isAutoViewed(file: path) {
+                files[index].viewedState = .viewed
+                if !autoViewedSent.contains(path) { autoViewed.append(path) }
+            }
+        }
+
+        if !items.isEmpty, Self.sameContent(self.files, files) {
+            self.files = files
+            let viewedNow = Set(files.filter { $0.viewedState == .viewed }.map(\.path))
+            let newlyViewed = viewedNow.subtracting(viewedPaths)
+            let newlyUnviewed = viewedPaths.subtracting(viewedNow)
+            if !newlyViewed.isEmpty { apply(viewed: true, paths: Array(newlyViewed)) }
+            if !newlyUnviewed.isEmpty { apply(viewed: false, paths: Array(newlyUnviewed)) }
+        } else {
+            self.files = files
+            fileCount = files.count
+            viewedPaths = Set(files.filter { $0.viewedState == .viewed }.map(\.path))
+            let order = filesController.setTreeFiles(files, matcher: matcher)
+            let buildState = signposter.beginInterval("build")
+            let built = await Self.buildItems(files, threads: threads ?? [], order: order)
+            signposter.endInterval("build", buildState)
+            filesController.setDiffFiles(built)
+            items = Dictionary(built.map { ($0.file.path, $0) }, uniquingKeysWith: { first, _ in first })
+            for path in items.keys { generations[path, default: 0] += 1 }
+            phase = .loaded
+            startHighlighting(built)
+        }
+        updateIncompleteNotice()
+        if !autoViewed.isEmpty {
+            autoViewedSent.formUnion(autoViewed)
+            sync(viewed: true, paths: autoViewed)
+        }
+    }
+
+    private func receiveThreads(_ threads: [ReviewThread]) {
+        self.threads = threads
+        let byPath = DiffItemFactory.placeableThreads(threads)
+        var changed: [DiffFileItem] = []
+        for (path, item) in items {
+            let placed = byPath[path] ?? []
+            guard placed != item.threads else { continue }
+            var updated = item
+            updated.threads = placed
+            items[path] = updated
+            changed.append(updated)
+        }
+        if !changed.isEmpty { filesController.updateDiffFiles(changed) }
+    }
+
+    /// Same files and patches: the rows on screen stay, and only Viewed states update.
+    private nonisolated static func sameContent(_ lhs: [ChangedFile], _ rhs: [ChangedFile]) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        let old = Dictionary(lhs.map { ($0.path, $0) }, uniquingKeysWith: { first, _ in first })
+        return rhs.allSatisfy { file in
+            guard let previous = old[file.path] else { return false }
+            return previous.patch == file.patch && previous.status == file.status && previous.previousPath == file.previousPath
         }
     }
 
@@ -174,7 +259,7 @@ public final class PRDetailModel {
 
     /// Sends mutations in order. A failure reverts only failed paths that the user has not changed since.
     private func sync(viewed: Bool, paths: [String]) {
-        guard let id = snapshot?.pullRequest.nodeID, !paths.isEmpty else { return }
+        guard let id = pullRequestID, !paths.isEmpty else { return }
         var sent: [String: Int] = [:]
         for path in paths {
             let generation = viewedGenerations[path, default: 0] + 1
@@ -260,9 +345,9 @@ public final class PRDetailModel {
 
     // MARK: Background work
 
-    private nonisolated static func buildItems(_ snapshot: PullRequestSnapshot, order: [String]) async -> [DiffFileItem] {
+    private nonisolated static func buildItems(_ files: [ChangedFile], threads: [ReviewThread], order: [String]) async -> [DiffFileItem] {
         await Task.detached(priority: .userInitiated) {
-            DiffItemFactory.items(for: snapshot, order: order)
+            DiffItemFactory.items(files: files, threads: threads, order: order)
         }.value
     }
 
@@ -271,10 +356,11 @@ public final class PRDetailModel {
         guard let highlighter else { return }
         highlightTask?.cancel()
         let state = signposter.beginInterval("highlight")
+        let started = generations
         highlightTask = Task {
             let stream = Self.highlightStream(items, highlighter: highlighter)
             for await batch in stream {
-                let current = batch.filter { generations[$0.key, default: 0] == 0 }
+                let current = batch.filter { generations[$0.key] == started[$0.key] }
                 for (path, highlights) in current { self.items[path]?.highlights = highlights }
                 filesController.updateHighlights(current)
             }

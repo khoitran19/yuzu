@@ -1,4 +1,5 @@
 import Foundation
+@testable import DiffView
 import GitHubKit
 @testable import PRDetail
 import PRFixtures
@@ -62,4 +63,57 @@ struct PRDetailModelTests {
         try FileManager.default.copyItem(at: source, to: copy)
         return copy
     }
+}
+
+@MainActor
+struct ProgressiveLoadTests {
+    @Test func diffShowsBeforeDetailAndThreadsArrive() async throws {
+        let directory = URL(filePath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Fixtures/synthetic-50")
+        let fixture = FixturePullRequestService(directory: directory)
+        let snapshot = try await fixture.snapshot(of: try await fixture.pullRequestRef())
+        let service = ManualPartsService()
+        let model = PRDetailModel(ref: snapshot.pullRequest.ref, service: service, highlighter: nil, rules: ReviewRules())
+        let loading = Task { await model.load() }
+
+        service.continuation.yield(.files(pullRequestID: snapshot.pullRequest.nodeID, files: snapshot.files))
+        try await waitUntil { model.phase == .loaded }
+        #expect(model.pullRequest == nil)
+        #expect(model.isRefreshing)
+        #expect(threadRows(model) == 0)
+
+        service.continuation.yield(.threads(snapshot.threads))
+        service.continuation.yield(.detail(snapshot.pullRequest))
+        service.continuation.finish()
+        await loading.value
+
+        #expect(model.pullRequest == snapshot.pullRequest)
+        #expect(!model.isRefreshing)
+        #expect(threadRows(model) > 0)
+    }
+
+    private func threadRows(_ model: PRDetailModel) -> Int {
+        model.filesController.diff.rows.filter { if case .thread = $0.kind { $0.slice == 0 } else { false } }.count
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        for _ in 0..<200 where !condition() { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(condition())
+    }
+}
+
+private final class ManualPartsService: PullRequestService, @unchecked Sendable {
+    let stream: AsyncThrowingStream<PullRequestPart, Error>
+    let continuation: AsyncThrowingStream<PullRequestPart, Error>.Continuation
+
+    init() {
+        (stream, continuation) = AsyncThrowingStream.makeStream()
+    }
+
+    func parts(of ref: PRRef) -> AsyncThrowingStream<PullRequestPart, Error> { stream }
+    func snapshot(of ref: PRRef) async throws -> PullRequestSnapshot { throw GitHubError.notFound }
+    func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws {}
+    func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
+    func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
 }

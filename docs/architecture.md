@@ -59,23 +59,31 @@ sequenceDiagram
 
     User->>App: Paste link (PRRef parses it)
     App->>Model: init(ref, service, rules)
-    Model->>Service: snapshot(of:)
-    Note over Service: GraphQL detail, viewed states, threads<br/>and REST files pages run in parallel
-    Service-->>Model: PullRequestSnapshot
+    Model->>Service: parts(of:)
+    Note over Service: Files page 1 + Viewed states (with node ID),<br/>details, and threads start in parallel
+    Service-->>Model: .files(pullRequestID, files)
     Model->>Model: Apply auto-viewed rules
     Model->>Tree: setFiles (returns display order)
     Model->>BG: Build FileDiff for each file
     BG-->>Model: [DiffFileItem] in tree order
-    Model->>Diff: setFiles
+    Model->>Diff: setFiles (first paint)
     Model->>BG: Highlight stream (parallel)
+    Model->>Service: setViewed(true, auto-viewed paths)
+    Service-->>Model: .detail(PullRequest)
+    Model->>Model: Header, Summary, 3,000-file notice
+    Service-->>Model: .threads([ReviewThread])
+    Model->>Diff: updateFiles (threads for changed files, one rebuild)
     loop Every 50 ms
         BG-->>Model: Batch of highlights
         Model->>Diff: updateHighlights (visible rows redraw)
     end
-    Model->>Service: setViewed(true, auto-viewed paths)
 ```
 
-The diff shows before highlighting finishes. Highlights recolor visible rows as batches arrive.
+- The diff shows when the files and Viewed states arrive. It does not wait for details, threads, or highlighting.
+- The diff waits for Viewed states, because they decide which files are collapsed. Without them, files would collapse
+  after the first paint and move the content.
+- A PR link on the clipboard starts a prefetch when the app becomes active. Opening that PR within 60 seconds uses the
+  prefetch (`PrefetchedService`).
 
 ## Viewed state
 

@@ -112,9 +112,21 @@ public final class DiffViewController: NSViewController {
         renderer.files = items.map { item in
             FileState(item: item, collapsed: previous[item.file.path] ?? (item.file.viewedState == .viewed))
         }
+        let hadRows = !rows.isEmpty
         fileIndex = Dictionary(items.enumerated().map { ($1.file.path, $0) }, uniquingKeysWith: { first, _ in first })
         renderer.cache.invalidateAll()
-        rebuild(anchor: nil)
+        rebuild(anchor: hadRows ? .keepTopRow : nil)
+    }
+
+    /// Replaces many files' content or threads with a single row rebuild.
+    public func updateFiles(_ items: [DiffFileItem]) {
+        guard items.count > 1 else { return items.first.map(updateFile) ?? () }
+        for item in items {
+            guard let index = fileIndex[item.file.path] else { continue }
+            renderer.files[index].update(item)
+            renderer.cache.invalidate(file: index)
+        }
+        rebuild(anchor: .keepTopRow)
     }
 
     /// Replaces one file's content, highlights, and threads.

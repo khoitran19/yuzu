@@ -7,8 +7,8 @@ This document uses ASD-STE100 Simplified Technical English.
 | Feature | Endpoint | Notes |
 | --- | --- | --- |
 | Title, state, branches, body | GraphQL `pullRequest { title state bodyHTML baseRefOid headRefOid … }` | `bodyHTML` is GitHub's rendered markdown; the Summary tab shows it in a web view. |
-| Files and patches | REST `GET /repos/{o}/{r}/pulls/{n}/files?per_page=100&page=N` | Pages load in parallel. |
-| Viewed state (read) | GraphQL `files { path viewerViewedState }` | Paginated by cursor. |
+| Files and patches | REST `GET /repos/{o}/{r}/pulls/{n}/files?per_page=100&page=N` | Page 1 starts at once. Its `Link` header (`rel="last"`) gives the page count; the other pages load in parallel. |
+| Viewed state (read) | GraphQL `pullRequest { id files { path viewerViewedState } }` | Paginated by cursor. Returns the node ID, so the file list does not wait for the details request. |
 | Viewed state (write) | GraphQL `markFileAsViewed` / `unmarkFileAsViewed` | Many paths in one request, one alias (`m0`, `m1`, …) per path. |
 | Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments }` | Comments over 100 per thread load through `node(id:)`. |
 | Full file contents | REST `GET /repos/{o}/{r}/contents/{path}?ref={oid}` with `Accept: application/vnd.github.raw+json` | For "Load diff" and context expansion. |
@@ -22,8 +22,10 @@ This document uses ASD-STE100 Simplified Technical English.
 - **Omitted patches.** GitHub leaves out `patch` for large diffs and binary files. With 0 additions and 0 deletions the
   app shows "Binary file"; otherwise it shows "Load diff", which diffs the two full versions locally.
 - **Outdated threads** (`line == nil`) do not show in the diff. GitHub shows them only on the Conversation page.
-- **Rate limit.** Opening a pull request costs 3 GraphQL requests (detail, viewed states, threads) plus one REST request per 100 files. Expansion and
-  "Load diff" cost 1–3 requests per file.
+- **Rate limit.** Opening a pull request costs 3 GraphQL requests (detail, viewed states, threads) plus one REST request
+  per 100 files. Expansion and "Load diff" cost 1–3 requests per file.
+- **Response time.** On #6663 (22 files): files 0.46 s, Viewed states 0.49 s, details 0.75 s, threads 0.91 s. The first
+  paint waits for the first two only: about 0.6 s.
 
 ## Viewed-state semantics
 

@@ -71,6 +71,42 @@ struct GitHubClientTests {
         #expect(threads.map { $0.comments.map(\.id) } == [["c1", "c2", "c3", "c4"], ["d1"]])
         #expect(StubURLProtocol.requests(token: token).count == 3)
     }
+
+    @Test func filesArriveWhenTheDetailRequestFails() async throws {
+        let session = StubURLProtocol.session(token: token) { request in
+            let body = String(decoding: request.body, as: UTF8.self)
+            if request.url.path().hasSuffix("/files") {
+                return #"[{"filename":"a.ts","status":"modified","additions":1,"deletions":0,"patch":"@@ -1 +1 @@\n-a\n+b"}]"#
+            }
+            if body.contains("viewerViewedState") {
+                return #"{"data":{"repository":{"pullRequest":{"id":"PR_1","files":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"path":"a.ts","viewerViewedState":"VIEWED"}]}}}}}"#
+            }
+            if body.contains("reviewThreads") {
+                return #"{"data":{"repository":{"pullRequest":{"reviewThreads":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}}}"#
+            }
+            return #"{"errors":[{"message":"boom","type":"INTERNAL"}]}"#
+        }
+        let client = GitHubClient(token: token, session: session)
+        var received: [PullRequestPart] = []
+        do {
+            for try await part in client.parts(of: PRRef(owner: "o", repo: "r", number: 1)) { received.append(part) }
+            Issue.record("The detail error must end the stream")
+        } catch {}
+        let files = received.compactMap { part -> (String, [ChangedFile])? in
+            if case let .files(id, files) = part { (id, files) } else { nil }
+        }
+        #expect(files.first?.0 == "PR_1")
+        #expect(files.first?.1.map(\.viewedState) == [.viewed])
+    }
+
+    @Test(arguments: [
+        (#"<https://api.github.com/x?per_page=100&page=2>; rel="next", <https://api.github.com/x?per_page=100&page=7>; rel="last""#, 7),
+        (#"<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first""#, nil),
+        ("", nil),
+    ])
+    func readsLastPageFromLinkHeader(link: String, expected: Int?) {
+        #expect(GitHubClient.lastPage(link: link) == expected)
+    }
 }
 
 private struct GraphQLBody: Decodable {

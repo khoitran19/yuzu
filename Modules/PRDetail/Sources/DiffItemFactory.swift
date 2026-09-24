@@ -4,14 +4,19 @@ import Foundation
 import PRModels
 
 nonisolated enum DiffItemFactory {
-    static func items(for snapshot: PullRequestSnapshot, order: [String]) -> [DiffFileItem] {
-        let threadsByPath = Dictionary(grouping: snapshot.threads.filter { $0.line != nil && !$0.isOutdated }, by: \.path)
+    static func items(files: [ChangedFile], threads: [ReviewThread], order: [String]) -> [DiffFileItem] {
+        let threadsByPath = placeableThreads(threads)
         let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        return snapshot.files
+        return files
             .sorted { (rank[$0.path] ?? .max, $0.path) < (rank[$1.path] ?? .max, $1.path) }
             .map { file in
                 DiffFileItem(file: file, content: content(for: file), threads: threadsByPath[file.path] ?? [])
             }
+    }
+
+    /// Threads GitHub can place on the current diff, by path.
+    static func placeableThreads(_ threads: [ReviewThread]) -> [String: [ReviewThread]] {
+        Dictionary(grouping: threads.filter { $0.line != nil && !$0.isOutdated }, by: \.path)
     }
 
     static func content(for file: ChangedFile) -> DiffFileItem.Content {

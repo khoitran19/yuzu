@@ -42,6 +42,7 @@ sleeps. Read the PNG after every UI change.
 | `--expand <path>:<hunk\|tail>` | Expand context above a hunk, or the tail (repeatable) |
 | `--rules '<ReviewRules JSON>'` | Use these rules; stored in a scratch defaults domain, never in the user's settings |
 | `--settle <seconds>` | Wait before the capture (default 1) |
+| `--latency <ms>` | Delay every fixture response, to simulate the network |
 | `--screenshot <png>` | Capture and quit. With no session, captures the sign-in screen |
 | `--perf-scroll <json>` | Run the scroll benchmark and quit |
 
@@ -53,6 +54,8 @@ Controls have accessibility identifiers (`diff.table`, `fileTree.outline`, `file
 ```sh
 scripts/perf.sh Fixtures/synthetic-300 .build/perf.json
 ```
+
+The `loaded` log line has `firstPaintMs` (diff on screen) and `loadMs` (all parts arrived).
 
 The benchmark scrolls the diff at 6,000 pt/s for up to 30 s and writes JSON:
 

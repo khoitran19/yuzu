@@ -60,6 +60,7 @@ struct HomeView: View {
 
     private func readClipboard() {
         clipboardRef = NSPasteboard.general.string(forType: .string).flatMap(PRRef.init(string:))
+        if let clipboardRef { services.prefetch(clipboardRef) }
     }
 }
 

@@ -7,14 +7,12 @@ final class HarnessRunner {
     private let options: LaunchOptions
     private let model: PRDetailModel
     private let window: NSWindow?
-    private let loadDuration: Duration
     private var perf: ScrollPerfHarness?
 
-    init(options: LaunchOptions, model: PRDetailModel, window: NSWindow?, loadDuration: Duration) {
+    init(options: LaunchOptions, model: PRDetailModel, window: NSWindow?) {
         self.options = options
         self.model = model
         self.window = window
-        self.loadDuration = loadDuration
     }
 
     func run() {
@@ -27,8 +25,11 @@ final class HarnessRunner {
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             if let path = options.scrollToFile { model.filesController.diff.scrollToFile(path) }
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
-            let loadMs = Double(loadDuration.components.attoseconds) / 1e15 + Double(loadDuration.components.seconds) * 1_000
-            log(["event": "loaded", "loadMs": String(format: "%.1f", loadMs), "files": "\(model.fileCount)", "rows": "\(model.filesController.diff.rowCount)"])
+            let loadMs = Self.milliseconds(model.liveLoad)
+            log([
+                "event": "loaded", "firstPaintMs": String(format: "%.1f", Self.milliseconds(model.firstPaint)),
+                "loadMs": String(format: "%.1f", loadMs), "files": "\(model.fileCount)", "rows": "\(model.filesController.diff.rowCount)",
+            ])
 
             let window = window ?? NSApp.windows.first { $0.isVisible && $0.canBecomeMain }
             if let url = options.screenshot, let window {
@@ -59,6 +60,11 @@ final class HarnessRunner {
             log(["event": "perf-start"])
             harness.start()
         }
+    }
+
+    private static func milliseconds(_ duration: Duration?) -> Double {
+        guard let duration else { return -1 }
+        return Double(duration.components.seconds) * 1_000 + Double(duration.components.attoseconds) / 1e15
     }
 
     private func log(_ fields: [String: String]) {
