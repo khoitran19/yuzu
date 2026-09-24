@@ -76,12 +76,14 @@ public enum FileDiffBuilder {
         ))
     }
 
-    /// Splits on LF only and drops one trailing CR per line. A trailing LF does not start another line.
+    /// Splits on LF only and drops a CR that precedes an LF. A trailing LF does not start another line.
     public static func lines(of text: String) -> [String] {
         guard !text.isEmpty else { return [] }
         let carriageReturn = UInt8(ascii: "\r")
-        var lines = text.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false).map { line in
-            String(decoding: line.last == carriageReturn ? line.dropLast() : line, as: UTF8.self)
+        let segments = text.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)
+        var lines = segments.enumerated().map { index, line in
+            let endsBeforeLF = index < segments.count - 1
+            return String(decoding: endsBeforeLF && line.last == carriageReturn ? line.dropLast() : line, as: UTF8.self)
         }
         if text.utf8.last == UInt8(ascii: "\n") { lines.removeLast() }
         return lines

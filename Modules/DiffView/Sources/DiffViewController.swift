@@ -120,9 +120,10 @@ public final class DiffViewController: NSViewController {
     /// Replaces one file's content, highlights, and threads.
     public func updateFile(_ item: DiffFileItem) {
         guard let index = fileIndex[item.file.path] else { return }
-        renderer.files[index].update(item)
-        renderer.cache.invalidate(file: index)
-        refreshFile(index, anchor: .keepTopRow)
+        refreshFile(index, anchor: .keepTopRow) {
+            self.renderer.files[index].update(item)
+            self.renderer.cache.invalidate(file: index)
+        }
     }
 
     /// Adds highlights without a row rebuild; only visible rows redraw.
@@ -199,8 +200,9 @@ public final class DiffViewController: NSViewController {
     }
 
     /// Rebuilds one file's rows; other files keep their rows and measured heights.
-    private func refreshFile(_ file: Int, anchor: Anchor) {
+    private func refreshFile(_ file: Int, anchor: Anchor, change: () -> Void) {
         let saved = captureAnchor(anchor)
+        change()
         renderer.selection = nil
         selectionAnchor = nil
         let old = rowRange(ofFile: file)
@@ -211,7 +213,13 @@ public final class DiffViewController: NSViewController {
         heights.replaceSubrange(old, with: newHeights)
         let delta = newRows.count - old.count
         for later in (file + 1)..<headerRows.count { headerRows[later] += delta }
-        tableView.reloadData()
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            tableView.beginUpdates()
+            tableView.removeRows(at: IndexSet(integersIn: old), withAnimation: [])
+            tableView.insertRows(at: IndexSet(integersIn: old.lowerBound..<(old.lowerBound + newRows.count)), withAnimation: [])
+            tableView.endUpdates()
+        }
         if let saved { restoreAnchor(saved) }
         updateVisibleFile(notify: true)
     }
@@ -306,8 +314,7 @@ public final class DiffViewController: NSViewController {
         }
         let headerY = tableView.rect(ofRow: headerRows[file]).minY
         let headerAboveViewport = headerY < scrollView.contentView.bounds.minY
-        state.collapsed = collapsed
-        refreshFile(file, anchor: headerAboveViewport ? .fileHeader(file) : .keepTopRow)
+        refreshFile(file, anchor: headerAboveViewport ? .fileHeader(file) : .keepTopRow) { state.collapsed = collapsed }
     }
 
     private func redrawRows(ofFile file: Int) {
@@ -335,12 +342,9 @@ public final class DiffViewController: NSViewController {
             onLoadFullDiff?(path)
         case let .toggleThread(index):
             let id = state.item.threads[index].id
-            if state.expandedResolvedThreads.contains(id) {
-                state.expandedResolvedThreads.remove(id)
-            } else {
-                state.expandedResolvedThreads.insert(id)
+            refreshFile(ref.file, anchor: .keepTopRow) {
+                if state.expandedResolvedThreads.remove(id) == nil { state.expandedResolvedThreads.insert(id) }
             }
-            refreshFile(ref.file, anchor: .keepTopRow)
         case let .expandHunk(hunk):
             onExpand?(path, hunk)
         case .expandTail:

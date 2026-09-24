@@ -45,6 +45,8 @@ public final class PRDetailModel {
     @ObservationIgnored private var headLines: [String: [String]] = [:]
     @ObservationIgnored private var mergeBase: String?
     @ObservationIgnored private var viewedGenerations: [String: Int] = [:]
+    /// Viewed state GitHub last confirmed; a failed request reverts to it.
+    @ObservationIgnored private var confirmedViewed: [String: Bool] = [:]
     @ObservationIgnored private var viewedSync: Task<Void, Never>?
     @ObservationIgnored private let signposter = OSSignposter(subsystem: "dev.khoitran.prviewer", category: "PRDetail")
 
@@ -59,6 +61,11 @@ public final class PRDetailModel {
     }
 
     public var viewedCount: Int { viewedPaths.count }
+
+    /// Waits for queued Viewed requests; tests use it.
+    func settleViewedSync() async {
+        await viewedSync?.value
+    }
 
     public func load() async {
         phase = .loading
@@ -78,6 +85,10 @@ public final class PRDetailModel {
             pullRequest = snapshot.pullRequest
             fileCount = snapshot.files.count
             viewedPaths = Set(snapshot.files.filter { $0.viewedState == .viewed }.map(\.path))
+            confirmedViewed = Dictionary(
+                snapshot.files.map { ($0.path, $0.viewedState == .viewed && !autoViewedSet.contains($0.path)) },
+                uniquingKeysWith: { first, _ in first }
+            )
             let missing = snapshot.pullRequest.changedFiles - snapshot.files.count
             incompleteNotice = missing > 0
                 ? "GitHub returns at most 3,000 files. \(missing) of \(snapshot.pullRequest.changedFiles) changed files are not shown."
@@ -120,7 +131,10 @@ public final class PRDetailModel {
     /// Shows unchanged lines above `hunk`, or after the last hunk when `hunk` is `nil`.
     /// Expansions of one file run in order, so each one starts from the previous result.
     public func expand(_ path: String, hunk: Int?) {
-        guard let pullRequest, items[path] != nil else { return }
+        guard let pullRequest, let item = items[path], case let .diff(shown) = item.content else { return }
+        // The new-side line that starts the clicked hunk; earlier queued expansions can renumber hunks.
+        let boundary = hunk.flatMap { shown.hunks[safe: $0]?.firstNewLine }
+        if hunk != nil, boundary == nil { return }
         let previous = expansions[path]
         expansions[path] = Task {
             await previous?.value
@@ -128,8 +142,14 @@ public final class PRDetailModel {
                 let lines = try await headFileLines(path, oid: pullRequest.headOid)
                 guard let item = items[path], case let .diff(diff) = item.content else { return }
                 let generation = generations[path, default: 0]
+                var target: Int?
+                if let boundary {
+                    guard let index = diff.hunks.firstIndex(where: { $0.firstNewLine == boundary }) else { return }
+                    target = index
+                }
+                let hunkIndex = target
                 let expanded = await Task.detached(priority: .userInitiated) {
-                    hunk.map { diff.expandingGap(before: $0, newFileLines: lines) } ?? diff.expandingTail(newFileLines: lines)
+                    hunkIndex.map { diff.expandingGap(before: $0, newFileLines: lines) } ?? diff.expandingTail(newFileLines: lines)
                 }.value
                 guard generations[path, default: 0] == generation, var current = items[path] else { return }
                 current.content = .diff(expanded)
@@ -166,10 +186,15 @@ public final class PRDetailModel {
             await previous?.value
             do {
                 try await service.setViewed(viewed, paths: paths, pullRequestID: id)
+                for path in paths { confirmedViewed[path] = viewed }
             } catch {
                 let failed = if case let GitHubError.partialFailure(failedPaths) = error { failedPaths } else { paths }
+                let failedSet = Set(failed)
+                for path in paths where !failedSet.contains(path) { confirmedViewed[path] = viewed }
                 let revert = failed.filter { viewedGenerations[$0] == sent[$0] }
-                if !revert.isEmpty { apply(viewed: !viewed, paths: revert) }
+                for (confirmed, group) in Dictionary(grouping: revert, by: { confirmedViewed[$0] ?? false }) {
+                    apply(viewed: confirmed, paths: group)
+                }
                 errorBanner = "GitHub did not save the Viewed state of \(failed.count) file\(failed.count == 1 ? "" : "s"): \(error.localizedDescription)"
             }
         }
@@ -289,5 +314,11 @@ public final class PRDetailModel {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

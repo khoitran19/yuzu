@@ -52,7 +52,7 @@ extension FileDiff {
 extension DiffHunk {
     /// A zero-count range starts at the line before the insertion point, as in `+5,0`.
     var firstOldLine: Int { oldCount == 0 ? oldStart + 1 : oldStart }
-    var firstNewLine: Int { newCount == 0 ? newStart + 1 : newStart }
+    public var firstNewLine: Int { newCount == 0 ? newStart + 1 : newStart }
     var nextOldLine: Int { firstOldLine + oldCount }
     var nextNewLine: Int { firstNewLine + newCount }
 

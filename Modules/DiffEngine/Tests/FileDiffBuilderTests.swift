@@ -63,6 +63,11 @@ struct FileDiffBuilderTests {
         }
     }
 
+    @Test func keepsCarriageReturnAtEndOfFile() {
+        #expect(FileDiffBuilder.lines(of: "a\r\nb\r") == ["a", "b\r"])
+        #expect(!FileDiffBuilder.build(old: "x\r", new: "x").hunks.isEmpty)
+    }
+
     @Test func expandsTabsToColumns() {
         #expect(FileDiffBuilder.expandTabs("\tx") == "    x")
         #expect(FileDiffBuilder.expandTabs("ab\tx") == "ab  x")
