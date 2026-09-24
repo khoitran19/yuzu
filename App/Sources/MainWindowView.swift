@@ -78,9 +78,9 @@ struct MainWindowView: View {
         addressFocused = false
         openedAt = .now
         let model = PRDetailModel(ref: ref, service: service, highlighter: services.highlighter, rules: services.rulesStore.rules)
-        model.onLoaded = { [recents = services.recents, options = services.options] pullRequest in
+        model.onLoaded = { [weak model, recents = services.recents, options = services.options] pullRequest in
             if !options.isHarness { recents.record(ref, title: pullRequest.title) }
-            guard options.isHarness else { return }
+            guard options.isHarness, let model else { return }
             let runner = HarnessRunner(options: options, model: model, window: window, loadDuration: .now - openedAt)
             harness = runner
             runner.run()

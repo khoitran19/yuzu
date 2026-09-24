@@ -27,6 +27,8 @@ public final class PRDetailModel {
     public private(set) var viewedPaths: Set<String> = []
     public private(set) var fileCount = 0
     public private(set) var errorBanner: String?
+    /// Set when GitHub returned fewer files than the pull request changes.
+    public private(set) var incompleteNotice: String?
     public var tab: Tab = .files
 
     @ObservationIgnored public let filesController = FilesChangedViewController()
@@ -37,7 +39,13 @@ public final class PRDetailModel {
     @ObservationIgnored private var snapshot: PullRequestSnapshot?
     @ObservationIgnored private var highlightTask: Task<Void, Never>?
     @ObservationIgnored private var items: [String: DiffFileItem] = [:]
+    /// Increments on every content change of a file; results computed for an older generation are dropped.
+    @ObservationIgnored private var generations: [String: Int] = [:]
+    @ObservationIgnored private var expansions: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var headLines: [String: [String]] = [:]
+    @ObservationIgnored private var mergeBase: String?
+    @ObservationIgnored private var viewedGenerations: [String: Int] = [:]
+    @ObservationIgnored private var viewedSync: Task<Void, Never>?
     @ObservationIgnored private let signposter = OSSignposter(subsystem: "dev.khoitran.prviewer", category: "PRDetail")
 
     public init(ref: PRRef, service: any PullRequestService, highlighter: (any SyntaxHighlighting)?, rules: ReviewRules) {
@@ -70,6 +78,10 @@ public final class PRDetailModel {
             pullRequest = snapshot.pullRequest
             fileCount = snapshot.files.count
             viewedPaths = Set(snapshot.files.filter { $0.viewedState == .viewed }.map(\.path))
+            let missing = snapshot.pullRequest.changedFiles - snapshot.files.count
+            incompleteNotice = missing > 0
+                ? "GitHub returns at most 3,000 files. \(missing) of \(snapshot.pullRequest.changedFiles) changed files are not shown."
+                : nil
 
             let order = filesController.setTreeFiles(snapshot.files, matcher: matcher)
             let buildState = signposter.beginInterval("build")
@@ -77,6 +89,7 @@ public final class PRDetailModel {
             signposter.endInterval("build", buildState)
             filesController.setDiffFiles(items)
             self.items = Dictionary(items.map { ($0.file.path, $0) }, uniquingKeysWith: { first, _ in first })
+            generations = [:]
             phase = .loaded
             onLoaded?(snapshot.pullRequest)
             startHighlighting(items)
@@ -100,73 +113,112 @@ public final class PRDetailModel {
         errorBanner = nil
     }
 
-    private func apply(viewed: Bool, paths: [String]) {
-        for path in paths {
-            if viewed { viewedPaths.insert(path) } else { viewedPaths.remove(path) }
-            items[path]?.file.viewedState = viewed ? .viewed : .unviewed
-            filesController.setViewed(viewed, path: path)
-        }
-    }
-
-    private func sync(viewed: Bool, paths: [String]) {
-        guard let id = snapshot?.pullRequest.nodeID else { return }
-        Task {
-            do {
-                try await service.setViewed(viewed, paths: paths, pullRequestID: id)
-            } catch {
-                apply(viewed: !viewed, paths: paths)
-                errorBanner = "GitHub did not save the Viewed state: \(error.localizedDescription)"
-            }
-        }
+    public func dismissIncompleteNotice() {
+        incompleteNotice = nil
     }
 
     /// Shows unchanged lines above `hunk`, or after the last hunk when `hunk` is `nil`.
+    /// Expansions of one file run in order, so each one starts from the previous result.
     public func expand(_ path: String, hunk: Int?) {
         guard let pullRequest, items[path] != nil else { return }
-        Task {
+        let previous = expansions[path]
+        expansions[path] = Task {
+            await previous?.value
             do {
-                let lines: [String]
-                if let cached = headLines[path] {
-                    lines = cached
-                } else {
-                    let text = try await service.fileContents(of: ref, oid: pullRequest.headOid, path: path) ?? ""
-                    lines = Self.lines(of: text)
-                    headLines[path] = lines
-                }
-                guard var item = items[path], case let .diff(diff) = item.content else { return }
-                let expanded = hunk.map { diff.expandingGap(before: $0, newFileLines: lines) } ?? diff.expandingTail(newFileLines: lines)
-                item.content = .diff(expanded)
-                item.tailExpandable = expanded.trailingLineCount(newFileLineCount: lines.count) > 0
-                item.highlights = nil
-                items[path] = item
-                filesController.updateDiffFile(item)
-                guard let highlighter else { return }
-                let pending = item
-                let highlights = await Task.detached(priority: .userInitiated) { DiffItemFactory.highlights(for: pending, using: highlighter) }.value
-                guard let highlights, case let .diff(current) = items[path]?.content, current == expanded else { return }
-                items[path]?.highlights = highlights
-                filesController.updateHighlights([path: highlights])
+                let lines = try await headFileLines(path, oid: pullRequest.headOid)
+                guard let item = items[path], case let .diff(diff) = item.content else { return }
+                let generation = generations[path, default: 0]
+                let expanded = await Task.detached(priority: .userInitiated) {
+                    hunk.map { diff.expandingGap(before: $0, newFileLines: lines) } ?? diff.expandingTail(newFileLines: lines)
+                }.value
+                guard generations[path, default: 0] == generation, var current = items[path] else { return }
+                current.content = .diff(expanded)
+                current.tailExpandable = expanded.trailingLineCount(newFileLineCount: lines.count) > 0
+                current.highlights = nil
+                install(current)
             } catch {
                 errorBanner = "Could not load \(path): \(error.localizedDescription)"
             }
         }
     }
 
-    private nonisolated static func lines(of text: String) -> [String] {
-        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map { String($0.hasSuffix("\r") ? $0.dropLast() : $0) }
-        if lines.last == "" { lines.removeLast() }
+    // MARK: Viewed state
+
+    private func apply(viewed: Bool, paths: [String]) {
+        for path in paths {
+            if viewed { viewedPaths.insert(path) } else { viewedPaths.remove(path) }
+            items[path]?.file.viewedState = viewed ? .viewed : .unviewed
+        }
+        filesController.setViewed(viewed, paths: paths)
+    }
+
+    /// Sends mutations in order. A failure reverts only failed paths that the user has not changed since.
+    private func sync(viewed: Bool, paths: [String]) {
+        guard let id = snapshot?.pullRequest.nodeID, !paths.isEmpty else { return }
+        var sent: [String: Int] = [:]
+        for path in paths {
+            let generation = viewedGenerations[path, default: 0] + 1
+            viewedGenerations[path] = generation
+            sent[path] = generation
+        }
+        let previous = viewedSync
+        viewedSync = Task {
+            await previous?.value
+            do {
+                try await service.setViewed(viewed, paths: paths, pullRequestID: id)
+            } catch {
+                let failed = if case let GitHubError.partialFailure(failedPaths) = error { failedPaths } else { paths }
+                let revert = failed.filter { viewedGenerations[$0] == sent[$0] }
+                if !revert.isEmpty { apply(viewed: !viewed, paths: revert) }
+                errorBanner = "GitHub did not save the Viewed state of \(failed.count) file\(failed.count == 1 ? "" : "s"): \(error.localizedDescription)"
+            }
+        }
+    }
+
+    // MARK: File content
+
+    /// Replaces a file's content and highlights it in the background.
+    private func install(_ item: DiffFileItem) {
+        let path = item.file.path
+        let generation = generations[path, default: 0] + 1
+        generations[path] = generation
+        items[path] = item
+        filesController.updateDiffFile(item)
+        guard let highlighter, case .diff = item.content else { return }
+        Task {
+            let highlights = await Task.detached(priority: .userInitiated) { DiffItemFactory.highlights(for: item, using: highlighter) }.value
+            guard let highlights, generations[path] == generation else { return }
+            items[path]?.highlights = highlights
+            filesController.updateHighlights([path: highlights])
+        }
+    }
+
+    private func headFileLines(_ path: String, oid: String) async throws -> [String] {
+        if let cached = headLines[path] { return cached }
+        let text = try await service.fileContents(of: ref, oid: oid, path: path) ?? ""
+        let lines = await Task.detached(priority: .userInitiated) { FileDiffBuilder.lines(of: text) }.value
+        headLines[path] = lines
         return lines
     }
 
+    private func mergeBaseOid(_ pullRequest: PullRequest) async throws -> String {
+        if let mergeBase { return mergeBase }
+        let oid = try await service.mergeBaseOid(of: ref, base: pullRequest.baseOid, head: pullRequest.headOid)
+        mergeBase = oid
+        return oid
+    }
+
     private func loadFullDiff(_ path: String) {
-        guard let snapshot, let file = items[path]?.file else { return }
-        filesController.updateDiffFile(DiffFileItem(file: file, content: .loading))
-        let pr = snapshot.pullRequest
+        guard let pullRequest, var loading = items[path] else { return }
+        let file = loading.file
+        loading.content = .loading
+        install(loading)
         Task {
             let content: DiffFileItem.Content
             do {
-                async let old = file.status == .added ? "" : service.fileContents(of: ref, oid: pr.baseOid, path: file.previousPath ?? path)
-                async let new = file.status == .removed ? "" : service.fileContents(of: ref, oid: pr.headOid, path: path)
+                let base = try await mergeBaseOid(pullRequest)
+                async let old = file.status == .added ? "" : service.fileContents(of: ref, oid: base, path: file.previousPath ?? path)
+                async let new = file.status == .removed ? "" : service.fileContents(of: ref, oid: pullRequest.headOid, path: path)
                 if let old = try await old, let new = try await new {
                     content = .diff(await Task.detached(priority: .userInitiated) { FileDiffBuilder.build(old: old, new: new) }.value)
                 } else {
@@ -175,13 +227,9 @@ public final class PRDetailModel {
             } catch {
                 content = .failed(error.localizedDescription)
             }
-            var item = DiffFileItem(file: file, content: content, threads: snapshot.threads.filter { $0.path == path && $0.line != nil && !$0.isOutdated })
-            if let highlighter {
-                let pending = item
-                item.highlights = await Task.detached(priority: .userInitiated) { DiffItemFactory.highlights(for: pending, using: highlighter) }.value
-            }
-            items[path] = item
-            filesController.updateDiffFile(item)
+            guard var current = items[path] else { return }
+            current.content = content
+            install(current)
         }
     }
 
@@ -193,6 +241,7 @@ public final class PRDetailModel {
         }.value
     }
 
+    /// Highlights the content that `load` installed; files replaced since then keep their newer highlights.
     private func startHighlighting(_ items: [DiffFileItem]) {
         guard let highlighter else { return }
         highlightTask?.cancel()
@@ -200,8 +249,9 @@ public final class PRDetailModel {
         highlightTask = Task {
             let stream = Self.highlightStream(items, highlighter: highlighter)
             for await batch in stream {
-                for (path, highlights) in batch { self.items[path]?.highlights = highlights }
-                filesController.updateHighlights(batch)
+                let current = batch.filter { generations[$0.key, default: 0] == 0 }
+                for (path, highlights) in current { self.items[path]?.highlights = highlights }
+                filesController.updateHighlights(current)
             }
             signposter.endInterval("highlight", state)
         }

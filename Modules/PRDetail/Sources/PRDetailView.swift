@@ -17,6 +17,9 @@ public struct PRDetailView: View {
             if let banner = model.errorBanner {
                 ErrorBanner(message: banner, dismiss: model.dismissError)
             }
+            if let notice = model.incompleteNotice {
+                ErrorBanner(message: notice, dismiss: model.dismissIncompleteNotice)
+            }
             ZStack {
                 FilesChangedView(controller: model.filesController)
                     .opacity(model.tab == .files && model.phase == .loaded ? 1 : 0)

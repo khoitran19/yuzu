@@ -121,7 +121,7 @@ targets += module("FileTree", isolation: .mainActor, dependencies: [
 targets += module("DiffView", isolation: .mainActor, dependencies: [
     .target(name: "DiffEngine"),
     .target(name: "PRModels"),
-])
+], tests: true)
 targets += module("PRDetail", isolation: .mainActor, dependencies: [
     .target(name: "PRModels"),
     .target(name: "ReviewRules"),

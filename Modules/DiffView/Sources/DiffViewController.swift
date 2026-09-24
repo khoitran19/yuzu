@@ -12,13 +12,14 @@ public final class DiffViewController: NSViewController {
     public let scrollView = NSScrollView()
     private let tableView = DiffTableView()
     private let renderer = DiffRenderer()
-    private var rows: [RowRef] = []
-    private var heights: [CGFloat] = []
-    private var headerRows: [Int] = []
+    private(set) var rows: [RowRef] = []
+    private(set) var heights: [CGFloat] = []
+    private(set) var headerRows: [Int] = []
     private var fileIndex: [String: Int] = [:]
     private var layoutWidth: CGFloat = 0
     private var visibleFile: Int?
     private var selectionAnchor: (row: Int, side: DiffSide)?
+    private var widthRebuild: Task<Void, Never>?
 
     public override func loadView() {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("diff"))
@@ -121,7 +122,7 @@ public final class DiffViewController: NSViewController {
         guard let index = fileIndex[item.file.path] else { return }
         renderer.files[index].update(item)
         renderer.cache.invalidate(file: index)
-        rebuild(anchor: .keepTopRow)
+        refreshFile(index, anchor: .keepTopRow)
     }
 
     /// Adds highlights without a row rebuild; only visible rows redraw.
@@ -147,6 +148,17 @@ public final class DiffViewController: NSViewController {
         setCollapsed(viewed, file: index)
     }
 
+    /// Applies one Viewed state to many files with a single row rebuild.
+    public func setViewed(_ viewed: Bool, paths: [String]) {
+        guard paths.count > 1 else { return paths.first.map { setViewed(viewed, path: $0) } ?? () }
+        for path in paths {
+            guard let index = fileIndex[path] else { continue }
+            renderer.files[index].item.file.viewedState = viewed ? .viewed : .unviewed
+            renderer.files[index].collapsed = viewed
+        }
+        rebuild(anchor: .keepTopRow)
+    }
+
     public func setAllCollapsed(_ collapsed: Bool) {
         for state in renderer.files { state.collapsed = collapsed }
         rebuild(anchor: visibleFile.map(Anchor.fileHeader) ?? .keepTopRow)
@@ -165,20 +177,54 @@ public final class DiffViewController: NSViewController {
         case fileHeader(Int)
     }
 
+    func rebuildAll() {
+        rebuild(anchor: nil)
+    }
+
     private func rebuild(anchor: Anchor?) {
         let saved = anchor.flatMap(captureAnchor)
         renderer.selection = nil
         selectionAnchor = nil
         layoutWidth = tableView.bounds.width
-        var logical: [RowRef] = []
-        for (index, state) in renderer.files.enumerated() {
-            state.appendRows(file: index, to: &logical)
-        }
         rows.removeAll(keepingCapacity: true)
         heights.removeAll(keepingCapacity: true)
         headerRows.removeAll(keepingCapacity: true)
+        for file in renderer.files.indices {
+            headerRows.append(rows.count)
+            appendPhysicalRows(ofFile: file, rows: &rows, heights: &heights)
+        }
+        tableView.reloadData()
+        if let saved { restoreAnchor(saved) }
+        updateVisibleFile(notify: true)
+    }
+
+    /// Rebuilds one file's rows; other files keep their rows and measured heights.
+    private func refreshFile(_ file: Int, anchor: Anchor) {
+        let saved = captureAnchor(anchor)
+        renderer.selection = nil
+        selectionAnchor = nil
+        let old = rowRange(ofFile: file)
+        var newRows: [RowRef] = []
+        var newHeights: [CGFloat] = []
+        appendPhysicalRows(ofFile: file, rows: &newRows, heights: &newHeights)
+        rows.replaceSubrange(old, with: newRows)
+        heights.replaceSubrange(old, with: newHeights)
+        let delta = newRows.count - old.count
+        for later in (file + 1)..<headerRows.count { headerRows[later] += delta }
+        tableView.reloadData()
+        if let saved { restoreAnchor(saved) }
+        updateVisibleFile(notify: true)
+    }
+
+    private func rowRange(ofFile file: Int) -> Range<Int> {
+        headerRows[file]..<(file + 1 < headerRows.count ? headerRows[file + 1] : rows.count)
+    }
+
+    /// Rows taller than `Metrics.sliceHeight` become several physical rows.
+    private func appendPhysicalRows(ofFile file: Int, rows: inout [RowRef], heights: inout [CGFloat]) {
+        var logical: [RowRef] = []
+        renderer.files[file].appendRows(file: file, to: &logical)
         for ref in logical {
-            if ref.kind == .header { headerRows.append(rows.count) }
             let height = renderer.height(of: ref, width: layoutWidth)
             guard height > Metrics.sliceHeight else {
                 rows.append(ref)
@@ -191,15 +237,20 @@ public final class DiffViewController: NSViewController {
                 heights.append(min(Metrics.sliceHeight, height - CGFloat(slice) * Metrics.sliceHeight))
             }
         }
-        tableView.reloadData()
-        if let saved { restoreAnchor(saved) }
-        updateVisibleFile(notify: true)
     }
 
     private struct SavedAnchor {
         let ref: RowRef
         let offset: CGFloat
         let fallbackFile: Int
+        /// Source line of a code row; hunk and row indexes change when context expands.
+        let line: (side: DiffSide, number: Int)?
+    }
+
+    private func sourceLine(of ref: RowRef) -> (side: DiffSide, number: Int)? {
+        guard case let .line(hunk, row) = ref.kind, let line = renderer.files[ref.file].diff?.hunks[safe: hunk]?.rows[safe: row] else { return nil }
+        if let right = line.right { return (.right, right.number) }
+        return line.left.map { (.left, $0.number) }
     }
 
     private func captureAnchor(_ anchor: Anchor) -> SavedAnchor? {
@@ -208,17 +259,28 @@ public final class DiffViewController: NSViewController {
         case .keepTopRow:
             let row = tableView.row(at: CGPoint(x: 1, y: visibleTop + 1))
             guard row >= 0, row < rows.count else { return nil }
-            return SavedAnchor(ref: rows[row], offset: tableView.rect(ofRow: row).minY - visibleTop, fallbackFile: rows[row].file)
+            return SavedAnchor(
+                ref: rows[row], offset: tableView.rect(ofRow: row).minY - visibleTop, fallbackFile: rows[row].file,
+                line: sourceLine(of: rows[row])
+            )
         case let .fileHeader(file):
             let headerY = tableView.rect(ofRow: headerRows[file]).minY
-            return SavedAnchor(ref: RowRef(file: file, kind: .header), offset: max(0, headerY - visibleTop), fallbackFile: file)
+            return SavedAnchor(ref: RowRef(file: file, kind: .header), offset: max(0, headerY - visibleTop), fallbackFile: file, line: nil)
         }
     }
 
     private func restoreAnchor(_ anchor: SavedAnchor) {
-        let start = headerRows[anchor.fallbackFile]
-        let end = anchor.fallbackFile + 1 < headerRows.count ? headerRows[anchor.fallbackFile + 1] : rows.count
-        if let row = rows[start..<end].firstIndex(of: anchor.ref) {
+        let range = rowRange(ofFile: anchor.fallbackFile)
+        let start = range.lowerBound
+        let match: Int? = if let line = anchor.line {
+            rows[range].firstIndex { ref in
+                guard ref.slice == anchor.ref.slice, let candidate = sourceLine(of: ref) else { return false }
+                return candidate.side == line.side && candidate.number == line.number
+            }
+        } else {
+            rows[range].firstIndex(of: anchor.ref)
+        }
+        if let row = match {
             scrollTo(y: tableView.rect(ofRow: row).minY - anchor.offset)
         } else {
             scrollToRow(start)
@@ -245,7 +307,7 @@ public final class DiffViewController: NSViewController {
         let headerY = tableView.rect(ofRow: headerRows[file]).minY
         let headerAboveViewport = headerY < scrollView.contentView.bounds.minY
         state.collapsed = collapsed
-        rebuild(anchor: headerAboveViewport ? .fileHeader(file) : .keepTopRow)
+        refreshFile(file, anchor: headerAboveViewport ? .fileHeader(file) : .keepTopRow)
     }
 
     private func redrawRows(ofFile file: Int) {
@@ -278,7 +340,7 @@ public final class DiffViewController: NSViewController {
             } else {
                 state.expandedResolvedThreads.insert(id)
             }
-            rebuild(anchor: .keepTopRow)
+            refreshFile(ref.file, anchor: .keepTopRow)
         case let .expandHunk(hunk):
             onExpand?(path, hunk)
         case .expandTail:
@@ -317,7 +379,7 @@ public final class DiffViewController: NSViewController {
                   let line = renderer.files[rows[index].file].diff?.hunks[hunk].rows[lineRow],
                   (anchor.side == .left ? line.left : line.right) != nil
             else { continue }
-            refs.insert(rows[index])
+            refs.insert(rows[index].logical)
         }
         setSelection(LineSelection(side: anchor.side, refs: refs))
     }
@@ -329,7 +391,7 @@ public final class DiffViewController: NSViewController {
         renderer.selection = selection
         if selection == nil { selectionAnchor = nil }
         tableView.enumerateAvailableRowViews { rowView, _ in
-            if let rowView = rowView as? DiffRowView, let ref = rowView.ref,
+            if let rowView = rowView as? DiffRowView, let ref = rowView.ref?.logical,
                sideChanged ? (selection?.refs.contains(ref) ?? false) || changed.contains(ref) : changed.contains(ref) {
                 rowView.needsDisplay = true
             }
@@ -382,9 +444,15 @@ public final class DiffViewController: NSViewController {
     }
 
     @objc private func clipFrameChanged() {
-        let width = tableView.bounds.width
-        guard abs(width - layoutWidth) >= 1, !rows.isEmpty else { return }
-        rebuild(anchor: .keepTopRow)
+        guard abs(tableView.bounds.width - layoutWidth) >= 1, !rows.isEmpty, widthRebuild == nil else { return }
+        widthRebuild = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(80))
+            guard let self else { return }
+            widthRebuild = nil
+            guard abs(tableView.bounds.width - layoutWidth) >= 1 else { return }
+            renderer.cache.invalidateAll()
+            rebuild(anchor: .keepTopRow)
+        }
     }
 
     private func updateVisibleFile(notify: Bool) {

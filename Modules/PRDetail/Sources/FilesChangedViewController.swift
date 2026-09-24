@@ -61,9 +61,9 @@ public final class FilesChangedViewController: NSSplitViewController {
         diff.updateHighlights(highlights)
     }
 
-    func setViewed(_ viewed: Bool, path: String) {
-        tree.setViewed(path: path, viewed: viewed)
-        diff.setViewed(viewed, path: path)
+    func setViewed(_ viewed: Bool, paths: [String]) {
+        for path in paths { tree.setViewed(path: path, viewed: viewed) }
+        diff.setViewed(viewed, paths: paths)
     }
 
     func setAllCollapsed(_ collapsed: Bool) {

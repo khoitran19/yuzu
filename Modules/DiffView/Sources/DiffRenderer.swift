@@ -84,7 +84,7 @@ final class DiffRenderer {
             drawHunk(nil, expandable: true, bounds: bounds, geometry: geometry, context: context)
         case let .line(hunk, row):
             if let line = state.diff?.hunks[hunk].rows[row] {
-                let selectedSide = selection.flatMap { $0.refs.contains(ref) ? $0.side : nil }
+                let selectedSide = selection.flatMap { $0.refs.contains(ref.logical) ? $0.side : nil }
                 drawLine(line, file: ref.file, state: state, selectedSide: selectedSide, bounds: bounds, dirty: dirty, geometry: geometry, context: context)
             }
         case let .thread(index):
