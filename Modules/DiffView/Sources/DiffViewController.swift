@@ -202,9 +202,8 @@ public final class DiffViewController: NSViewController {
     /// Rebuilds one file's rows; other files keep their rows and measured heights.
     private func refreshFile(_ file: Int, anchor: Anchor, change: () -> Void) {
         let saved = captureAnchor(anchor)
+        setSelection(nil)
         change()
-        renderer.selection = nil
-        selectionAnchor = nil
         let old = rowRange(ofFile: file)
         var newRows: [RowRef] = []
         var newHeights: [CGFloat] = []
