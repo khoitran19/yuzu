@@ -18,11 +18,14 @@ public final class FixturePullRequestService: PullRequestService {
 
     public let store: FixtureStore
     private let latency: Duration
+    private let failingViewedPaths: Set<String>
     private let state = Mutex(State())
 
-    public init(directory: URL, latency: Duration = .zero) {
+    /// `setViewed` leaves `failingViewedPaths` unchanged and throws `GitHubError.partialFailure` with them.
+    public init(directory: URL, latency: Duration = .zero, failingViewedPaths: Set<String> = []) {
         store = FixtureStore(directory: directory)
         self.latency = latency
+        self.failingViewedPaths = failingViewedPaths
     }
 
     public var setViewedCalls: [SetViewedCall] {
@@ -52,11 +55,20 @@ public final class FixturePullRequestService: PullRequestService {
             if let unknown = paths.first(where: { indices[$0] == nil }) {
                 throw GitHubError.graphQL("The pull request has no file at '\(unknown)'")
             }
-            for path in paths {
+            for path in paths where !failingViewedPaths.contains(path) {
                 if let index = indices[path] { snapshot.files[index].viewedState = viewed ? .viewed : .unviewed }
             }
             state.snapshot = snapshot
         }
+        let failed = paths.filter(failingViewedPaths.contains)
+        if !failed.isEmpty { throw GitHubError.partialFailure(paths: failed) }
+    }
+
+    @concurrent public func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String {
+        try await simulateLatency()
+        let snapshot = try loadedSnapshot()
+        guard snapshot.pullRequest.ref == ref else { throw GitHubError.notFound }
+        return try store.readMergeBaseOid() ?? snapshot.pullRequest.baseOid
     }
 
     @concurrent public func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? {

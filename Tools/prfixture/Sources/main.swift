@@ -82,7 +82,7 @@ func run() async throws {
         }
         let summary = try await FixtureRecorder.record(ref, from: GitHubClient(token: try gitHubToken()), to: store)
         for skipped in summary.skipped { print("skipped \(skipped)") }
-        print("recorded \(ref.displayName): \(summary.contentCount) content files")
+        print("recorded \(ref.displayName) at merge base \(summary.mergeBaseOid): \(summary.contentCount) content files")
     case "synth":
         let fixture = SyntheticPullRequest.make(
             fileCount: try integer(named, "files"),

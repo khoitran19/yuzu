@@ -3,10 +3,12 @@ import PRModels
 
 public protocol PullRequestService: Sendable {
     func snapshot(of ref: PRRef) async throws -> PullRequestSnapshot
-    /// One request for all paths; GitHub applies each path independently.
+    /// One request for all paths. Throws `GitHubError.partialFailure` with only the paths GitHub did not update.
     func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws
     /// Returns `nil` when the file does not exist at `oid` or is binary.
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String?
+    /// The commit that the pull request diff compares `head` against.
+    func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String
 }
 
 extension GitHubClient: PullRequestService {
@@ -37,7 +39,22 @@ extension GitHubClient: PullRequestService {
             .joined(separator: "\n")
         var variables: [String: JSONValue] = ["pr": .string(pullRequestID)]
         for (index, path) in paths.enumerated() { variables["p\(index)"] = .string(path) }
-        _ = try await graphQL("mutation(\(declarations)) {\n\(selections)\n}", variables: variables, as: IgnoredPayload.self)
+        let envelope = try await graphQLEnvelope(
+            "mutation(\(declarations)) {\n\(selections)\n}", variables: variables, as: IgnoredPayload.self
+        )
+        guard !envelope.errors.isEmpty else { return }
+        let failed = envelope.errors.map { $0.aliasIndex(below: paths.count) }
+        guard failed.allSatisfy({ $0 != nil }) else { throw Self.error(for: envelope.errors) }
+        throw GitHubError.partialFailure(paths: Set(failed.compactMap(\.self)).sorted().map { paths[$0] })
+    }
+
+    public func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String {
+        let data = try await rest(
+            path: "/repos/\(ref.owner)/\(ref.repo)/compare/\(base)...\(head)",
+            // Pages after the first omit the file list; every page has `merge_base_commit`.
+            query: [URLQueryItem(name: "per_page", value: "1"), URLQueryItem(name: "page", value: "2")]
+        )
+        return try JSONDecoder().decode(ComparePayload.self, from: data).merge_base_commit.sha
     }
 
     public func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? {
@@ -102,18 +119,40 @@ extension GitHubClient: PullRequestService {
         return states
     }
 
-    private func reviewThreads(_ ref: PRRef) async throws -> [ReviewThread] {
-        var threads: [ReviewThread] = []
+    func reviewThreads(_ ref: PRRef) async throws -> [ReviewThread] {
+        var threads: [ThreadsNode.Thread] = []
         var cursor: String?
         repeat {
             var variables = ref.variables
             variables["cursor"] = cursor.map(JSONValue.string) ?? .null
             let response = try await graphQL(Queries.threads, variables: variables, as: RepositoryPayload<ThreadsNode>.self)
             guard let page = response.repository?.pullRequest?.reviewThreads else { break }
-            threads += page.nodes.map(\.model)
+            threads += page.nodes
             cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : nil
         } while cursor != nil
-        return threads
+
+        let remaining = try await withThrowingTaskGroup(of: (Int, [ThreadsNode.Comment]).self) { group in
+            for (index, thread) in threads.enumerated() where thread.comments.pageInfo.hasNextPage {
+                group.addTask { (index, try await remainingComments(threadID: thread.id, after: thread.comments.pageInfo.endCursor)) }
+            }
+            var remaining: [Int: [ThreadsNode.Comment]] = [:]
+            for try await (index, comments) in group { remaining[index] = comments }
+            return remaining
+        }
+        return threads.enumerated().map { index, thread in thread.model(comments: thread.comments.nodes + (remaining[index] ?? [])) }
+    }
+
+    private func remainingComments(threadID: String, after start: String?) async throws -> [ThreadsNode.Comment] {
+        var comments: [ThreadsNode.Comment] = []
+        var cursor = start
+        while let after = cursor {
+            let variables: [String: JSONValue] = ["id": .string(threadID), "cursor": .string(after)]
+            let response = try await graphQL(Queries.threadComments, variables: variables, as: ThreadCommentsPayload.self)
+            guard let page = response.node?.comments else { throw GitHubError.malformedResponse }
+            comments += page.nodes
+            cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : nil
+        }
+        return comments
     }
 }
 
@@ -153,8 +192,24 @@ private enum Queries {
             pageInfo { hasNextPage endCursor }
             nodes {
               id path line startLine diffSide isResolved isOutdated
-              comments(first: 100) { nodes { id bodyText createdAt author { login avatarUrl } } }
+              comments(first: 100) {
+                pageInfo { hasNextPage endCursor }
+                nodes { id bodyText createdAt author { login avatarUrl } }
+              }
             }
+          }
+        }
+      }
+    }
+    """
+
+    static let threadComments = """
+    query($id: ID!, $cursor: String!) {
+      node(id: $id) {
+        ... on PullRequestReviewThread {
+          comments(first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes { id bodyText createdAt author { login avatarUrl } }
           }
         }
       }
@@ -169,6 +224,25 @@ private extension PRRef {
 }
 
 private struct IgnoredPayload: Decodable {}
+
+private struct ComparePayload: Decodable {
+    struct Commit: Decodable { let sha: String }
+    let merge_base_commit: Commit
+}
+
+private struct ThreadCommentsPayload: Decodable {
+    struct Node: Decodable { let comments: ThreadsNode.Comments? }
+    let node: Node?
+}
+
+private extension GraphQLError {
+    func aliasIndex(below count: Int) -> Int? {
+        guard case let .key(alias) = path?.first, alias.hasPrefix("m"),
+              let index = Int(alias.dropFirst()), (0..<count).contains(index)
+        else { return nil }
+        return index
+    }
+}
 
 private struct RepositoryPayload<Node: Decodable>: Decodable {
     struct Repository: Decodable { let pullRequest: Node? }
@@ -225,15 +299,19 @@ private struct ThreadsNode: Decodable {
         let nodes: [Thread]
     }
 
-    struct Thread: Decodable {
-        struct Comments: Decodable { let nodes: [Comment] }
-        struct Comment: Decodable {
-            let id: String
-            let bodyText: String
-            let createdAt: Date
-            let author: AuthorNode?
-        }
+    struct Comments: Decodable {
+        let pageInfo: PageInfo
+        let nodes: [Comment]
+    }
 
+    struct Comment: Decodable {
+        let id: String
+        let bodyText: String
+        let createdAt: Date
+        let author: AuthorNode?
+    }
+
+    struct Thread: Decodable {
         let id: String
         let path: String
         let line: Int?
@@ -243,12 +321,12 @@ private struct ThreadsNode: Decodable {
         let isOutdated: Bool
         let comments: Comments
 
-        var model: ReviewThread {
+        func model(comments: [Comment]) -> ReviewThread {
             ReviewThread(
                 id: id, path: path, line: line, startLine: startLine,
                 side: DiffSide(rawValue: diffSide) ?? .right,
                 isResolved: isResolved, isOutdated: isOutdated,
-                comments: comments.nodes.map {
+                comments: comments.map {
                     ReviewComment(id: $0.id, author: $0.author?.actor, bodyText: $0.bodyText, createdAt: $0.createdAt)
                 }
             )

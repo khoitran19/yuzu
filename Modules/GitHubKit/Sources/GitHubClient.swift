@@ -7,6 +7,7 @@ public enum GitHubError: Error, LocalizedError, Equatable {
     case http(status: Int, message: String)
     case graphQL(String)
     case malformedResponse
+    case partialFailure(paths: [String])
 
     public var errorDescription: String? {
         switch self {
@@ -15,6 +16,8 @@ public enum GitHubError: Error, LocalizedError, Equatable {
         case let .http(status, message): "GitHub returned \(status): \(message)"
         case let .graphQL(message): "GitHub GraphQL error: \(message)"
         case .malformedResponse: "GitHub returned a response the app cannot read."
+        case let .partialFailure(paths):
+            "GitHub did not update \(paths.count) of the files: \(paths.joined(separator: ", "))"
         }
     }
 }
@@ -47,19 +50,27 @@ public struct GitHubClient: Sendable {
 
     // MARK: GraphQL
 
-    func graphQL<Response: Decodable>(_ query: String, variables: [String: JSONValue], as _: Response.Type) async throws -> Response {
+    func graphQL<Response: Decodable>(_ query: String, variables: [String: JSONValue], as type: Response.Type) async throws -> Response {
+        let envelope = try await graphQLEnvelope(query, variables: variables, as: type)
+        if !envelope.errors.isEmpty { throw Self.error(for: envelope.errors) }
+        guard let payload = envelope.data else { throw GitHubError.malformedResponse }
+        return payload
+    }
+
+    func graphQLEnvelope<Response: Decodable>(
+        _ query: String, variables: [String: JSONValue], as _: Response.Type
+    ) async throws -> GraphQLEnvelope<Response> {
         var request = URLRequest(url: Self.api.appending(path: "/graphql"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(GraphQLRequest(query: query, variables: variables))
         let data = try await send(request)
-        let envelope = try Self.decoder.decode(GraphQLEnvelope<Response>.self, from: data)
-        if let errors = envelope.errors, !errors.isEmpty {
-            if errors.contains(where: { $0.type == "NOT_FOUND" }) { throw GitHubError.notFound }
-            throw GitHubError.graphQL(errors.map(\.message).joined(separator: "; "))
-        }
-        guard let payload = envelope.data else { throw GitHubError.malformedResponse }
-        return payload
+        return try Self.decoder.decode(GraphQLEnvelope<Response>.self, from: data)
+    }
+
+    static func error(for errors: [GraphQLError]) -> GitHubError {
+        if errors.contains(where: { $0.type == "NOT_FOUND" }) { return .notFound }
+        return .graphQL(errors.map(\.message).joined(separator: "; "))
     }
 
     private func send(_ request: URLRequest) async throws -> Data {
@@ -106,14 +117,37 @@ private struct GraphQLRequest: Encodable {
     let variables: [String: JSONValue]
 }
 
-private struct GraphQLEnvelope<Payload: Decodable>: Decodable {
+struct GraphQLEnvelope<Payload: Decodable>: Decodable {
     let data: Payload?
-    let errors: [GraphQLError]?
+    let errors: [GraphQLError]
+
+    private enum CodingKeys: String, CodingKey { case data, errors }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        data = try container.decodeIfPresent(Payload.self, forKey: .data)
+        errors = try container.decodeIfPresent([GraphQLError].self, forKey: .errors) ?? []
+    }
 }
 
-private struct GraphQLError: Decodable {
+struct GraphQLError: Decodable {
+    enum PathElement: Decodable {
+        case key(String)
+        case index(Int)
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let index = try? container.decode(Int.self) {
+                self = .index(index)
+            } else {
+                self = .key(try container.decode(String.self))
+            }
+        }
+    }
+
     let message: String
     let type: String?
+    let path: [PathElement]?
 }
 
 private struct RESTError: Decodable {

@@ -4,10 +4,13 @@ public struct Fixture: Sendable, Equatable {
     public var snapshot: PullRequestSnapshot
     /// Sorted by `oid`, then `path`.
     public var contents: [FixtureContent]
+    /// Base contents are stored under this oid. `nil` means `snapshot.pullRequest.baseOid`.
+    public var mergeBaseOid: String?
 
-    public init(snapshot: PullRequestSnapshot, contents: [FixtureContent]) {
+    public init(snapshot: PullRequestSnapshot, contents: [FixtureContent], mergeBaseOid: String? = nil) {
         self.snapshot = snapshot
         self.contents = contents.sorted()
+        self.mergeBaseOid = mergeBaseOid
     }
 }
 

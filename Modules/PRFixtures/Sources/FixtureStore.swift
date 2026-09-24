@@ -13,7 +13,7 @@ public enum FixtureError: Error, LocalizedError, Equatable {
     }
 }
 
-/// A directory with `snapshot.json` and raw files at `contents/<oid>/<path>`.
+/// A directory with `snapshot.json`, an optional `merge-base-oid`, and raw files at `contents/<oid>/<path>`.
 public struct FixtureStore: Sendable {
     public let directory: URL
 
@@ -23,6 +23,7 @@ public struct FixtureStore: Sendable {
 
     public var snapshotURL: URL { directory.appending(path: "snapshot.json") }
     public var contentsURL: URL { directory.appending(path: "contents", directoryHint: .isDirectory) }
+    public var mergeBaseURL: URL { directory.appending(path: "merge-base-oid") }
 
     public func readSnapshot() throws -> PullRequestSnapshot {
         try Self.decoder.decode(PullRequestSnapshot.self, from: Data(contentsOf: snapshotURL))
@@ -31,6 +32,19 @@ public struct FixtureStore: Sendable {
     public func writeSnapshot(_ snapshot: PullRequestSnapshot) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Self.encoder.encode(snapshot).write(to: snapshotURL, options: .atomic)
+    }
+
+    /// Returns `nil` when the fixture has no `merge-base-oid` file.
+    public func readMergeBaseOid() throws -> String? {
+        guard FileManager.default.fileExists(atPath: mergeBaseURL.path(percentEncoded: false)) else { return nil }
+        let oid = String(decoding: try Data(contentsOf: mergeBaseURL), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return oid.isEmpty ? nil : oid
+    }
+
+    public func writeMergeBaseOid(_ oid: String) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("\(oid)\n".utf8).write(to: mergeBaseURL, options: .atomic)
     }
 
     /// Returns `nil` when the fixture has no file for `oid` and `path`.
@@ -61,6 +75,7 @@ public struct FixtureStore: Sendable {
     public func write(_ fixture: Fixture) throws {
         try reset()
         try writeSnapshot(fixture.snapshot)
+        if let oid = fixture.mergeBaseOid { try writeMergeBaseOid(oid) }
         for content in fixture.contents {
             try writeContents(content.text, oid: content.oid, path: content.path)
         }
@@ -82,7 +97,7 @@ public struct FixtureStore: Sendable {
                 files.append(FixtureContent(oid: String(parts[0]), path: String(parts[1]), text: text))
             }
         }
-        return Fixture(snapshot: try readSnapshot(), contents: files)
+        return Fixture(snapshot: try readSnapshot(), contents: files, mergeBaseOid: try readMergeBaseOid())
     }
 
     private func contentURL(oid: String, path: String) throws -> URL {

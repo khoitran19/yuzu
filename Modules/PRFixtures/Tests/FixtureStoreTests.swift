@@ -78,9 +78,53 @@ struct FixtureStoreTests {
         let summary = try await FixtureRecorder.record(
             fixture.snapshot.pullRequest.ref, from: service, to: FixtureStore(directory: target), concurrency: 3
         )
-        #expect(try FixtureStore(directory: target).read() == fixture)
+        let baseOid = fixture.snapshot.pullRequest.baseOid
+        let expected = Fixture(snapshot: fixture.snapshot, contents: fixture.contents, mergeBaseOid: baseOid)
+        #expect(try FixtureStore(directory: target).read() == expected)
+        #expect(summary.mergeBaseOid == baseOid)
         #expect(summary.contentCount == fixture.contents.count)
         #expect(summary.skipped.count == fixture.snapshot.files.count(where: FixtureRecorder.isBinary))
+    }
+
+    @Test func recorderStoresBaseContentsAtMergeBase() async throws {
+        let source = temporaryDirectory()
+        let target = temporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: source)
+            try? FileManager.default.removeItem(at: target)
+        }
+        let mergeBase = String(repeating: "e", count: 40)
+        let baseOid = fixture.snapshot.pullRequest.baseOid
+        let moved = Fixture(
+            snapshot: fixture.snapshot,
+            contents: fixture.contents.map { FixtureContent(oid: $0.oid == baseOid ? mergeBase : $0.oid, path: $0.path, text: $0.text) },
+            mergeBaseOid: mergeBase
+        )
+        try FixtureStore(directory: source).write(moved)
+        let service = FixturePullRequestService(directory: source)
+        let pullRequest = moved.snapshot.pullRequest
+        #expect(try await service.mergeBaseOid(of: pullRequest.ref, base: pullRequest.baseOid, head: pullRequest.headOid) == mergeBase)
+
+        let summary = try await FixtureRecorder.record(pullRequest.ref, from: service, to: FixtureStore(directory: target))
+        #expect(try FixtureStore(directory: target).read() == moved)
+        #expect(summary.contentCount == moved.contents.count)
+    }
+
+    @Test func serviceSimulatesPartialViewedFailure() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FixtureStore(directory: directory).write(fixture)
+        let paths = fixture.snapshot.files.filter { $0.viewedState != .viewed }.prefix(3).map(\.path)
+        try #require(paths.count == 3)
+        let service = FixturePullRequestService(directory: directory, failingViewedPaths: [paths[1]])
+        let ref = try await service.pullRequestRef()
+
+        await #expect(throws: GitHubError.partialFailure(paths: [paths[1]])) {
+            try await service.setViewed(true, paths: paths, pullRequestID: fixture.snapshot.pullRequest.nodeID)
+        }
+        let states = Dictionary(uniqueKeysWithValues: try await service.snapshot(of: ref).files.map { ($0.path, $0.viewedState) })
+        #expect(states[paths[0]] == .viewed && states[paths[2]] == .viewed)
+        #expect(states[paths[1]] != .viewed)
     }
 
     @Test func recorderSkipsLargeFiles() async throws {

@@ -104,7 +104,7 @@ targets += module("SyntaxHighlight", isolation: .nonisolated, dependencies: [
     .external(name: "TreeSitterTypeScript"),
     .external(name: "TreeSitterYAML"),
 ], tests: true, resources: ["Modules/SyntaxHighlight/Resources/**"])
-targets += module("GitHubKit", isolation: .nonisolated, dependencies: [.target(name: "PRModels")])
+targets += module("GitHubKit", isolation: .nonisolated, dependencies: [.target(name: "PRModels")], tests: true)
 targets += module("PRFixtures", isolation: .nonisolated, dependencies: [
     .target(name: "PRModels"),
     .target(name: "GitHubKit"),
