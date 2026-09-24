@@ -13,9 +13,10 @@ public struct SignInView: View {
     public var body: some View {
         VStack(spacing: 20) {
             VStack(spacing: 8) {
-                Image(systemName: "arrow.triangle.pull")
-                    .font(.system(size: 36, weight: .regular))
-                    .foregroundStyle(.secondary)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 96, height: 96)
+                    .accessibilityHidden(true)
                 Text("PR Viewer")
                     .font(.title.bold())
                 Text("Review large GitHub pull requests.")

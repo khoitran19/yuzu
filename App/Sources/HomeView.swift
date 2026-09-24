@@ -12,6 +12,10 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 64, height: 64)
+                        .accessibilityHidden(true)
                     Text("Open a pull request")
                         .font(.largeTitle.weight(.semibold))
                     Text("Paste a GitHub link, such as github.com/owner/repo/pull/123, or owner/repo#123.")

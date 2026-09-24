@@ -1,3 +1,5 @@
+<img src="App/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="128" alt="">
+
 # PR Viewer
 
 A native macOS app to review GitHub pull requests. It replaces the GitHub web "Files changed" page for large pull requests.
@@ -38,3 +40,6 @@ Settings (⌘,) holds two lists of `.gitignore`-style globs:
 ## Development
 
 See [AGENTS.md](AGENTS.md) for the module map, the rules, and the QA harness.
+
+The app icon comes from `Design/icon-artwork.png`. After you change the artwork, run
+`swift scripts/icon.swift Design/icon-artwork.png App/Resources/Assets.xcassets/AppIcon.appiconset`.
