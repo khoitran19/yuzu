@@ -4,16 +4,20 @@ extension FileDiff {
         guard hunks.indices.contains(index) else { return self }
         let hunk = hunks[index]
         let previous = index > 0 ? hunks[index - 1] : nil
-        let gapStart = previous.map { $0.newStart + $0.newCount } ?? 1
-        let gapEnd = hunk.newStart - 1
-        guard gapStart <= gapEnd, gapEnd <= newFileLines.count else { return self }
+        let gapStart = previous?.nextNewLine ?? 1
+        let gapEnd = hunk.firstNewLine - 1
+        let oldGapStart = previous?.nextOldLine ?? 1
+        let oldGapEnd = hunk.firstOldLine - 1
+        guard gapStart >= 1, gapStart <= gapEnd, gapEnd <= newFileLines.count,
+              oldGapStart >= 1, oldGapEnd - oldGapStart == gapEnd - gapStart
+        else { return self }
         let gap = newFileLines[(gapStart - 1)..<gapEnd].map { " \($0)" }
 
         var patch = ""
         for (current, candidate) in hunks.enumerated() where current != index - 1 {
             if current == index {
-                let oldStart = previous?.oldStart ?? hunk.oldStart - gap.count
-                let newStart = previous?.newStart ?? gapStart
+                let oldStart = previous?.firstOldLine ?? oldGapStart
+                let newStart = previous?.firstNewLine ?? gapStart
                 let oldCount = (previous?.oldCount ?? 0) + gap.count + hunk.oldCount
                 let newCount = (previous?.newCount ?? 0) + gap.count + hunk.newCount
                 patch += "@@ -\(oldStart),\(oldCount) +\(newStart),\(newCount) @@ \(previous?.section ?? hunk.section)\n"
@@ -29,11 +33,11 @@ extension FileDiff {
     /// Shows every unchanged line after the last hunk.
     public func expandingTail(newFileLines: [String]) -> FileDiff {
         guard let last = hunks.last else { return self }
-        let tailStart = last.newStart + last.newCount
-        guard tailStart <= newFileLines.count else { return self }
+        let tailStart = last.nextNewLine
+        guard tailStart >= 1, tailStart <= newFileLines.count else { return self }
         let tail = newFileLines[(tailStart - 1)...].map { " \($0)" }
         var patch = hunks.dropLast().map(\.patchText).joined()
-        patch += "@@ -\(last.oldStart),\(last.oldCount + tail.count) +\(last.newStart),\(last.newCount + tail.count) @@ \(last.section)\n"
+        patch += "@@ -\(last.firstOldLine),\(last.oldCount + tail.count) +\(last.firstNewLine),\(last.newCount + tail.count) @@ \(last.section)\n"
         patch += (last.bodyLines + tail).joined(separator: "\n") + "\n"
         return FileDiffBuilder.build(patch: patch)
     }
@@ -41,11 +45,17 @@ extension FileDiff {
     /// Unchanged lines after the last hunk, given the new file's line count.
     public func trailingLineCount(newFileLineCount: Int) -> Int {
         guard let last = hunks.last else { return 0 }
-        return max(0, newFileLineCount - (last.newStart + last.newCount - 1))
+        return max(0, newFileLineCount - (last.nextNewLine - 1))
     }
 }
 
 extension DiffHunk {
+    /// A zero-count range starts at the line before the insertion point, as in `+5,0`.
+    var firstOldLine: Int { oldCount == 0 ? oldStart + 1 : oldStart }
+    var firstNewLine: Int { newCount == 0 ? newStart + 1 : newStart }
+    var nextOldLine: Int { firstOldLine + oldCount }
+    var nextNewLine: Int { firstNewLine + newCount }
+
     var patchText: String {
         "@@ -\(oldStart),\(oldCount) +\(newStart),\(newCount) @@ \(section)\n" + bodyLines.joined(separator: "\n") + "\n"
     }

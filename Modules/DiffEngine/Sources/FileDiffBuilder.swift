@@ -26,7 +26,7 @@ public enum FileDiffBuilder {
             rows = []
         }
 
-        for rawLine in patch.split(separator: "\n", omittingEmptySubsequences: false) {
+        for rawLine in lines(of: patch) {
             if rawLine.hasPrefix("@@") {
                 finishHunk()
                 header = HunkHeader(rawLine)
@@ -34,8 +34,8 @@ public enum FileDiffBuilder {
                 newNumber = header?.newStart ?? 0
                 continue
             }
-            guard header != nil, let marker = rawLine.first else { continue }
-            let text = expandTabs(rawLine.dropFirst().trimmingSuffix("\r"))
+            guard header != nil, let marker = rawLine.unicodeScalars.first else { continue }
+            let text = expandTabs(Substring(rawLine.unicodeScalars.dropFirst()))
             switch marker {
             case "-":
                 pending.deletions.append(DiffCell(
@@ -69,7 +69,22 @@ public enum FileDiffBuilder {
 
     /// Diffs two full file versions, for files where GitHub omits the patch.
     public static func build(old: String, new: String, context: Int = 3) -> FileDiff {
-        build(patch: UnifiedPatch.make(old: lines(of: old), new: lines(of: new), context: context))
+        build(patch: UnifiedPatch.make(
+            old: lines(of: old), new: lines(of: new),
+            oldLacksFinalNewline: lacksFinalNewline(old), newLacksFinalNewline: lacksFinalNewline(new),
+            context: context
+        ))
+    }
+
+    /// Splits on LF only and drops one trailing CR per line. A trailing LF does not start another line.
+    public static func lines(of text: String) -> [String] {
+        guard !text.isEmpty else { return [] }
+        let carriageReturn = UInt8(ascii: "\r")
+        var lines = text.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false).map { line in
+            String(decoding: line.last == carriageReturn ? line.dropLast() : line, as: UTF8.self)
+        }
+        if text.utf8.last == UInt8(ascii: "\n") { lines.removeLast() }
+        return lines
     }
 
     static func expandTabs<S: StringProtocol>(_ text: S) -> String {
@@ -89,10 +104,8 @@ public enum FileDiffBuilder {
         return output
     }
 
-    private static func lines(of text: String) -> [Substring] {
-        var lines = text.split(separator: "\n", omittingEmptySubsequences: false)
-        if lines.last == "" { lines.removeLast() }
-        return lines
+    private static func lacksFinalNewline(_ text: String) -> Bool {
+        !text.isEmpty && text.utf8.last != UInt8(ascii: "\n")
     }
 }
 
@@ -103,7 +116,7 @@ private struct HunkHeader {
     let newCount: Int
     let section: String
 
-    init?(_ line: Substring) {
+    init?(_ line: String) {
         let parts = line.split(separator: "@@", maxSplits: 2, omittingEmptySubsequences: false)
         guard parts.count >= 2 else { return nil }
         let ranges = parts[1].split(separator: " ")
@@ -144,11 +157,5 @@ private struct PendingBlock {
             }
             return DiffRow(left: left, right: right)
         }
-    }
-}
-
-private extension Substring {
-    func trimmingSuffix(_ suffix: String) -> Substring {
-        hasSuffix(suffix) ? dropLast(suffix.count) : self
     }
 }

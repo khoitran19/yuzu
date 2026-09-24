@@ -10,8 +10,13 @@ enum UnifiedPatch {
         }
     }
 
-    static func make(old: [Substring], new: [Substring], context: Int) -> String {
-        let operations = operations(old: old, new: new)
+    static func make(
+        old: [String], new: [String], oldLacksFinalNewline: Bool, newLacksFinalNewline: Bool, context: Int
+    ) -> String {
+        let operations = operations(
+            old: comparisonKeys(old, lacksFinalNewline: oldLacksFinalNewline),
+            new: comparisonKeys(new, lacksFinalNewline: newLacksFinalNewline)
+        )
         let changeIndices = operations.indices.filter { operations[$0].isChange }
         guard let firstChange = changeIndices.first else { return "" }
 
@@ -59,7 +64,15 @@ enum UnifiedPatch {
         return output
     }
 
-    private static func operations(old: [Substring], new: [Substring]) -> [Operation] {
+    /// Lines never contain LF, so an LF suffix marks a last line that lacks the final newline.
+    private static func comparisonKeys(_ lines: [String], lacksFinalNewline: Bool) -> [String] {
+        guard lacksFinalNewline, let last = lines.last else { return lines }
+        var keys = lines
+        keys[keys.count - 1] = last + "\n"
+        return keys
+    }
+
+    private static func operations(old: [String], new: [String]) -> [Operation] {
         let difference = new.difference(from: old)
         var removed = Set<Int>()
         var inserted = Set<Int>()
