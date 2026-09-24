@@ -72,6 +72,8 @@ let app: Target = .target(
         .target(name: "GitHubKit"),
         .target(name: "ReviewRules"),
         .target(name: "PRModels"),
+        .target(name: "DiffEngine"),
+        .target(name: "SyntaxHighlight"),
     ],
     settings: .settings(base: [
         "SWIFT_VERSION": "6.0",

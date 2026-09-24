@@ -1,0 +1,40 @@
+import DiffEngine
+import Foundation
+import GitHubKit
+import Observation
+import PRFixtures
+import PRModels
+import ReviewRules
+import SignIn
+import SyntaxHighlight
+
+@MainActor
+@Observable
+final class AppServices {
+    let options = LaunchOptions.current
+    let auth = AuthSession()
+    let rulesStore = ReviewRulesStore()
+    let recents = RecentPullRequests()
+    @ObservationIgnored let highlighter: any SyntaxHighlighting = TreeSitterHighlighter()
+    @ObservationIgnored private var fixtureService: (any PullRequestService)?
+
+    init() {
+        if let rules = options.rules { rulesStore.rules = rules }
+        if let fixture = options.fixture { fixtureService = FixturePullRequestService(directory: fixture) }
+    }
+
+    var isSignedIn: Bool {
+        if case .signedIn = auth.state { return true }
+        return false
+    }
+
+    var service: (any PullRequestService)? {
+        if let fixtureService { return fixtureService }
+        if case let .signedIn(token, _) = auth.state { return GitHubClient(token: token) }
+        return nil
+    }
+
+    func signOut() {
+        auth.signOut()
+    }
+}
