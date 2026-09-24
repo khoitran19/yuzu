@@ -23,8 +23,10 @@ final class HarnessRunner {
             for path in options.toggleViewed {
                 model.setViewed(!model.viewedPaths.contains(path), paths: [path])
             }
+            for (path, hunk) in options.expand { model.expand(path, hunk: hunk) }
+            try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             if let path = options.scrollToFile { model.filesController.diff.scrollToFile(path) }
-            try? await Task.sleep(for: .seconds(options.settleSeconds))
+            try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             let loadMs = Double(loadDuration.components.attoseconds) / 1e15 + Double(loadDuration.components.seconds) * 1_000
             log(["event": "loaded", "loadMs": String(format: "%.1f", loadMs), "files": "\(model.fileCount)", "rows": "\(model.filesController.diff.rowCount)"])
 

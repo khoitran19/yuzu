@@ -27,6 +27,11 @@ public final class FileTreeViewController: NSViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not available") }
 
+    override public func viewDidLayout() {
+        super.viewDidLayout()
+        outlineView.sizeLastColumnToFit()
+    }
+
     override public func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 600))
 
@@ -110,23 +115,17 @@ public final class FileTreeViewController: NSViewController {
     }
 
     /// Selects and scrolls to the file. Does not call `onSelectFile` and does not change the first responder.
+    /// Selects the file, or its closest visible folder when a collapsed folder hides it. Never opens a folder.
     public func reveal(path: String) {
         guard let node = displayedTree.filesByPath[path] else { return }
         selectedPath = path
         var row = outlineView.row(forItem: node)
-        if row < 0 {
-            var ancestors: [FileTreeNode] = []
-            var parent = node.parent
-            while let directory = parent {
-                ancestors.append(directory)
-                parent = directory.parent
-            }
-            for directory in ancestors.reversed() where !outlineView.isItemExpanded(directory) {
-                outlineView.expandItem(directory)
-            }
-            row = outlineView.row(forItem: node)
-            guard row >= 0 else { return }
+        var parent = node.parent
+        while row < 0, let directory = parent {
+            row = outlineView.row(forItem: directory)
+            parent = directory.parent
         }
+        guard row >= 0 else { return }
         if outlineView.selectedRow != row {
             outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         }

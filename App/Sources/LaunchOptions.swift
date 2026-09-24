@@ -16,6 +16,7 @@ struct LaunchOptions {
     var scrollToFile: String?
     var collapseAll = false
     var toggleViewed: [String] = []
+    var expand: [(path: String, hunk: Int?)] = []
     var rules: ReviewRules?
     var settleSeconds: Double = 1.0
 
@@ -40,6 +41,10 @@ struct LaunchOptions {
             case "--scroll-to-file": scrollToFile = iterator.next()
             case "--collapse-all": collapseAll = true
             case "--toggle-viewed": if let path = iterator.next() { toggleViewed.append(path) }
+            case "--expand":
+                if let value = iterator.next(), let colon = value.lastIndex(of: ":") {
+                    expand.append((String(value[..<colon]), Int(value[value.index(after: colon)...])))
+                }
             case "--rules": rules = iterator.next().flatMap { try? JSONDecoder().decode(ReviewRules.self, from: Data($0.utf8)) }
             case "--settle": settleSeconds = iterator.next().flatMap(Double.init) ?? settleSeconds
             default: continue

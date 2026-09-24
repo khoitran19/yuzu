@@ -44,7 +44,7 @@ public final class FilesChangedViewController: NSSplitViewController {
     /// Returns file paths in tree display order; the diff uses the same order.
     func setTreeFiles(_ files: [ChangedFile], matcher: ReviewRuleMatcher) -> [String] {
         loadViewIfNeeded()
-        tree.setFiles(files.map { FileTreeEntry(path: $0.path, status: $0.status, viewedState: $0.viewedState) }, matcher: matcher)
+        tree.setFiles(files.map(FileTreeEntry.init), matcher: matcher)
         return tree.orderedFilePaths
     }
 

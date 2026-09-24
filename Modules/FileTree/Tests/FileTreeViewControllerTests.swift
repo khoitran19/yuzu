@@ -72,7 +72,7 @@ struct FileTreeViewControllerTests {
         #expect(isExpanded(controller, "apps/web/src"))
     }
 
-    @Test func revealExpandsAncestorsSelectsWithoutCallingOnSelectFile() throws {
+    @Test func revealKeepsCollapsedFoldersAndSelectsClosestVisibleFolder() throws {
         let controller = makeController()
         controller.setFiles(files, matcher: matcher("migrations"))
         var selected: [String] = []
@@ -80,7 +80,20 @@ struct FileTreeViewControllerTests {
 
         controller.reveal(path: "packages/db/migrations/001.sql")
 
-        #expect(isExpanded(controller, "packages/db/migrations"))
+        #expect(!isExpanded(controller, "packages/db/migrations"))
+        let item = controller.outlineView.item(atRow: controller.outlineView.selectedRow) as? FileTreeNode
+        #expect(item?.path == "packages/db/migrations")
+        #expect(selected.isEmpty)
+    }
+
+    @Test func revealSelectsVisibleFileWithoutCallingOnSelectFile() throws {
+        let controller = makeController()
+        controller.setFiles(files, matcher: matcher())
+        var selected: [String] = []
+        controller.onSelectFile = { selected.append($0) }
+
+        controller.reveal(path: "packages/db/migrations/001.sql")
+
         let item = controller.outlineView.item(atRow: controller.outlineView.selectedRow) as? FileTreeNode
         #expect(item?.path == "packages/db/migrations/001.sql")
         #expect(selected.isEmpty)

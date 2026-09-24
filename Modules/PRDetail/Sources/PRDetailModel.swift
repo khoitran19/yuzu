@@ -120,8 +120,9 @@ public final class PRDetailModel {
         }
     }
 
-    private func expand(_ path: String, hunk: Int?) {
-        guard let pullRequest, var item = items[path], case let .diff(diff) = item.content else { return }
+    /// Shows unchanged lines above `hunk`, or after the last hunk when `hunk` is `nil`.
+    public func expand(_ path: String, hunk: Int?) {
+        guard let pullRequest, items[path] != nil else { return }
         Task {
             do {
                 let lines: [String]
@@ -132,15 +133,19 @@ public final class PRDetailModel {
                     lines = Self.lines(of: text)
                     headLines[path] = lines
                 }
+                guard var item = items[path], case let .diff(diff) = item.content else { return }
                 let expanded = hunk.map { diff.expandingGap(before: $0, newFileLines: lines) } ?? diff.expandingTail(newFileLines: lines)
                 item.content = .diff(expanded)
                 item.tailExpandable = expanded.trailingLineCount(newFileLineCount: lines.count) > 0
-                if let highlighter {
-                    let pending = item
-                    item.highlights = await Task.detached(priority: .userInitiated) { DiffItemFactory.highlights(for: pending, using: highlighter) }.value
-                }
+                item.highlights = nil
                 items[path] = item
                 filesController.updateDiffFile(item)
+                guard let highlighter else { return }
+                let pending = item
+                let highlights = await Task.detached(priority: .userInitiated) { DiffItemFactory.highlights(for: pending, using: highlighter) }.value
+                guard let highlights, case let .diff(current) = items[path]?.content, current == expanded else { return }
+                items[path]?.highlights = highlights
+                filesController.updateHighlights([path: highlights])
             } catch {
                 errorBanner = "Could not load \(path): \(error.localizedDescription)"
             }
