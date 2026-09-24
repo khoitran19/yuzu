@@ -139,10 +139,13 @@ public struct PullRequestSnapshot: Sendable, Equatable, Codable {
     public let pullRequest: PullRequest
     public var files: [ChangedFile]
     public let threads: [ReviewThread]
+    /// `nil` in fixtures recorded before the Conversation part existed.
+    public let conversation: Conversation?
 
-    public init(pullRequest: PullRequest, files: [ChangedFile], threads: [ReviewThread]) {
+    public init(pullRequest: PullRequest, files: [ChangedFile], threads: [ReviewThread], conversation: Conversation? = nil) {
         self.pullRequest = pullRequest
         self.files = files
         self.threads = threads
+        self.conversation = conversation
     }
 }

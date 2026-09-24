@@ -1,4 +1,296 @@
 {
+  "conversation" : {
+    "checks" : [
+      {
+        "completedAt" : "2026-08-30T19:30:24Z",
+        "event" : "pull_request",
+        "isRequired" : true,
+        "name" : "typecheck",
+        "startedAt" : "2026-08-30T19:27:20Z",
+        "state" : "success",
+        "workflow" : "Checks"
+      },
+      {
+        "completedAt" : "2026-08-30T19:28:31Z",
+        "event" : "pull_request",
+        "isRequired" : true,
+        "name" : "lint",
+        "startedAt" : "2026-08-30T19:27:20Z",
+        "state" : "success",
+        "workflow" : "Checks"
+      },
+      {
+        "completedAt" : "2026-08-30T19:34:12Z",
+        "event" : "pull_request",
+        "isRequired" : true,
+        "name" : "unit tests",
+        "startedAt" : "2026-08-30T19:27:20Z",
+        "state" : "failure",
+        "workflow" : "Checks"
+      },
+      {
+        "event" : "pull_request",
+        "isRequired" : false,
+        "name" : "e2e",
+        "startedAt" : "2026-08-30T19:27:20Z",
+        "state" : "pending",
+        "workflow" : "Checks"
+      },
+      {
+        "completedAt" : "2026-08-30T19:27:20Z",
+        "event" : "pull_request",
+        "isRequired" : false,
+        "name" : "deploy preview",
+        "startedAt" : "2026-08-30T19:27:20Z",
+        "state" : "skipped",
+        "workflow" : "Preview"
+      },
+      {
+        "isRequired" : false,
+        "name" : "Vercel – storefront",
+        "state" : "success",
+        "summary" : "Deployment has completed"
+      }
+    ],
+    "items" : [
+      {
+        "comment" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "vercel"
+              },
+              "association" : "NONE",
+              "isBot" : true
+            },
+            "bodyHTML" : "<p><strong>The latest updates on your projects.</strong></p><table><thead><tr><th>Name</th><th>Status</th><th>Updated (UTC)</th></tr></thead><tbody><tr><td><strong>storefront</strong></td><td>✅ Ready</td><td>Sep 24, 2026 9:12am</td></tr></tbody></table>",
+            "createdAt" : "2026-08-30T09:07:16Z",
+            "id" : "IC_synthetic_1"
+          }
+        }
+      },
+      {
+        "comment" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "emmy"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>LGTM ⚠️</p>",
+            "createdAt" : "2026-08-30T11:21:08Z",
+            "id" : "IC_synthetic_2"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "emmy"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>A few notes on the price flow.</p>",
+            "comments" : [
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "rik"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>I traced this through `reconcileWallet` and the wallet can reach this branch while it is still active. Buyers in Japan see 注文を確認しています 🎉 while the order is shipped. 🛒 The archive step retries 2 times, then marks the wallet as failed. Buyers in Japan see 正在处理您的订单 👀 while the session is failed. Buyers in Japan see 正在处理您的订单 🔥 while the invoice is pending. 🎉 The load step retries 4 times, then marks the account as failed. The channel service archives each token before the inventory webhook runs. Buyers in Japan see 결제가 실패했습니다 🎉 while the refund is failed. The inventory service updates each stream before the shipment webhook runs.</p><p>Steps to reproduce:\n1. Create a wallet with two labels.\n2. Reconcile it while the product webhook retries.\n3. Open the wallet page. The total is wrong 🛒</p><p>```ts\nconst wallet = await reconcileWallet(id, { attempt: 2 })\nexpect(wallet.status).toBe('failed')\n```</p><p>The session service creates each inventory before the discount webhook runs. The variant service cancels each webhook before the thread webhook runs. A refunded seller cannot change to pending until the offer is archived. The thread service validates each session before the price webhook runs. Set `status` to limit how many tokens each worker schedules in one batch. Buyers in Japan see 注文を確認しています 💳 while the refund is delivered. The channel service loads each session before the wallet webhook runs. Buyers in Japan see 注文を確認しています 🎉 while the message is cancelled.</p>",
+                "createdAt" : "2026-08-30T05:56:08Z",
+                "diffHunk" : "@@ -10,8 +10,17 @@ describe('refreshInventory', () => {\n     expect(result.status).toBe('pending')\n   })\n })\n+🧾\n+describe('prune', () => {\n+describe('updateVariant', () => {\n+  it('returns refunded when the variant is pending', async () => {",
+                "id" : "PRRC_synthetic_1",
+                "isOutdated" : false,
+                "path" : "apps/platform/gateway/src/workflows/__tests__/scheduleStream.spec.ts"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "marvin"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Why not reuse `resolvePrice` from core utils?</p>",
+                "createdAt" : "2026-08-30T08:24:14Z",
+                "diffHunk" : "@@ -38,8 +38,13 @@ struct ReviewResult: Sendable, Equatable {\n \n func resolveCart(_ cart: Cart, in context: Context) async throws -> CartResult {\n     guard let owner = context.owner(of: cart.id) else { throw CartError.missingOwner }\n-    let items = try await context.load(cart.itemIDs)\n+    let items = try await channel.load(cart.itemIDs)\n+func resolveToken(_ token: Token, in context: Context) async throws -> TokenResult {\n+    guard let owner = context.owner(of: token.id) else { throw TokenError.missingOwner }",
+                "id" : "PRRC_synthetic_4",
+                "isOutdated" : false,
+                "path" : "ios/Modules/Livestream/Sources/DiscountRow.swift"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "octocat"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>I traced this through `syncCoupon` and the coupon can reach this branch while it is still delivered. The coupon service creates each notification before the seller webhook runs. A shipped payment cannot change to active until the seller is cancelled. Set `id` to limit how many sessions each worker renders in one batch. The token service schedules each message before the channel webhook runs. 🧾 The merge step retries 4 times, then marks the channel as shipped. 📦 The parse step retries 4 times, then marks the order as pending. Buyers in Japan see 주문을 처리하는 중입니다 🔥 while the buyer is active.</p><p>Steps to reproduce:\n1. Create a coupon with two tokens.\n2. Sync it while the product webhook retries.\n3. Open the coupon page. The total is wrong 🔥</p><p>```ts\nconst coupon = await syncCoupon(id, { attempt: 4 })\nexpect(coupon.status).toBe('failed')\n```</p><p>The wallet service renders each price before the invoice webhook runs. The message service merges each review before the variant webhook runs. ⚠️ The prune step retries 2 times, then marks the payment as cancelled.</p>",
+                "createdAt" : "2026-08-30T10:41:53Z",
+                "diffHunk" : "@@ -1,7 +1,13 @@\n import { logger } from '@district-core/logger'\n import { match } from 'ts-pattern'\n-import { ListingService } from '#@/listing/listingService.ts'\n-\n+import { ListingService } from '#@/create/listingService.ts'\n+🚚\n+function productTone(status: ProductStatus) {",
+                "id" : "PRRC_synthetic_7",
+                "isOutdated" : false,
+                "path" : "apps/platform/gateway/src/routes/validateCart.ts"
+              }
+            ],
+            "createdAt" : "2026-08-30T12:01:49Z",
+            "id" : "PRR_synthetic_1",
+            "state" : "COMMENTED"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "octocat"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "",
+            "comments" : [
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "rik"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Does this still hold when the notification is pending?</p>",
+                "createdAt" : "2026-08-30T06:24:23Z",
+                "diffHunk" : "@@ -10,8 +10,17 @@ describe('refreshInventory', () => {\n     expect(result.status).toBe('pending')\n   })\n })\n+🧾\n+describe('prune', () => {\n+describe('updateVariant', () => {\n+  it('returns refunded when the variant is pending', async () => {",
+                "id" : "PRRC_synthetic_2",
+                "isOutdated" : false,
+                "path" : "apps/platform/gateway/src/workflows/__tests__/scheduleStream.spec.ts",
+                "replyToID" : "PRRC_synthetic_1"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "octocat"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Why not reuse `parseCheckout` from core utils?</p>",
+                "createdAt" : "2026-08-30T07:43:55Z",
+                "diffHunk" : "@@ -10,8 +10,17 @@ describe('refreshInventory', () => {\n     expect(result.status).toBe('pending')\n   })\n })\n+🧾\n+describe('prune', () => {\n+describe('updateVariant', () => {\n+  it('returns refunded when the variant is pending', async () => {",
+                "id" : "PRRC_synthetic_3",
+                "isOutdated" : false,
+                "path" : "apps/platform/gateway/src/workflows/__tests__/scheduleStream.spec.ts",
+                "replyToID" : "PRRC_synthetic_1"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "emmy"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>I traced this through `applyInvoice` and the invoice can reach this branch while it is still archived. Buyers in Japan see 결제가 실패했습니다 🔥 while the variant is delivered. 💳 The cancel step retries 5 times, then marks the wallet as shipped. 👀 The parse step retries 5 times, then marks the variant as active. 👀 The load step retries 3 times, then marks the discount as failed. Buyers in Japan see 配送状況を更新しました 👀 while the offer is shipped. Set `id` to limit how many checkouts each worker renders in one batch. The shipment service cancels each price before the stream webhook runs. A active stream cannot change to archived until the cart is refunded.</p><p>Steps to reproduce:\n1. Create a invoice with two orders.\n2. Apply it while the buyer webhook retries.\n3. Open the invoice page. The total is wrong 📦</p><p>```ts\nconst invoice = await applyInvoice(id, { attempt: 2 })\nexpect(invoice.status).toBe('archived')\n```</p><p>Set `title` to limit how many variants each worker updates in one batch. 🔥 The cancel step retries 3 times, then marks the channel as cancelled. Set `metadata` to limit how many offers each worker applys in one batch. Buyers in Japan see 注文を確認しています 🚚 while the payment is refunded. The payout service parses each channel before the account webhook runs. Set `ownerId` to limit how many refunds each worker merges in one batch. 🎉 The parse step retries 2 times, then marks the cart as shipped.</p>",
+                "createdAt" : "2026-08-30T09:54:56Z",
+                "diffHunk" : "@@ -38,8 +38,13 @@ struct ReviewResult: Sendable, Equatable {\n \n func resolveCart(_ cart: Cart, in context: Context) async throws -> CartResult {\n     guard let owner = context.owner(of: cart.id) else { throw CartError.missingOwner }\n-    let items = try await context.load(cart.itemIDs)\n+    let items = try await channel.load(cart.itemIDs)\n+func resolveToken(_ token: Token, in context: Context) async throws -> TokenResult {\n+    guard let owner = context.owner(of: token.id) else { throw TokenError.missingOwner }",
+                "id" : "PRRC_synthetic_5",
+                "isOutdated" : false,
+                "path" : "ios/Modules/Livestream/Sources/DiscountRow.swift",
+                "replyToID" : "PRRC_synthetic_4"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "rik"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Should this be behind a feature flag? 🤔</p>",
+                "createdAt" : "2026-08-30T10:05:08Z",
+                "diffHunk" : "@@ -38,8 +38,13 @@ struct ReviewResult: Sendable, Equatable {\n \n func resolveCart(_ cart: Cart, in context: Context) async throws -> CartResult {\n     guard let owner = context.owner(of: cart.id) else { throw CartError.missingOwner }\n-    let items = try await context.load(cart.itemIDs)\n+    let items = try await channel.load(cart.itemIDs)\n+func resolveToken(_ token: Token, in context: Context) async throws -> TokenResult {\n+    guard let owner = context.owner(of: token.id) else { throw TokenError.missingOwner }",
+                "id" : "PRRC_synthetic_6",
+                "isOutdated" : false,
+                "path" : "ios/Modules/Livestream/Sources/DiscountRow.swift",
+                "replyToID" : "PRRC_synthetic_4"
+              }
+            ],
+            "createdAt" : "2026-08-30T15:09:08Z",
+            "id" : "PRR_synthetic_2",
+            "state" : "COMMENTED"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "rik"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>配送状況を更新しました。这里需要处理空值的情况。</p>",
+            "comments" : [
+
+            ],
+            "createdAt" : "2026-08-30T15:55:26Z",
+            "id" : "PRR_synthetic_3",
+            "state" : "CHANGES_REQUESTED"
+          }
+        }
+      },
+      {
+        "comment" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "khoi-iso"
+              },
+              "association" : "CONTRIBUTOR",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>Old status note.</p>",
+            "createdAt" : "2026-08-30T17:55:24Z",
+            "id" : "IC_synthetic_3",
+            "minimizedReason" : "OUTDATED"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "octocat"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "",
+            "comments" : [
+
+            ],
+            "createdAt" : "2026-08-30T19:27:20Z",
+            "id" : "PRR_synthetic_4",
+            "state" : "APPROVED"
+          }
+        }
+      }
+    ]
+  },
   "files" : [
     {
       "additions" : 3,

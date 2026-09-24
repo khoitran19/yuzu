@@ -25,7 +25,7 @@ struct RootView: View {
         guard let url = services.options.screenshot, services.service == nil else { return }
         try? await Task.sleep(for: .seconds(services.options.settleSeconds))
         if let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) {
-            try? WindowSnapshot.write(window, to: url)
+            try? await WindowSnapshot.write(window, to: url)
         }
         NSApp.terminate(nil)
     }

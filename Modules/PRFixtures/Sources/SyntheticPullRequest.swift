@@ -75,7 +75,11 @@ public enum SyntheticPullRequest {
             additions: additions, deletions: deletions, changedFiles: files.count,
             commitCount: rng.int(3...40), createdAt: createdAt
         )
-        return Fixture(snapshot: PullRequestSnapshot(pullRequest: pullRequest, files: files, threads: threads), contents: contents)
+        let conversation = makeConversation(files: files, threads: threads, createdAt: createdAt, seed: seed)
+        return Fixture(
+            snapshot: PullRequestSnapshot(pullRequest: pullRequest, files: files, threads: threads, conversation: conversation),
+            contents: contents
+        )
     }
 
     // MARK: Plans
@@ -275,6 +279,95 @@ public enum SyntheticPullRequest {
             ))
         }
         return threads
+    }
+
+    // MARK: Conversation
+
+    /// Uses its own generator, so the files and threads stay the same as before the conversation existed.
+    private static func makeConversation(files: [ChangedFile], threads: [ReviewThread], createdAt: Date, seed: UInt64) -> Conversation {
+        var rng = SeededGenerator(seed: seed &+ 0x5EED)
+        var time = createdAt
+        func next() -> Date {
+            time += Double(rng.int(600...14_400))
+            return time
+        }
+        func author(_ login: String, bot: Bool = false, association: String = "MEMBER") -> Author {
+            Author(actor: Actor(login: login, avatarURL: nil), isBot: bot, association: association)
+        }
+        func html(_ markdown: String) -> String {
+            "<p>" + markdown.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+                .replacingOccurrences(of: "\n\n", with: "</p><p>") + "</p>"
+        }
+
+        var items: [TimelineItem] = [
+            .comment(IssueComment(
+                id: "IC_synthetic_1", author: author("vercel", bot: true, association: "NONE"),
+                bodyHTML: "<p><strong>The latest updates on your projects.</strong></p><table><thead><tr><th>Name</th><th>Status</th>"
+                    + "<th>Updated (UTC)</th></tr></thead><tbody><tr><td><strong>storefront</strong></td><td>✅ Ready</td>"
+                    + "<td>Sep 24, 2026 9:12am</td></tr></tbody></table>",
+                createdAt: next(), url: nil, minimizedReason: nil
+            )),
+            .comment(IssueComment(
+                id: "IC_synthetic_2", author: author(rng.pick(authors)), bodyHTML: html(commentBody(rng: &rng)),
+                createdAt: next(), url: nil, minimizedReason: nil
+            )),
+        ]
+
+        let placed = threads.filter { !$0.isOutdated && !$0.comments.isEmpty }.prefix(3)
+        var roots: [InlineComment] = []
+        var replies: [InlineComment] = []
+        for thread in placed {
+            let hunk = files.first { $0.path == thread.path }?.patch?.split(separator: "\n").prefix(8).joined(separator: "\n") ?? ""
+            for (index, comment) in thread.comments.enumerated() {
+                let inline = InlineComment(
+                    id: comment.id, author: comment.author.map { author($0.login) }, bodyHTML: html(comment.bodyText),
+                    createdAt: comment.createdAt, path: thread.path, diffHunk: hunk,
+                    replyToID: index == 0 ? nil : thread.comments[0].id, isOutdated: false
+                )
+                if index == 0 { roots.append(inline) } else { replies.append(inline) }
+            }
+        }
+        items.append(.review(Review(
+            id: "PRR_synthetic_1", author: author(rng.pick(authors)), state: .commented,
+            bodyHTML: html("A few notes on the \(rng.pick(Words.nouns)) flow."), createdAt: next(), url: nil, comments: roots
+        )))
+        items.append(.review(Review(
+            id: "PRR_synthetic_2", author: author(rng.pick(authors)), state: .commented, bodyHTML: "", createdAt: next(),
+            url: nil, comments: replies
+        )))
+        items.append(.review(Review(
+            id: "PRR_synthetic_3", author: author(rng.pick(authors)), state: .changesRequested,
+            bodyHTML: html(commentBody(rng: &rng)), createdAt: next(), url: nil, comments: []
+        )))
+        items.append(.comment(IssueComment(
+            id: "IC_synthetic_3", author: author(rng.pick(authors), association: "CONTRIBUTOR"),
+            bodyHTML: html("Old status note."), createdAt: next(), url: nil, minimizedReason: "OUTDATED"
+        )))
+        items.append(.review(Review(
+            id: "PRR_synthetic_4", author: author(rng.pick(authors)), state: .approved, bodyHTML: "", createdAt: next(),
+            url: nil, comments: []
+        )))
+
+        let started = time
+        func check(_ name: String, workflow: String?, _ state: Check.State, seconds: Int, required: Bool = false) -> Check {
+            Check(
+                name: name, workflow: workflow, event: workflow == nil ? nil : "pull_request", state: state, summary: nil,
+                url: nil, avatarURL: nil, isRequired: required, startedAt: started,
+                completedAt: state == .pending ? nil : started + Double(seconds)
+            )
+        }
+        let checks = [
+            check("typecheck", workflow: "Checks", .success, seconds: 184, required: true),
+            check("lint", workflow: "Checks", .success, seconds: 71, required: true),
+            check("unit tests", workflow: "Checks", .failure, seconds: 412, required: true),
+            check("e2e", workflow: "Checks", .pending, seconds: 0),
+            check("deploy preview", workflow: "Preview", .skipped, seconds: 0),
+            Check(
+                name: "Vercel – storefront", workflow: nil, event: nil, state: .success, summary: "Deployment has completed",
+                url: nil, avatarURL: nil, isRequired: false, startedAt: nil, completedAt: nil
+            ),
+        ]
+        return Conversation(items: items, checks: checks)
     }
 
     private static func commentBody(rng: inout SeededGenerator) -> String {

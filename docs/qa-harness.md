@@ -37,6 +37,7 @@ sleeps. Read the PNG after every UI change.
 | `--open <link>` | Open this pull request (with a token, this is the live GitHub path) |
 | `--tab files\|summary` | Select a tab |
 | `--scroll-to-file <path>` | Scroll the diff to a file |
+| `--summary-scroll <y\|bottom>` | Scroll the Summary page |
 | `--collapse-all` | Collapse every file |
 | `--toggle-viewed <path>` | Toggle Viewed (repeatable) |
 | `--expand <path>:<hunk\|tail>` | Expand context above a hunk, or the tail (repeatable) |

@@ -99,6 +99,45 @@ struct GitHubClientTests {
         #expect(files.first?.1.map(\.viewedState) == [.viewed])
     }
 
+    @Test func conversationKeepsCommentsAndReviewsAndPagesChecks() async throws {
+        let session = StubURLProtocol.session(token: token) { request in
+            let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)
+            if body.query.contains("timelineItems") {
+                return #"""
+                {"data":{"repository":{"pullRequest":{"timelineItems":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[
+                  {"__typename":"IssueComment","id":"IC1","bodyHTML":"<p>hi</p>","createdAt":"2026-09-01T00:00:00Z","url":"https://github.com/c",
+                   "isMinimized":true,"minimizedReason":"outdated","authorAssociation":"MEMBER",
+                   "author":{"__typename":"Bot","login":"vercel","avatarUrl":"https://avatars.githubusercontent.com/in/8329?s=80"}},
+                  {"__typename":"PullRequestReview","id":"R1","state":"PENDING","bodyHTML":"","createdAt":"2026-09-01T00:00:00Z",
+                   "submittedAt":null,"url":null,"authorAssociation":"MEMBER","author":null,"comments":{"nodes":[]}},
+                  {"__typename":"PullRequestReview","id":"R2","state":"APPROVED","bodyHTML":"","createdAt":"2026-09-01T00:00:00Z",
+                   "submittedAt":"2026-09-02T00:00:00Z","url":null,"authorAssociation":"MEMBER","author":null,"comments":{"nodes":[
+                     {"id":"C2","bodyHTML":"<p>r</p>","createdAt":"2026-09-02T00:00:00Z","path":"a.ts","diffHunk":"@@ -1 +1 @@","outdated":false,
+                      "authorAssociation":"MEMBER","replyTo":{"id":"C1"},"author":null}]}}
+                ]}}}}}
+                """#
+            }
+            let context = body.variables["cursor"] == nil
+                ? #"{"__typename":"CheckRun","name":"lint","status":"COMPLETED","conclusion":"TIMED_OUT","detailsUrl":null,"startedAt":null,"completedAt":null,"isRequired":true,"checkSuite":{"app":null,"workflowRun":{"event":"pull_request","workflow":{"name":"Checks"}}}}"#
+                : #"{"__typename":"StatusContext","context":"vercel","state":"PENDING","description":"Building","targetUrl":null,"avatarUrl":null,"isRequired":false}"#
+            let next = body.variables["cursor"] == nil ? #"true,"endCursor":"k1""# : #"false,"endCursor":null"#
+            return #"{"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":\#(next)},"nodes":[\#(context)]}}}}]}}}}}"#
+        }
+        let conversation = try await GitHubClient(token: token, session: session).conversation(ref)
+
+        guard conversation.items.count == 2, case let .comment(comment) = conversation.items[0],
+              case let .review(review) = conversation.items[1]
+        else { Issue.record("Expected a comment and the submitted review, got \(conversation.items)"); return }
+        #expect(comment.author?.isBot == true)
+        #expect(comment.minimizedReason == "outdated")
+        #expect(review.state == .approved)
+        #expect(review.createdAt == Date(timeIntervalSince1970: 1_788_307_200))
+        #expect(review.comments.first?.replyToID == "C1")
+        #expect(conversation.checks.map(\.name) == ["lint", "vercel"])
+        #expect(conversation.checks.map(\.state) == [.failure, .pending])
+        #expect(conversation.checks.first?.workflow == "Checks")
+    }
+
     @Test(arguments: [
         (#"<https://api.github.com/x?per_page=100&page=2>; rel="next", <https://api.github.com/x?per_page=100&page=7>; rel="last""#, 7),
         (#"<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first""#, nil),

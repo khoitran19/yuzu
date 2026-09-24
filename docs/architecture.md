@@ -73,13 +73,18 @@ sequenceDiagram
     Model->>Model: Header, Summary, 3,000-file notice
     Service-->>Model: .threads([ReviewThread])
     Model->>Diff: updateFiles (threads for changed files, one rebuild)
+    Service-->>Model: .conversation(Conversation)
+    Model->>BG: Build the Summary HTML
+    BG-->>Model: SummaryPage (the web view replaces only the conversation element)
     loop Every 50 ms
         BG-->>Model: Batch of highlights
         Model->>Diff: updateHighlights (visible rows redraw)
     end
 ```
 
-- The diff shows when the files and Viewed states arrive. It does not wait for details, threads, or highlighting.
+- The diff shows when the files and Viewed states arrive. It does not wait for details, threads, the conversation, or
+  highlighting.
+- The Summary web view stays in the window after the details arrive, so a tab switch does not load it again.
 - The diff waits for Viewed states, because they decide which files are collapsed. Without them, files would collapse
   after the first paint and move the content.
 - A PR link on the clipboard starts a prefetch when the app becomes active. Opening that PR within 60 seconds uses the

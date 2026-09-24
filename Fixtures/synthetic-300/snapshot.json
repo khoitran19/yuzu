@@ -1,4 +1,280 @@
 {
+  "conversation" : {
+    "checks" : [
+      {
+        "completedAt" : "2026-08-30T14:18:01Z",
+        "event" : "pull_request",
+        "isRequired" : true,
+        "name" : "typecheck",
+        "startedAt" : "2026-08-30T14:14:57Z",
+        "state" : "success",
+        "workflow" : "Checks"
+      },
+      {
+        "completedAt" : "2026-08-30T14:16:08Z",
+        "event" : "pull_request",
+        "isRequired" : true,
+        "name" : "lint",
+        "startedAt" : "2026-08-30T14:14:57Z",
+        "state" : "success",
+        "workflow" : "Checks"
+      },
+      {
+        "completedAt" : "2026-08-30T14:21:49Z",
+        "event" : "pull_request",
+        "isRequired" : true,
+        "name" : "unit tests",
+        "startedAt" : "2026-08-30T14:14:57Z",
+        "state" : "failure",
+        "workflow" : "Checks"
+      },
+      {
+        "event" : "pull_request",
+        "isRequired" : false,
+        "name" : "e2e",
+        "startedAt" : "2026-08-30T14:14:57Z",
+        "state" : "pending",
+        "workflow" : "Checks"
+      },
+      {
+        "completedAt" : "2026-08-30T14:14:57Z",
+        "event" : "pull_request",
+        "isRequired" : false,
+        "name" : "deploy preview",
+        "startedAt" : "2026-08-30T14:14:57Z",
+        "state" : "skipped",
+        "workflow" : "Preview"
+      },
+      {
+        "isRequired" : false,
+        "name" : "Vercel – storefront",
+        "state" : "success",
+        "summary" : "Deployment has completed"
+      }
+    ],
+    "items" : [
+      {
+        "comment" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "vercel"
+              },
+              "association" : "NONE",
+              "isBot" : true
+            },
+            "bodyHTML" : "<p><strong>The latest updates on your projects.</strong></p><table><thead><tr><th>Name</th><th>Status</th><th>Updated (UTC)</th></tr></thead><tbody><tr><td><strong>storefront</strong></td><td>✅ Ready</td><td>Sep 24, 2026 9:12am</td></tr></tbody></table>",
+            "createdAt" : "2026-08-30T03:54:53Z",
+            "id" : "IC_synthetic_1"
+          }
+        }
+      },
+      {
+        "comment" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "emmy"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>LGTM ⚠️</p>",
+            "createdAt" : "2026-08-30T06:08:45Z",
+            "id" : "IC_synthetic_2"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "emmy"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>A few notes on the price flow.</p>",
+            "comments" : [
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "octocat"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Why not reuse `refreshShipment` from core utils?</p>",
+                "createdAt" : "2026-08-30T01:38:16Z",
+                "diffHunk" : "@@ -6,19 +6,22 @@ const log = logger('seller', 'apply')\n \n describe('cancelChannel', () => {\n   it('returns archived when the channel is archived', async () => {\n-    const channel = await seedChannel({ status: 'archived', quantity: 15 })\n-    const result = await cancelChannel(channel.id)\n-    expect(result.status).toBe('archived')\n-  })",
+                "id" : "PRRC_synthetic_1",
+                "isOutdated" : false,
+                "path" : "services/assistant/src/prompts/__tests__/parseProduct.spec.ts"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "hubot"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Done in the next commit.</p>",
+                "createdAt" : "2026-08-30T03:48:35Z",
+                "diffHunk" : "@@ -26,24 +26,21 @@ jobs:\n       - name: Publish buyers ⚠️\n         run: pnpm moon run buyer:publish -- --reporter=dot --shard=3/4\n   render-webhook:\n-    runs-on: ubuntu-latest\n-    timeout-minutes: 22\n+    runs-on: ubuntu-shipment\n+    listing-minutes: 22",
+                "id" : "PRRC_synthetic_4",
+                "isOutdated" : false,
+                "path" : "infra/production/refund2.yaml"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "hubot"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Should this be behind a feature flag? 🤔</p>",
+                "createdAt" : "2026-08-30T05:25:31Z",
+                "diffHunk" : "@@ -1,67 +0,0 @@\n-import { describe, expect, it } from 'vitest'\n-import { OrderService } from '#@/order/orderService.ts'\n-import { LabelService } from '#@/label/labelService.ts'\n-\n-const log = logger('notification', 'update')\n-\n-describe('mergeWallet', () => {",
+                "id" : "PRRC_synthetic_5",
+                "isOutdated" : false,
+                "path" : "services/assistant/src/tools/__tests__/archivePrice.spec.ts"
+              }
+            ],
+            "createdAt" : "2026-08-30T06:49:26Z",
+            "id" : "PRR_synthetic_1",
+            "state" : "COMMENTED"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "octocat"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "",
+            "comments" : [
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "khoi-iso"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>LGTM 🚚</p>",
+                "createdAt" : "2026-08-30T02:34:02Z",
+                "diffHunk" : "@@ -6,19 +6,22 @@ const log = logger('seller', 'apply')\n \n describe('cancelChannel', () => {\n   it('returns archived when the channel is archived', async () => {\n-    const channel = await seedChannel({ status: 'archived', quantity: 15 })\n-    const result = await cancelChannel(channel.id)\n-    expect(result.status).toBe('archived')\n-  })",
+                "id" : "PRRC_synthetic_2",
+                "isOutdated" : false,
+                "path" : "services/assistant/src/prompts/__tests__/parseProduct.spec.ts",
+                "replyToID" : "PRRC_synthetic_1"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "marvin"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>I traced this through `fetchCart` and the cart can reach this branch while it is still refunded. A refunded payment cannot change to refunded until the checkout is archived. 🧾 The reconcile step retries 3 times, then marks the price as failed. Buyers in Japan see 주문을 처리하는 중입니다 ⚠️ while the inventory is pending. Buyers in Japan see 正在处理您的订单 🧾 while the seller is cancelled. 🎉 The validate step retries 4 times, then marks the cart as delivered.</p><p>Steps to reproduce:\n1. Create a cart with two discounts.\n2. Fetch it while the webhook webhook retries.\n3. Open the cart page. The total is wrong 👀</p><p>```ts\nconst cart = await fetchCart(id, { attempt: 5 })\nexpect(cart.status).toBe('delivered')\n```</p><p>🛒 The merge step retries 3 times, then marks the checkout as cancelled. Buyers in Japan see 주문을 처리하는 중입니다 🛒 while the cart is archived. A cancelled price cannot change to active until the order is active. Buyers in Japan see 配送状況を更新しました 💳 while the session is failed.</p>",
+                "createdAt" : "2026-08-30T02:52:38Z",
+                "diffHunk" : "@@ -6,19 +6,22 @@ const log = logger('seller', 'apply')\n \n describe('cancelChannel', () => {\n   it('returns archived when the channel is archived', async () => {\n-    const channel = await seedChannel({ status: 'archived', quantity: 15 })\n-    const result = await cancelChannel(channel.id)\n-    expect(result.status).toBe('archived')\n-  })",
+                "id" : "PRRC_synthetic_3",
+                "isOutdated" : false,
+                "path" : "services/assistant/src/prompts/__tests__/parseProduct.spec.ts",
+                "replyToID" : "PRRC_synthetic_1"
+              },
+              {
+                "author" : {
+                  "actor" : {
+                    "login" : "rik"
+                  },
+                  "association" : "MEMBER",
+                  "isBot" : false
+                },
+                "bodyHTML" : "<p>Does this still hold when the coupon is pending?</p>",
+                "createdAt" : "2026-08-30T06:05:04Z",
+                "diffHunk" : "@@ -1,67 +0,0 @@\n-import { describe, expect, it } from 'vitest'\n-import { OrderService } from '#@/order/orderService.ts'\n-import { LabelService } from '#@/label/labelService.ts'\n-\n-const log = logger('notification', 'update')\n-\n-describe('mergeWallet', () => {",
+                "id" : "PRRC_synthetic_6",
+                "isOutdated" : false,
+                "path" : "services/assistant/src/tools/__tests__/archivePrice.spec.ts",
+                "replyToID" : "PRRC_synthetic_5"
+              }
+            ],
+            "createdAt" : "2026-08-30T09:56:45Z",
+            "id" : "PRR_synthetic_2",
+            "state" : "COMMENTED"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "rik"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>配送状況を更新しました。这里需要处理空值的情况。</p>",
+            "comments" : [
+
+            ],
+            "createdAt" : "2026-08-30T10:43:03Z",
+            "id" : "PRR_synthetic_3",
+            "state" : "CHANGES_REQUESTED"
+          }
+        }
+      },
+      {
+        "comment" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "khoi-iso"
+              },
+              "association" : "CONTRIBUTOR",
+              "isBot" : false
+            },
+            "bodyHTML" : "<p>Old status note.</p>",
+            "createdAt" : "2026-08-30T12:43:01Z",
+            "id" : "IC_synthetic_3",
+            "minimizedReason" : "OUTDATED"
+          }
+        }
+      },
+      {
+        "review" : {
+          "_0" : {
+            "author" : {
+              "actor" : {
+                "login" : "octocat"
+              },
+              "association" : "MEMBER",
+              "isBot" : false
+            },
+            "bodyHTML" : "",
+            "comments" : [
+
+            ],
+            "createdAt" : "2026-08-30T14:14:57Z",
+            "id" : "PRR_synthetic_4",
+            "state" : "APPROVED"
+          }
+        }
+      }
+    ]
+  },
   "files" : [
     {
       "additions" : 19,

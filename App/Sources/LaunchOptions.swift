@@ -14,6 +14,8 @@ struct LaunchOptions {
     var windowSize: CGSize?
     var tab: PRDetailModel.Tab?
     var scrollToFile: String?
+    /// A JavaScript `scrollTo` y value for the Summary page, or `bottom`.
+    var summaryScroll: String?
     var collapseAll = false
     var toggleViewed: [String] = []
     var expand: [(path: String, hunk: Int?)] = []
@@ -40,6 +42,7 @@ struct LaunchOptions {
                 if parts.count == 2 { windowSize = CGSize(width: parts[0], height: parts[1]) }
             case "--tab": tab = iterator.next().flatMap { $0 == "summary" ? .summary : $0 == "files" ? .files : nil }
             case "--scroll-to-file": scrollToFile = iterator.next()
+            case "--summary-scroll": summaryScroll = iterator.next()
             case "--collapse-all": collapseAll = true
             case "--toggle-viewed": if let path = iterator.next() { toggleViewed.append(path) }
             case "--expand":

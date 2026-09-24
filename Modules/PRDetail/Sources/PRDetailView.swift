@@ -24,12 +24,12 @@ public struct PRDetailView: View {
                 FilesChangedView(controller: model.filesController)
                     .opacity(model.tab == .files && model.phase == .loaded ? 1 : 0)
                     .allowsHitTesting(model.tab == .files)
-                if model.tab == .summary {
-                    if let pullRequest = model.pullRequest {
-                        SummaryView(pullRequest: pullRequest)
-                    } else if model.phase == .loaded {
-                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                if let page = model.summaryPage {
+                    SummaryView(page: page)
+                        .opacity(model.tab == .summary ? 1 : 0)
+                        .allowsHitTesting(model.tab == .summary)
+                } else if model.tab == .summary, model.phase == .loaded {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 switch model.phase {
                 case .loading:

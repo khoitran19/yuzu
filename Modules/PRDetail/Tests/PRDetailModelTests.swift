@@ -93,6 +93,31 @@ struct ProgressiveLoadTests {
         #expect(threadRows(model) > 0)
     }
 
+    @Test func conversationReplacesOnlyTheConversationPart() async throws {
+        let directory = URL(filePath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Fixtures/synthetic-50")
+        let fixture = FixturePullRequestService(directory: directory)
+        let snapshot = try await fixture.snapshot(of: try await fixture.pullRequestRef())
+        let conversation = try #require(snapshot.conversation)
+        let service = ManualPartsService()
+        let model = PRDetailModel(ref: snapshot.pullRequest.ref, service: service, highlighter: nil, rules: ReviewRules())
+        let loading = Task { await model.load() }
+
+        service.continuation.yield(.detail(snapshot.pullRequest))
+        try await waitUntil { model.summaryPage != nil }
+        let first = try #require(model.summaryPage)
+        #expect(first.conversation.contains("Loading conversation"))
+
+        service.continuation.yield(.conversation(conversation))
+        service.continuation.finish()
+        await loading.value
+        try await waitUntil { model.summaryPage?.conversation != first.conversation }
+        #expect(model.summaryPage?.document == first.document)
+        #expect(model.summaryPage?.conversation.contains("All checks") == false)
+        #expect(model.summaryPage?.conversation.contains("Some checks were not successful") == true)
+    }
+
     private func threadRows(_ model: PRDetailModel) -> Int {
         model.filesController.diff.rows.filter { if case .thread = $0.kind { $0.slice == 0 } else { false } }.count
     }

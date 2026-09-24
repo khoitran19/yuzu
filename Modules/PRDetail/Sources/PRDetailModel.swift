@@ -35,7 +35,11 @@ public final class PRDetailModel {
     public private(set) var firstPaint: Duration?
     /// Time from `load()` to the last part.
     public private(set) var liveLoad: Duration?
-    public var tab: Tab = .files
+    /// `nil` until the details arrive.
+    public private(set) var summaryPage: SummaryPage?
+    public var tab: Tab = .files {
+        didSet { if tab == .files, oldValue != .files { filesController.diff.focus() } }
+    }
 
     @ObservationIgnored public let filesController = FilesChangedViewController()
     /// Called once when all parts have arrived.
@@ -47,6 +51,10 @@ public final class PRDetailModel {
     @ObservationIgnored private var pullRequestID: String?
     @ObservationIgnored private var files: [ChangedFile] = []
     @ObservationIgnored private var threads: [ReviewThread]?
+    @ObservationIgnored private var conversation: Conversation?
+    @ObservationIgnored private var summaryGeneration = 0
+    /// True when `summaryPage.document` does not show the current details.
+    @ObservationIgnored private var summaryDocumentStale = true
     @ObservationIgnored private var autoViewedSent: Set<String> = []
 
     @ObservationIgnored private var highlightTask: Task<Void, Never>?
@@ -100,6 +108,9 @@ public final class PRDetailModel {
                     receiveDetail(pullRequest)
                 case let .threads(threads):
                     receiveThreads(threads)
+                case let .conversation(conversation):
+                    self.conversation = conversation
+                    rebuildSummary()
                 }
             }
             liveLoad = .now - start
@@ -115,8 +126,33 @@ public final class PRDetailModel {
 
     private func receiveDetail(_ pullRequest: PullRequest) {
         self.pullRequest = pullRequest
+        summaryDocumentStale = true
+        rebuildSummary()
         updateIncompleteNotice()
         onDetail?(pullRequest)
+    }
+
+    /// Builds the HTML off the main actor. Only the newest build is shown.
+    private func rebuildSummary() {
+        guard let pullRequest else { return }
+        summaryGeneration += 1
+        let generation = summaryGeneration
+        let conversation = conversation
+        let threads = threads ?? []
+        let reuse = summaryDocumentStale ? nil : summaryPage?.document
+        Task {
+            let page = await Task.detached(priority: .userInitiated) {
+                let now = Date.now
+                let fragment = SummaryHTML.conversation(conversation, threads: threads, pullRequestAuthor: pullRequest.author?.login, now: now)
+                return SummaryPage(
+                    document: reuse ?? SummaryHTML.document(pullRequest: pullRequest, conversation: fragment, now: now),
+                    conversation: fragment
+                )
+            }.value
+            guard generation == summaryGeneration else { return }
+            if reuse == nil { summaryDocumentStale = false }
+            summaryPage = page
+        }
     }
 
     private func updateIncompleteNotice() {
@@ -173,6 +209,7 @@ public final class PRDetailModel {
 
     private func receiveThreads(_ threads: [ReviewThread]) {
         self.threads = threads
+        if conversation != nil { rebuildSummary() }
         let byPath = DiffItemFactory.placeableThreads(threads)
         var changed: [DiffFileItem] = []
         for (path, item) in items {

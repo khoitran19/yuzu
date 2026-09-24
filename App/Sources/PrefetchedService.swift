@@ -33,6 +33,7 @@ struct PrefetchedService: PullRequestService {
                 continuation.yield(.files(pullRequestID: snapshot.pullRequest.nodeID, files: snapshot.files))
                 continuation.yield(.detail(snapshot.pullRequest))
                 continuation.yield(.threads(snapshot.threads))
+                if let conversation = snapshot.conversation { continuation.yield(.conversation(conversation)) }
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }

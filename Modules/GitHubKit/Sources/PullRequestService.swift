@@ -7,6 +7,7 @@ public enum PullRequestPart: Sendable {
     case files(pullRequestID: String, files: [ChangedFile])
     case detail(PullRequest)
     case threads([ReviewThread])
+    case conversation(Conversation)
 }
 
 public protocol PullRequestService: Sendable {
@@ -31,6 +32,7 @@ extension PullRequestService {
                     continuation.yield(.files(pullRequestID: snapshot.pullRequest.nodeID, files: snapshot.files))
                     continuation.yield(.detail(snapshot.pullRequest))
                     continuation.yield(.threads(snapshot.threads))
+                    if let conversation = snapshot.conversation { continuation.yield(.conversation(conversation)) }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -46,18 +48,20 @@ extension GitHubClient: PullRequestService {
         var files: [ChangedFile]?
         var detail: PullRequest?
         var threads: [ReviewThread]?
+        var conversation: Conversation?
         for try await part in parts(of: ref) {
             switch part {
             case let .files(_, value): files = value
             case let .detail(value): detail = value
             case let .threads(value): threads = value
+            case let .conversation(value): conversation = value
             }
         }
-        guard let files, let detail, let threads else { throw GitHubError.malformedResponse }
-        return PullRequestSnapshot(pullRequest: detail, files: files, threads: threads)
+        guard let files, let detail, let threads, let conversation else { throw GitHubError.malformedResponse }
+        return PullRequestSnapshot(pullRequest: detail, files: files, threads: threads, conversation: conversation)
     }
 
-    /// Files, details, and threads load in parallel; files do not wait for the details request.
+    /// Files, details, threads, and the conversation load in parallel; files do not wait for the details request.
     public func parts(of ref: PRRef) -> AsyncThrowingStream<PullRequestPart, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -75,6 +79,7 @@ extension GitHubClient: PullRequestService {
                         }
                         group.addTask { continuation.yield(.detail(try await pullRequestDetail(ref))) }
                         group.addTask { continuation.yield(.threads(try await reviewThreads(ref))) }
+                        group.addTask { continuation.yield(.conversation(try await conversation(ref))) }
                         try await group.waitForAll()
                     }
                     continuation.finish()
@@ -241,7 +246,7 @@ private enum Queries {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           id title state isDraft bodyHTML createdAt
-          author { login avatarUrl }
+          author { login avatarUrl(size: 80) }
           baseRefName headRefName baseRefOid headRefOid
           additions deletions changedFiles
           commits { totalCount }
@@ -297,7 +302,7 @@ private enum Queries {
     """
 }
 
-private extension PRRef {
+extension PRRef {
     var variables: [String: JSONValue] {
         ["owner": .string(owner), "name": .string(repo), "number": .int(number)]
     }
@@ -324,18 +329,18 @@ private extension GraphQLError {
     }
 }
 
-private struct RepositoryPayload<Node: Decodable>: Decodable {
+struct RepositoryPayload<Node: Decodable>: Decodable {
     struct Repository: Decodable { let pullRequest: Node? }
     let repository: Repository?
 }
 
-private struct AuthorNode: Decodable {
+struct AuthorNode: Decodable {
     let login: String
     let avatarUrl: String?
     var actor: Actor { Actor(login: login, avatarURL: avatarUrl.flatMap(URL.init(string:))) }
 }
 
-private struct PageInfo: Decodable {
+struct PageInfo: Decodable {
     let hasNextPage: Bool
     let endCursor: String?
 }
