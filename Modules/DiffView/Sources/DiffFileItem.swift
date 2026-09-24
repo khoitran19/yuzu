@@ -1,7 +1,7 @@
 import DiffEngine
 import PRModels
 
-public struct DiffFileItem: Sendable {
+nonisolated public struct DiffFileItem: Sendable {
     public enum Content: Sendable {
         case loading
         case diff(FileDiff)
@@ -37,7 +37,7 @@ public struct DiffFileItem: Sendable {
     }
 }
 
-public struct SideHighlights: Sendable {
+nonisolated public struct SideHighlights: Sendable {
     public let left: [[HighlightSpan]]
     public let right: [[HighlightSpan]]
 

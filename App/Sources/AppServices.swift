@@ -16,7 +16,7 @@ final class AppServices {
     let rulesStore = ReviewRulesStore()
     let recents = RecentPullRequests()
     @ObservationIgnored let highlighter: any SyntaxHighlighting = TreeSitterHighlighter()
-    @ObservationIgnored private var fixtureService: (any PullRequestService)?
+    @ObservationIgnored private var fixtureService: FixturePullRequestService?
 
     init() {
         if let rules = options.rules { rulesStore.rules = rules }
@@ -32,6 +32,11 @@ final class AppServices {
         if let fixtureService { return fixtureService }
         if case let .signedIn(token, _) = auth.state { return GitHubClient(token: token) }
         return nil
+    }
+
+    /// The pull request a fixture holds; `nil` outside fixture mode.
+    func fixtureRef() async -> PRRef? {
+        try? await fixtureService?.pullRequestRef()
     }
 
     func signOut() {

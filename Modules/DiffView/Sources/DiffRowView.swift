@@ -1,7 +1,9 @@
 import AppKit
+import QuartzCore
 
 final class DiffRowView: NSTableRowView {
     static let identifier = NSUserInterfaceItemIdentifier("DiffRow")
+    static let traceDraw = ProcessInfo.processInfo.environment["PRVIEWER_TRACE_DRAW"] != nil
 
     weak var renderer: DiffRenderer?
     var onHit: ((HitTarget, RowRef) -> Void)?
@@ -16,6 +18,11 @@ final class DiffRowView: NSTableRowView {
     override var isOpaque: Bool { true }
     override var wantsDefaultClipping: Bool { false }
 
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        layer?.drawsAsynchronously = true
+    }
+
     override var isFloating: Bool {
         didSet { if isFloating != oldValue { needsDisplay = true } }
     }
@@ -26,7 +33,9 @@ final class DiffRowView: NSTableRowView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ref, let renderer, let context = NSGraphicsContext.current?.cgContext else { return }
-        renderer.draw(ref, in: bounds, context: context, floating: isFloating)
+        let begin = CACurrentMediaTime()
+        renderer.draw(ref, in: bounds, dirty: dirtyRect, context: context, floating: isFloating)
+        if Self.traceDraw { FileHandle.standardError.write(Data("[draw] \(ref.kind) h=\(Int(bounds.height)) dirty=\(Int(dirtyRect.minY))+\(Int(dirtyRect.height)) \(String(format: "%.2f", (CACurrentMediaTime() - begin) * 1000))ms\n".utf8)) }
     }
 
     override func mouseDown(with event: NSEvent) {

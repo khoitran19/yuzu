@@ -8,6 +8,8 @@ enum Metrics {
     static let hunkHeight: CGFloat = 32
     static let noticeHeight: CGFloat = 64
     static let footerHeight: CGFloat = 16
+    /// Taller rows split into slices: a partial redraw of a tall layer copies its whole backing store.
+    static let sliceHeight: CGFloat = 240
     static let cardInset: CGFloat = 16
     static let cornerRadius: CGFloat = 6
     static let markerWidth: CGFloat = 22
@@ -41,6 +43,9 @@ struct RowRef: Hashable {
 
     let file: Int
     let kind: Kind
+    var slice = 0
+
+    var logical: RowRef { RowRef(file: file, kind: kind) }
 }
 
 struct LineKey: Hashable {

@@ -56,11 +56,26 @@ final class DiffRenderer {
 
     // MARK: Drawing
 
-    func draw(_ ref: RowRef, in bounds: CGRect, context: CGContext, floating: Bool) {
+    /// The full logical row in the row view's coordinates; a slice shows one part of it.
+    func contentBounds(_ ref: RowRef, rowBounds: CGRect) -> CGRect {
+        guard ref.slice > 0 || rowBounds.height >= Metrics.sliceHeight else { return rowBounds }
+        let fullHeight = height(of: ref.logical, width: rowBounds.width)
+        return CGRect(x: rowBounds.minX, y: rowBounds.minY - CGFloat(ref.slice) * Metrics.sliceHeight, width: rowBounds.width, height: fullHeight)
+    }
+
+    func draw(_ ref: RowRef, in rowBounds: CGRect, dirty: CGRect, context: CGContext, floating: Bool) {
         let state = files[ref.file]
+        let dirty = dirty.intersection(rowBounds)
+        context.clip(to: dirty)
+        let bounds = contentBounds(ref, rowBounds: rowBounds)
         let geometry = CardGeometry(width: bounds.width, numberWidth: state.numberWidth)
         context.setFillColor(theme.background)
-        context.fill(bounds)
+        if case .line = ref.kind {
+            context.fill(CGRect(x: bounds.minX, y: bounds.minY, width: geometry.minX - bounds.minX, height: bounds.height))
+            context.fill(CGRect(x: geometry.maxX, y: bounds.minY, width: bounds.maxX - geometry.maxX, height: bounds.height))
+        } else {
+            context.fill(bounds)
+        }
         switch ref.kind {
         case .header: drawHeader(state, bounds: bounds, geometry: geometry, context: context, floating: floating)
         case let .hunk(index):
@@ -70,10 +85,10 @@ final class DiffRenderer {
         case let .line(hunk, row):
             if let line = state.diff?.hunks[hunk].rows[row] {
                 let selectedSide = selection.flatMap { $0.refs.contains(ref) ? $0.side : nil }
-                drawLine(line, file: ref.file, state: state, selectedSide: selectedSide, bounds: bounds, geometry: geometry, context: context)
+                drawLine(line, file: ref.file, state: state, selectedSide: selectedSide, bounds: bounds, dirty: dirty, geometry: geometry, context: context)
             }
         case let .thread(index):
-            drawThread(state: state, file: ref.file, index: index, bounds: bounds, geometry: geometry, context: context)
+            drawThread(state: state, file: ref.file, index: index, bounds: bounds, dirty: dirty, geometry: geometry, context: context)
         case .notice: drawNotice(state, bounds: bounds, geometry: geometry, context: context)
         case .footer:
             if !state.collapsed { drawCardBottom(bounds: bounds, geometry: geometry, context: context) }
@@ -254,7 +269,7 @@ final class DiffRenderer {
 
     private func drawLine(
         _ row: DiffRow, file: Int, state: FileState, selectedSide: DiffSide?,
-        bounds: CGRect, geometry: CardGeometry, context: CGContext
+        bounds: CGRect, dirty: CGRect, geometry: CardGeometry, context: CGContext
     ) {
         for side in [DiffSide.left, .right] {
             let cell = side == .left ? row.left : row.right
@@ -266,17 +281,18 @@ final class DiffRenderer {
                 continue
             }
             let (lineColor, numberColor, wordColor, marker): (CGColor?, CGColor?, CGColor?, String?) = switch cell.kind {
-            case .context: (nil, nil, nil, nil)
+            case .context: (theme.background, nil, nil, nil)
             case .addition: (theme.additionLine, theme.additionNumber, theme.additionWord, "+")
             case .deletion: (theme.deletionLine, theme.deletionNumber, theme.deletionWord, "-")
-            }
-            if let lineColor {
-                context.setFillColor(lineColor)
-                context.fill(CGRect(x: minX, y: bounds.minY, width: sideWidth, height: bounds.height))
             }
             if let numberColor {
                 context.setFillColor(numberColor)
                 context.fill(CGRect(x: minX, y: bounds.minY, width: geometry.numberWidth, height: bounds.height))
+            }
+            if let lineColor {
+                let codeMinX = numberColor == nil ? minX : minX + geometry.numberWidth
+                context.setFillColor(lineColor)
+                context.fill(CGRect(x: codeMinX, y: bounds.minY, width: sideWidth - (codeMinX - minX), height: bounds.height))
             }
             if selectedSide == side {
                 context.setFillColor(theme.accent.copy(alpha: 0.22)!)
@@ -317,7 +333,9 @@ final class DiffRenderer {
                 }
             }
             for (index, line) in layout.lines.enumerated() {
-                drawLine(line, x: codeX, top: bounds.minY + CGFloat(index) * Metrics.lineHeight, context: context)
+                let top = bounds.minY + CGFloat(index) * Metrics.lineHeight
+                guard top < dirty.maxY, top + Metrics.lineHeight > dirty.minY else { continue }
+                drawLine(line, x: codeX, top: top, context: context)
             }
         }
         context.setFillColor(theme.border)
@@ -345,7 +363,7 @@ final class DiffRenderer {
         )
     }
 
-    private func drawThread(state: FileState, file: Int, index: Int, bounds: CGRect, geometry: CardGeometry, context: CGContext) {
+    private func drawThread(state: FileState, file: Int, index: Int, bounds: CGRect, dirty: CGRect, geometry: CardGeometry, context: CGContext) {
         let thread = state.item.threads[index]
         let layout = threadLayout(state: state, file: file, index: index, geometry: geometry)
         context.setFillColor(theme.border)
@@ -377,16 +395,36 @@ final class DiffRenderer {
                 context.fill(CGRect(x: box.minX + 1, y: y, width: box.width - 2, height: 1))
             }
             y += ThreadLayout.innerPadding
-            drawLine(comment.header, x: box.minX + ThreadLayout.innerPadding, top: y, context: context)
+            if y < dirty.maxY, y + ThreadLayout.headerHeight > dirty.minY {
+                drawLine(comment.header, x: box.minX + ThreadLayout.innerPadding, top: y, context: context)
+            }
             y += ThreadLayout.headerHeight + 4
-            context.saveGState()
-            context.textMatrix = .identity
-            context.translateBy(x: box.minX + ThreadLayout.innerPadding, y: y + comment.bodyHeight + 1)
-            context.scaleBy(x: 1, y: -1)
-            CTFrameDraw(comment.body, context)
-            context.restoreGState()
+            if y < dirty.maxY, y + comment.bodyHeight > dirty.minY {
+                drawFrame(comment.body, x: box.minX + ThreadLayout.innerPadding, top: y, height: comment.bodyHeight + 1, dirty: dirty, context: context)
+            }
             y += comment.bodyHeight + ThreadLayout.innerPadding
         }
+    }
+
+    /// Draws only the frame's lines that intersect `dirty`.
+    private func drawFrame(_ frame: CTFrame, x: CGFloat, top: CGFloat, height: CGFloat, dirty: CGRect, context: CGContext) {
+        let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+        var origins = [CGPoint](repeating: .zero, count: lines.count)
+        CTFrameGetLineOrigins(frame, CFRange(), &origins)
+        context.saveGState()
+        context.textMatrix = .identity
+        context.translateBy(x: x, y: top + height)
+        context.scaleBy(x: 1, y: -1)
+        for (line, origin) in zip(lines, origins) {
+            var ascent: CGFloat = 0
+            var descent: CGFloat = 0
+            CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+            let lineTop = top + height - origin.y - ascent
+            guard lineTop < dirty.maxY, lineTop + ascent + descent > dirty.minY else { continue }
+            context.textPosition = origin
+            CTLineDraw(line, context)
+        }
+        context.restoreGState()
     }
 
     // MARK: Notices
@@ -415,8 +453,9 @@ final class DiffRenderer {
 
     // MARK: Hit testing
 
-    func hitTest(_ ref: RowRef, point: CGPoint, bounds: CGRect) -> HitTarget? {
+    func hitTest(_ ref: RowRef, point: CGPoint, bounds rowBounds: CGRect) -> HitTarget? {
         let state = files[ref.file]
+        let bounds = contentBounds(ref, rowBounds: rowBounds)
         let geometry = CardGeometry(width: bounds.width, numberWidth: state.numberWidth)
         guard point.x >= geometry.minX, point.x <= geometry.maxX else { return nil }
         switch ref.kind {

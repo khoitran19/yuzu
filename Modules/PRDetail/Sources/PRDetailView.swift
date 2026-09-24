@@ -55,6 +55,7 @@ public struct PRDetailView: View {
                     count: tab == .files && model.fileCount > 0 ? model.fileCount : nil,
                     selected: model.tab == tab
                 ) { model.tab = tab }
+                    .fixedSize()
                     .keyboardShortcut(tab == .summary ? "1" : "2", modifiers: .command)
                     .accessibilityIdentifier("prDetail.tab.\(tab == .summary ? "summary" : "files")")
             }
@@ -218,4 +219,9 @@ struct FilesChangedView: NSViewControllerRepresentable {
 
     func makeNSViewController(context: Context) -> FilesChangedViewController { controller }
     func updateNSViewController(_ controller: FilesChangedViewController, context: Context) {}
+
+    /// Takes the proposed size, so SwiftUI does not measure the AppKit subtree when rows change during scroll.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsViewController: FilesChangedViewController, context: Context) -> CGSize? {
+        proposal.replacingUnspecifiedDimensions(by: CGSize(width: 800, height: 600))
+    }
 }

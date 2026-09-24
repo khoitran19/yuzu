@@ -81,6 +81,23 @@ public final class DiffViewController: NSViewController {
     }
 
     public var fileCount: Int { renderer.files.count }
+
+    /// Visible row kinds and heights, for the QA harness.
+    public var visibleRowSummary: String {
+        let range = tableView.rows(in: scrollView.contentView.bounds)
+        return (range.location..<NSMaxRange(range)).map { row in
+            let kind = switch rows[row].kind {
+            case .header: "H"
+            case .hunk: "@"
+            case .line: "L"
+            case .thread: "T"
+            case .notice: "N"
+            case .expandTail: "E"
+            case .footer: "F"
+            }
+            return heights[row] > Metrics.lineHeight * 2 ? "\(kind)\(Int(heights[row]))" : kind
+        }.joined()
+    }
     public var rowCount: Int { rows.count }
 
     public func focus() {
@@ -152,14 +169,28 @@ public final class DiffViewController: NSViewController {
         let saved = anchor.flatMap(captureAnchor)
         renderer.selection = nil
         selectionAnchor = nil
-        rows.removeAll(keepingCapacity: true)
-        headerRows.removeAll(keepingCapacity: true)
-        for (index, state) in renderer.files.enumerated() {
-            headerRows.append(rows.count)
-            state.appendRows(file: index, to: &rows)
-        }
         layoutWidth = tableView.bounds.width
-        heights = rows.map { renderer.height(of: $0, width: layoutWidth) }
+        var logical: [RowRef] = []
+        for (index, state) in renderer.files.enumerated() {
+            state.appendRows(file: index, to: &logical)
+        }
+        rows.removeAll(keepingCapacity: true)
+        heights.removeAll(keepingCapacity: true)
+        headerRows.removeAll(keepingCapacity: true)
+        for ref in logical {
+            if ref.kind == .header { headerRows.append(rows.count) }
+            let height = renderer.height(of: ref, width: layoutWidth)
+            guard height > Metrics.sliceHeight else {
+                rows.append(ref)
+                heights.append(height)
+                continue
+            }
+            let slices = Int((height / Metrics.sliceHeight).rounded(.up))
+            for slice in 0..<slices {
+                rows.append(RowRef(file: ref.file, kind: ref.kind, slice: slice))
+                heights.append(min(Metrics.sliceHeight, height - CGFloat(slice) * Metrics.sliceHeight))
+            }
+        }
         tableView.reloadData()
         if let saved { restoreAnchor(saved) }
         updateVisibleFile(notify: true)
@@ -307,7 +338,7 @@ public final class DiffViewController: NSViewController {
 
     private func copySelection() -> Bool {
         guard let selection = renderer.selection, !selection.refs.isEmpty else { return false }
-        let text = rows.filter(selection.refs.contains).compactMap { ref -> String? in
+        let text = rows.filter { $0.slice == 0 && selection.refs.contains($0) }.compactMap { ref -> String? in
             guard case let .line(hunk, row) = ref.kind, let line = renderer.files[ref.file].diff?.hunks[hunk].rows[row] else { return nil }
             return (selection.side == .left ? line.left : line.right)?.text
         }.joined(separator: "\n")
@@ -353,14 +384,7 @@ public final class DiffViewController: NSViewController {
     @objc private func clipFrameChanged() {
         let width = tableView.bounds.width
         guard abs(width - layoutWidth) >= 1, !rows.isEmpty else { return }
-        let anchor = captureAnchor(.keepTopRow)
-        layoutWidth = width
-        heights = rows.map { renderer.height(of: $0, width: width) }
-        NSAnimationContext.beginGrouping()
-        NSAnimationContext.current.duration = 0
-        tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0..<rows.count))
-        NSAnimationContext.endGrouping()
-        if let anchor { restoreAnchor(anchor) }
+        rebuild(anchor: .keepTopRow)
     }
 
     private func updateVisibleFile(notify: Bool) {

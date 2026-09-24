@@ -195,7 +195,7 @@ public final class PRDetailModel {
         highlightTask = Task {
             let stream = Self.highlightStream(items, highlighter: highlighter)
             for await batch in stream {
-                for (path, highlights) in batch { items[path]?.highlights = highlights }
+                for (path, highlights) in batch { self.items[path]?.highlights = highlights }
                 filesController.updateHighlights(batch)
             }
             signposter.endInterval("highlight", state)

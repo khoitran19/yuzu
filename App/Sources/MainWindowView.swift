@@ -37,8 +37,10 @@ struct MainWindowView: View {
             focusAddress: { addressFocused = true },
             openFromClipboard: openFromClipboard
         ))
-        .onAppear {
-            if let ref = services.options.open ?? (services.options.fixture != nil ? PRRef(owner: "fixture", repo: "fixture", number: 1) : nil) {
+        .task {
+            if let ref = services.options.open {
+                open(ref)
+            } else if let ref = await services.fixtureRef() {
                 open(ref)
             }
         }

@@ -3,7 +3,7 @@ import DiffView
 import Foundation
 import PRModels
 
-enum DiffItemFactory {
+nonisolated enum DiffItemFactory {
     static func items(for snapshot: PullRequestSnapshot, order: [String]) -> [DiffFileItem] {
         let threadsByPath = Dictionary(grouping: snapshot.threads.filter { $0.line != nil && !$0.isOutdated }, by: \.path)
         let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })

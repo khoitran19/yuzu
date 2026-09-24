@@ -45,6 +45,24 @@ modules that `App/` routes to. They do not go into `PRDetail`.
 - `scripts/build.sh`: generate the Tuist project and build the app.
 - `scripts/test.sh`: run unit tests.
 - `scripts/run.sh`: build and open the app. In debug builds, `PRVIEWER_GITHUB_TOKEN` overrides sign-in.
+- `scripts/format.sh`: format with `swift format`. `--lint` checks only.
+
+## QA harness
+
+Check every UI change with the harness before you report it done. Read the screenshots.
+
+- Fixtures load a pull request with no network:
+  - `Fixtures/synthetic-50`, `Fixtures/synthetic-300`: generated; committed.
+  - `Fixtures/recorded/<name>`: recorded from GitHub; gitignored because they hold private code.
+  - `scripts/fixtures.sh` rebuilds them. `prfixture record <link> --out <dir>` records one pull request.
+- `scripts/shot.sh <fixture> <out.png> [args]`: loads the fixture, applies the args, writes a window PNG, and quits.
+  `APPEARANCE=light` and `SIZE=1200x800` change the window.
+- `scripts/perf.sh <fixture> [out.json]`: Release build. Scrolls the full diff on the display link and prints frame
+  pacing. Keep `hitchTimeRatioMsPerSecond` under 5 on `Fixtures/synthetic-300`.
+- App args: `--tab files|summary`, `--scroll-to-file <path>`, `--collapse-all`, `--toggle-viewed <path>`,
+  `--rules '<ReviewRules JSON>'`, `--settle <seconds>`, `--open <link>`.
+- Accessibility identifiers (`diff.table`, `fileTree.outline`, `address.field`, …) let computer-use tools drive the
+  app.
 
 ## Code rules
 
