@@ -8,8 +8,8 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if services.service != nil {
-                MainWindowView()
+            if let service = services.service {
+                MainWindowView(service: service)
             } else {
                 SignInView(session: services.auth)
             }

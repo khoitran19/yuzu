@@ -19,13 +19,16 @@ public final class FixturePullRequestService: PullRequestService {
     public let store: FixtureStore
     private let latency: Duration
     private let failingViewedPaths: Set<String>
+    private let emptyPullRequestLists: Bool
     private let state = Mutex(State())
 
     /// `setViewed` leaves `failingViewedPaths` unchanged and throws `GitHubError.partialFailure` with them.
-    public init(directory: URL, latency: Duration = .zero, failingViewedPaths: Set<String> = []) {
+    /// `emptyPullRequestLists` makes `openPullRequests` return no rows.
+    public init(directory: URL, latency: Duration = .zero, failingViewedPaths: Set<String> = [], emptyPullRequestLists: Bool = false) {
         store = FixtureStore(directory: directory)
         self.latency = latency
         self.failingViewedPaths = failingViewedPaths
+        self.emptyPullRequestLists = emptyPullRequestLists
     }
 
     public var setViewedCalls: [SetViewedCall] {
@@ -74,6 +77,12 @@ public final class FixturePullRequestService: PullRequestService {
     @concurrent public func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? {
         try await simulateLatency()
         return try store.contents(oid: oid, path: path)
+    }
+
+    @concurrent public func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList {
+        try await simulateLatency()
+        if emptyPullRequestLists { return PullRequestList(pullRequests: [], totalCount: 0) }
+        return SyntheticPullRequestList.make(repo: repo, scope: scope, current: try loadedSnapshot().pullRequest, now: .now)
     }
 
     private func loadedSnapshot() throws -> PullRequestSnapshot {

@@ -20,6 +20,12 @@ public final class FilesChangedViewController: NSSplitViewController {
     private var markdownPaths: [String] = []
     private var diffPaths: Set<String> = []
 
+    /// Takes keyboard focus from the tree or the diff, so their keys cannot act while the tab is hidden.
+    public func resignFocus() {
+        guard let window = view.window, let responder = window.firstResponder as? NSView, responder.isDescendant(of: view) else { return }
+        window.makeFirstResponder(nil)
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         splitView.isVertical = true

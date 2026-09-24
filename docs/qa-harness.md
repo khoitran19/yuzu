@@ -29,6 +29,9 @@ APPEARANCE=light SIZE=1200x800 NO_BUILD=1 scripts/shot.sh …
 The window renders in process (`cacheDisplay`), so it needs no screen-recording permission and works while the display
 sleeps. Read the PNG after every UI change.
 
+The capture draws web views last. With `--pr-list` and `--tab summary`, the Summary page covers the panel in the PNG,
+but not in the live window. Use the Files changed tab for panel screenshots.
+
 ## App arguments
 
 | Argument | Effect |
@@ -36,6 +39,8 @@ sleeps. Read the PNG after every UI change.
 | `--fixture <dir>` | Use `FixturePullRequestService`; skip sign-in |
 | `--open <link>` | Open this pull request (with a token, this is the live GitHub path) |
 | `--tab files\|summary` | Select a tab |
+| `--pr-list mine\|others` | Open the pull request panel on this tab. Fixtures serve synthetic rows |
+| `--pr-list-empty` | The fixture serves no open pull requests, for the empty state |
 | `--scroll-to-file <path>` | Scroll the diff to a file |
 | `--summary-scroll <y\|bottom>` | Scroll the Summary page |
 | `--summary-click <css selector>` | Click an element on the Summary page, such as a link |
@@ -43,6 +48,7 @@ sleeps. Read the PNG after every UI change.
 | `--settings` | Open Settings; with `--screenshot`, capture it and quit |
 | `--preview <path>` | Open the Markdown preview of a file |
 | `--preview-script '<js>'` | Run JavaScript in the preview's gutter world (for example `step(1)`); logs the result |
+| `--settings-tab rules\|shortcuts` | Open Settings on this tab; implies `--settings`. `--settings --settings-tab shortcuts` opens no window, so do not put `--settings` before it |
 | `--toggle-viewed <path>` | Toggle Viewed (repeatable) |
 | `--expand <path>:<hunk\|tail>` | Expand context above a hunk, or the tail (repeatable) |
 | `--rules '<ReviewRules JSON>'` | Use these rules. Without it, a harness run uses no rules (`--settings` shows the defaults). Rules stay in a scratch defaults domain, never in the user's settings |
@@ -52,7 +58,7 @@ sleeps. Read the PNG after every UI change.
 | `--perf-scroll <json>` | Run the scroll benchmark and quit |
 
 Controls have accessibility identifiers (`diff.table`, `fileTree.outline`, `fileTree.filter`, `address.field`,
-`prDetail.tab.files`, `signIn.button`), so computer-use tools can drive the app.
+`prDetail.tab.files`, `signIn.button`, `prList.toggle`, `prList.panel`, `prList.tab`), so computer-use tools can drive the app.
 
 ## Performance
 

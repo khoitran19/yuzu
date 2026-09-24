@@ -27,7 +27,8 @@ Read the doc for the area you change:
 
 | Module            | Contents                                                      | Isolation   |
 | ----------------- | ------------------------------------------------------------- | ----------- |
-| `PRModels`        | Pull request, file, and review thread models; `PRRef` parsing | nonisolated |
+| `AppShortcuts`    | Every keyboard shortcut: menus, key handlers, settings list   | nonisolated |
+| `PRModels`        | Pull request, file, thread, and list row models; `PRRef`      | nonisolated |
 | `ReviewRules`     | Glob patterns for auto-viewed files, with built-in defaults   | nonisolated |
 | `DiffEngine`      | Patch parsing, split rows, word diff, expansion               | nonisolated |
 | `SyntaxHighlight` | Tree-sitter implementation of `SyntaxHighlighting`            | nonisolated |
@@ -37,6 +38,7 @@ Read the doc for the area you change:
 | `DiffView`        | `NSTableView` split diff                                      | MainActor   |
 | `SignIn`          | `AuthSession` and sign-in view                                | MainActor   |
 | `PRDetail`        | Pull request screen: Summary and Files changed tabs           | MainActor   |
+| `PRList`          | Side panel with the open pull requests of a repository        | MainActor   |
 | `App/`            | App shell, navigation, settings, QA harness                   | MainActor   |
 
 A module depends only on modules above it in this table. New screens are new modules that `App/` routes to.

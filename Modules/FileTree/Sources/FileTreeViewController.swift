@@ -1,4 +1,5 @@
 import AppKit
+import AppShortcuts
 
 public final class FileTreeViewController: NSViewController {
     public var onSelectFile: ((String) -> Void)?
@@ -309,9 +310,10 @@ final class FileTreeOutlineView: NSOutlineView {
     var onActivate: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
-        switch event.specialKey {
-        case .carriageReturn?, .enter?: onActivate?()
-        default: super.keyDown(with: event)
+        if Shortcut.openTreeItem.matches(event) {
+            onActivate?()
+        } else {
+            super.keyDown(with: event)
         }
     }
 }

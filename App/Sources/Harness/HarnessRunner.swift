@@ -1,18 +1,21 @@
 import AppKit
 import WebKit
 import PRDetail
+import PRList
 
 /// Drives a loaded pull request for QA: applies launch actions, then writes a screenshot or a scroll report and quits.
 @MainActor
 final class HarnessRunner {
     private let options: LaunchOptions
     private let model: PRDetailModel
+    private let pullRequestList: PRListModel
     private let window: NSWindow?
     private var perf: ScrollPerfHarness?
 
-    init(options: LaunchOptions, model: PRDetailModel, window: NSWindow?) {
+    init(options: LaunchOptions, model: PRDetailModel, pullRequestList: PRListModel, window: NSWindow?) {
         self.options = options
         self.model = model
+        self.pullRequestList = pullRequestList
         self.window = window
     }
 
@@ -23,6 +26,7 @@ final class HarnessRunner {
                 model.setViewed(!model.viewedPaths.contains(path), paths: [path])
             }
             for (path, hunk) in options.expand { model.expand(path, hunk: hunk) }
+            if let scope = options.pullRequestList { pullRequestList.request(scope) }
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             if let path = options.scrollToFile { model.filesController.diff.scrollToFile(path) }
             if let path = options.preview { model.filesController.togglePreview(path) }

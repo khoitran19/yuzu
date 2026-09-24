@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 @testable import DiffView
 import GitHubKit
@@ -41,6 +42,24 @@ struct PRDetailModelTests {
         #expect(!specs.isEmpty)
         #expect(specs.allSatisfy { $0.viewedState == .viewed })
         #expect(specs.allSatisfy { model.viewedPaths.contains($0.path) })
+    }
+
+    @Test func summaryTabTakesFocusFromTheHiddenDiff() async throws {
+        let (model, _) = try await loadedModel(failing: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = model.filesController.view
+        model.show(.files)
+        let responder = try #require(window.firstResponder as? NSView)
+        #expect(responder.isDescendant(of: model.filesController.view))
+
+        model.show(.summary)
+        #expect((window.firstResponder as? NSView)?.isDescendant(of: model.filesController.view) != true)
+        #expect(model.summaryFocusPending)
+
+        model.tab = .files
+        #expect(!model.summaryFocusPending)
+        #expect((window.firstResponder as? NSView)?.isDescendant(of: model.filesController.view) == true)
     }
 
     private func loadedModel(failing: Bool) async throws -> (PRDetailModel, String) {
@@ -171,6 +190,7 @@ private final class ManualPartsService: PullRequestService, @unchecked Sendable 
     func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws {}
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
+    func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
 
     var checksResponses: [[Check]] = []
     private(set) var checksCalls = 0

@@ -52,6 +52,10 @@ struct PrefetchedService: PullRequestService {
         try await base.checks(of: ref)
     }
 
+    func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList {
+        try await base.openPullRequests(in: repo, scope: scope)
+    }
+
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String {
         try await self.base.mergeBaseOid(of: ref, base: base, head: head)
     }

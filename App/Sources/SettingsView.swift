@@ -1,10 +1,63 @@
+import AppShortcuts
 import ReviewRules
 import SwiftUI
 
 struct SettingsView: View {
+    enum Tab: String { case rules, shortcuts }
+
+    @State private var tab = LaunchOptions.current.settingsTab ?? .rules
+
     var body: some View {
-        ReviewRulesSettings()
-            .frame(width: 560, height: 620)
+        TabView(selection: $tab) {
+            ReviewRulesSettings()
+                .tabItem { Label("Review Rules", systemImage: "checkmark.rectangle.stack") }
+                .tag(Tab.rules)
+            ShortcutsSettings()
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                .tag(Tab.shortcuts)
+        }
+        .frame(width: 560, height: 620)
+    }
+}
+
+private struct ShortcutsSettings: View {
+    var body: some View {
+        Form {
+            ForEach(Shortcut.Area.allCases) { area in
+                Section(area.rawValue) {
+                    ForEach(Shortcut.all.filter { $0.area == area }) { shortcut in
+                        LabeledContent(shortcut.title) { KeyCaps(shortcut: shortcut) }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .accessibilityIdentifier("settings.shortcuts")
+    }
+}
+
+private struct KeyCaps: View {
+    let shortcut: Shortcut
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(shortcut.keyCaps.enumerated()), id: \.offset) { index, caps in
+                if index > 0 { Text("or").font(.caption).foregroundStyle(.secondary) }
+                HStack(spacing: 3) {
+                    ForEach(Array(caps.enumerated()), id: \.offset) { _, cap in
+                        Text(cap)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .frame(minWidth: 14)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 5).fill(.quaternary))
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.separator))
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(shortcut.keyCaps.map { $0.joined() }.joined(separator: " or "))
     }
 }
 

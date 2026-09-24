@@ -1,4 +1,5 @@
 import AppKit
+import AppShortcuts
 import DiffEngine
 import PRModels
 
@@ -463,24 +464,19 @@ public final class DiffViewController: NSViewController {
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
-        if event.keyCode == 53, renderer.selection != nil {
+        if Shortcut.clearSelection.matches(event), renderer.selection != nil {
             setSelection(nil)
-            return true
-        }
-        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return false }
-        switch event.charactersIgnoringModifiers {
-        case "j", "n": jumpFile(by: 1)
-        case "k", "p": jumpFile(by: -1)
-        case "v":
-            guard let file = visibleFile else { return true }
-            handle(.toggleViewed, ref: RowRef(file: file, kind: .header))
-        case "m":
-            guard let file = visibleFile else { return true }
-            onPreview?(renderer.files[file].item.file.path)
-        case "x", "o":
-            guard let file = visibleFile else { return true }
-            setCollapsed(!renderer.files[file].collapsed, file: file)
-        default:
+        } else if Shortcut.nextFile.matches(event) {
+            jumpFile(by: 1)
+        } else if Shortcut.previousFile.matches(event) {
+            jumpFile(by: -1)
+        } else if Shortcut.toggleViewed.matches(event) {
+            if let file = visibleFile { handle(.toggleViewed, ref: RowRef(file: file, kind: .header)) }
+        } else if Shortcut.previewFile.matches(event) {
+            if let file = visibleFile { onPreview?(renderer.files[file].item.file.path) }
+        } else if Shortcut.toggleCollapse.matches(event) {
+            if let file = visibleFile { setCollapsed(!renderer.files[file].collapsed, file: file) }
+        } else {
             return false
         }
         return true

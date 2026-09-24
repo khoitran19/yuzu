@@ -16,6 +16,7 @@ This document uses ASD-STE100 Simplified Technical English.
 | Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments }` | Comments over 100 per thread load through `node(id:)`. |
 | Full file contents | REST `GET /repos/{o}/{r}/contents/{path}?ref={oid}` with `Accept: application/vnd.github.raw+json` | For "Load diff" and context expansion. |
 | Merge base | REST `GET /repos/{o}/{r}/compare/{base}...{head}?per_page=1&page=2` | Page 2 leaves out the file list, so the response is small. |
+| Open pull request panel | GraphQL `search(type: ISSUE, query: "repo:o/r is:pr is:open author:@me sort:updated-desc")`, and `-author:@me` for Others | 50 per page, at most 2 pages (100 rows) per tab. `issueCount` gives the tab count. Checks come from `commits(last: 1) { statusCheckRollup { state } }`. |
 | Sign-in | `POST github.com/login/device/code`, then poll `login/oauth/access_token` | Scope `repo`. The token is stored in the Keychain. |
 
 ## Limits
@@ -26,7 +27,8 @@ This document uses ASD-STE100 Simplified Technical English.
   app shows "Binary file"; otherwise it shows "Load diff", which diffs the two full versions locally.
 - **Outdated threads** (`line == nil`) do not show in the diff. GitHub shows them only on the Conversation page.
 - **Rate limit.** Opening a pull request costs 5 GraphQL requests (detail, viewed states, threads, timeline, checks) plus one REST request
-  per 100 files. Expansion and "Load diff" cost 1–3 requests per file.
+  per 100 files. Expansion and "Load diff" cost 1–3 requests per file. Opening the pull request panel costs 2–4 GraphQL
+  requests.
 - **Response time.** On #6663 (22 files): files 0.46 s, Viewed states 0.49 s, details 0.75 s, threads 0.91 s. The first
   paint waits for the first two only: about 0.6 s.
 

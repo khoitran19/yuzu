@@ -1,4 +1,5 @@
 import AppKit
+import AppShortcuts
 import PRModels
 import SwiftUI
 
@@ -39,7 +40,7 @@ struct HomeView: View {
                         Label("Open \(clipboardRef.displayName) from the clipboard", systemImage: "doc.on.clipboard")
                     }
                     .buttonStyle(.link)
-                    .help("⇧⌘V")
+                    .help(Shortcut.openFromClipboard.symbols)
                     .accessibilityIdentifier("home.clipboard")
                 }
                 if !services.recents.entries.isEmpty {

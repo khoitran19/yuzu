@@ -13,6 +13,8 @@ struct LaunchOptions {
     var appearance: String?
     var windowSize: CGSize?
     var tab: PRDetailModel.Tab?
+    var pullRequestList: PullRequestListScope?
+    var emptyPullRequestLists = false
     var scrollToFile: String?
     var preview: String?
     var previewScript: String?
@@ -22,6 +24,7 @@ struct LaunchOptions {
     var summaryClick: String?
     var collapseAll = false
     var settings = false
+    var settingsTab: SettingsView.Tab?
     var toggleViewed: [String] = []
     var expand: [(path: String, hunk: Int?)] = []
     var rules: ReviewRules?
@@ -46,6 +49,8 @@ struct LaunchOptions {
                 let parts = iterator.next()?.split(separator: "x").compactMap { Double($0) } ?? []
                 if parts.count == 2 { windowSize = CGSize(width: parts[0], height: parts[1]) }
             case "--tab": tab = iterator.next().flatMap { $0 == "summary" ? .summary : $0 == "files" ? .files : nil }
+            case "--pr-list": pullRequestList = iterator.next().flatMap(PullRequestListScope.init(rawValue:))
+            case "--pr-list-empty": emptyPullRequestLists = true
             case "--scroll-to-file": scrollToFile = iterator.next()
             case "--preview": preview = iterator.next()
             case "--preview-script": previewScript = iterator.next()
@@ -53,6 +58,9 @@ struct LaunchOptions {
             case "--summary-click": summaryClick = iterator.next()
             case "--collapse-all": collapseAll = true
             case "--settings": settings = true
+            case "--settings-tab":
+                settings = true
+                settingsTab = iterator.next().flatMap(SettingsView.Tab.init(rawValue:))
             case "--toggle-viewed": if let path = iterator.next() { toggleViewed.append(path) }
             case "--expand":
                 if let value = iterator.next(), let colon = value.lastIndex(of: ":") {

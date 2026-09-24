@@ -1,5 +1,8 @@
 import AppKit
+import AppShortcuts
+import GitHubKit
 import PRDetail
+import PRList
 import PRModels
 import SwiftUI
 
@@ -10,33 +13,24 @@ struct MainWindowView: View {
     @State private var addressInvalid = false
     @State private var window: NSWindow?
     @State private var harness: HarnessRunner?
+    @State private var pullRequestList: PRListModel
     @FocusState private var addressFocused: Bool
 
+    init(service: any PullRequestService) {
+        _pullRequestList = State(initialValue: PRListModel(service: service))
+    }
+
     var body: some View {
-        Group {
-            if let detail {
-                PRDetailView(model: detail)
-                    .id(detail.ref)
-            } else {
-                HomeView(address: $address, open: submit(_:))
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button(action: goHome) { Image(systemName: "house") }
-                    .help("Home")
-                    .disabled(detail == nil)
-            }
-            ToolbarItem(placement: .principal) { addressField }
-        }
+        screen
+        .pullRequestListPanel(pullRequestList, open: open(_:))
+        .toolbar { toolbar }
         .navigationTitle(detail?.pullRequest?.title ?? "PR Viewer")
         .navigationSubtitle(detail?.ref.displayName ?? "")
         .background(WindowAccessor { window = $0 })
         .environment(\.openURL, OpenURLAction(handler: openLink))
-        .focusedSceneValue(\.windowActions, WindowActions(
-            focusAddress: { addressFocused = true },
-            openFromClipboard: openFromClipboard
-        ))
+        .focusedSceneValue(\.windowActions, windowActions)
+        .onChange(of: activeRepository, initial: true) { _, repo in pullRequestList.setRepository(repo) }
+        .onChange(of: detail?.ref, initial: true) { _, ref in pullRequestList.current = ref }
         .task {
             if let ref = services.options.open {
                 open(ref)
@@ -50,6 +44,50 @@ struct MainWindowView: View {
                 window.center()
             }
         }
+    }
+
+    @ViewBuilder private var screen: some View {
+        if let detail {
+            PRDetailView(model: detail)
+                .id(detail.ref)
+        } else {
+            HomeView(address: $address, open: submit(_:))
+        }
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button(action: goHome) { Image(systemName: "house") }
+                .help("Home")
+                .disabled(detail == nil)
+        }
+        ToolbarItem(placement: .principal) { addressField }
+        ToolbarItem(placement: .primaryAction) {
+            Button(action: pullRequestList.toggle) { Image(nsImage: Octicon.gitPullRequest.image) }
+                .help("Open pull requests (\(Shortcut.myPullRequests.symbols))")
+                .disabled(activeRepository == nil)
+                .accessibilityIdentifier("prList.toggle")
+        }
+    }
+
+    private var windowActions: WindowActions {
+        let list = pullRequestList
+        let detail = detail
+        return WindowActions(
+            focusAddress: focusAddress,
+            openFromClipboard: openFromClipboard,
+            showPullRequests: activeRepository == nil ? nil : { list.request($0) },
+            showTab: detail.map { detail in
+                { tab in
+                    list.close()
+                    detail.show(tab)
+                }
+            }
+        )
+    }
+
+    private var activeRepository: RepoRef? {
+        PRListModel.activeRepository(openPullRequest: detail?.ref, recent: services.recents.entries.map(\.ref))
     }
 
     private var addressField: some View {
@@ -82,7 +120,7 @@ struct MainWindowView: View {
         }
         model.onLoaded = { [weak model, options = services.options] in
             guard options.isHarness, !options.settings, let model else { return }
-            let runner = HarnessRunner(options: options, model: model, window: window)
+            let runner = HarnessRunner(options: options, model: model, pullRequestList: pullRequestList, window: window)
             harness = runner
             runner.run()
         }
@@ -105,6 +143,23 @@ struct MainWindowView: View {
         address = ""
     }
 
+    /// Setting `addressFocused` does not take first responder from an AppKit view such as the diff table.
+    private func focusAddress() {
+        pullRequestList.close()
+        guard let window = NSApp.keyWindow, let frame = window.contentView?.superview,
+              let field = Self.toolbarTextField(in: frame, excluding: window.contentView)
+        else { return }
+        window.makeFirstResponder(field)
+        field.currentEditor()?.selectAll(nil)
+    }
+
+    /// The address field is the only editable text field outside the window content.
+    private static func toolbarTextField(in view: NSView, excluding content: NSView?) -> NSTextField? {
+        if view === content { return nil }
+        if let field = view as? NSTextField, field.isEditable { return field }
+        return view.subviews.lazy.compactMap { toolbarTextField(in: $0, excluding: content) }.first
+    }
+
     private func openFromClipboard() {
         if let text = NSPasteboard.general.string(forType: .string), let ref = PRRef(string: text) { open(ref) }
     }
@@ -113,6 +168,10 @@ struct MainWindowView: View {
 struct WindowActions {
     let focusAddress: () -> Void
     let openFromClipboard: () -> Void
+    /// `nil` when the window has no active repository.
+    let showPullRequests: ((PullRequestListScope) -> Void)?
+    /// `nil` when no pull request is open.
+    let showTab: ((PRDetailModel.Tab) -> Void)?
 }
 
 extension FocusedValues {
@@ -124,12 +183,28 @@ struct PullRequestCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
-            Button("Open Pull Request…") { actions?.focusAddress() }
-                .keyboardShortcut("l")
+            Button(Shortcut.openPullRequest.title) { actions?.focusAddress() }
+                .keyboardShortcut(Shortcut.openPullRequest.keyboardShortcut)
                 .disabled(actions == nil)
-            Button("Open Pull Request from Clipboard") { actions?.openFromClipboard() }
-                .keyboardShortcut("v", modifiers: [.command, .shift])
+            Button(Shortcut.openFromClipboard.title) { actions?.openFromClipboard() }
+                .keyboardShortcut(Shortcut.openFromClipboard.keyboardShortcut)
                 .disabled(actions == nil)
+        }
+        CommandGroup(before: .toolbar) {
+            Button(Shortcut.myPullRequests.title) { actions?.showPullRequests?(.mine) }
+                .keyboardShortcut(Shortcut.myPullRequests.keyboardShortcut)
+                .disabled(actions?.showPullRequests == nil)
+            Button(Shortcut.otherPullRequests.title) { actions?.showPullRequests?(.others) }
+                .keyboardShortcut(Shortcut.otherPullRequests.keyboardShortcut)
+                .disabled(actions?.showPullRequests == nil)
+            Divider()
+            Button(Shortcut.showSummary.title) { actions?.showTab?(.summary) }
+                .keyboardShortcut(Shortcut.showSummary.keyboardShortcut)
+                .disabled(actions?.showTab == nil)
+            Button(Shortcut.showFiles.title) { actions?.showTab?(.files) }
+                .keyboardShortcut(Shortcut.showFiles.keyboardShortcut)
+                .disabled(actions?.showTab == nil)
+            Divider()
         }
     }
 }

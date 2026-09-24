@@ -11,22 +11,26 @@ public struct SummaryPage: Equatable, Sendable {
 
 struct SummaryView: View {
     let page: SummaryPage
+    let focusPending: Bool
+    let onFocus: () -> Void
 
     var body: some View {
-        HTMLView(page: page)
+        HTMLView(page: page, focusPending: focusPending, onFocus: onFocus)
             .accessibilityIdentifier("prDetail.summary")
     }
 }
 
 private struct HTMLView: NSViewRepresentable {
     let page: SummaryPage
+    let focusPending: Bool
+    let onFocus: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> WKWebView {
+    func makeNSView(context: Context) -> FocusableWebView {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(context.coordinator.avatars, forURLScheme: AvatarScheme.name)
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = FocusableWebView(frame: .zero, configuration: configuration)
         context.coordinator.openURL = context.environment.openURL
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
@@ -34,8 +38,10 @@ private struct HTMLView: NSViewRepresentable {
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
+    func updateNSView(_ webView: FocusableWebView, context: Context) {
         context.coordinator.openURL = context.environment.openURL
+        webView.onFocus = onFocus
+        if focusPending { webView.requestFocus() }
         context.coordinator.load(page, in: webView)
     }
 
@@ -100,5 +106,29 @@ private struct HTMLView: NSViewRepresentable {
             if let openURL { openURL(url) } else { NSWorkspace.shared.open(url) }
             return .cancel
         }
+    }
+}
+
+/// Takes keyboard focus on request, at once or when it joins a window.
+final class FocusableWebView: WKWebView {
+    var onFocus: (() -> Void)?
+    private var wantsFocus = false
+
+    func requestFocus() {
+        wantsFocus = true
+        takeFocusIfPossible()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        takeFocusIfPossible()
+    }
+
+    private func takeFocusIfPossible() {
+        guard wantsFocus, let window else { return }
+        wantsFocus = false
+        window.makeFirstResponder(self)
+        let onFocus = onFocus
+        Task { @MainActor in onFocus?() }
     }
 }

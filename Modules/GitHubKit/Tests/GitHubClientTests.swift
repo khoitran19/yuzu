@@ -138,6 +138,59 @@ struct GitHubClientTests {
         #expect(conversation.checks.first?.workflow == "Checks")
     }
 
+    @Test func openPullRequestsDecodesDraftsGhostsAndMissingChecks() async throws {
+        let session = StubURLProtocol.session(token: token) { _ in
+            #"""
+            {"data":{"search":{"issueCount":130,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[
+              {"number":12,"title":"Ready","isDraft":false,"updatedAt":"2026-09-01T00:00:00Z","totalCommentsCount":3,
+               "reviewDecision":"APPROVED","repository":{"name":"app","owner":{"login":"octo"}},
+               "author":{"login":"rik","avatarUrl":"https://avatars.githubusercontent.com/u/1?s=80"},
+               "commits":{"nodes":[{"commit":{"statusCheckRollup":{"state":"ERROR"}}}]}},
+              {},
+              {"number":9,"title":"Draft","isDraft":true,"updatedAt":"2026-09-02T00:00:00Z","totalCommentsCount":null,
+               "reviewDecision":null,"repository":{"name":"app","owner":{"login":"octo"}},"author":null,
+               "commits":{"nodes":[{"commit":{"statusCheckRollup":null}}]}}
+            ]}}}
+            """#
+        }
+        let list = try await GitHubClient(token: token, session: session)
+            .openPullRequests(in: RepoRef(owner: "octo", name: "app"), scope: .others)
+        #expect(list.totalCount == 130)
+        #expect(
+            list.pullRequests.map(\.ref) == [PRRef(owner: "octo", repo: "app", number: 12), PRRef(owner: "octo", repo: "app", number: 9)])
+        let (ready, draft) = (list.pullRequests[0], list.pullRequests[1])
+        #expect(ready.checks == .failure)
+        #expect(ready.reviewDecision == .approved)
+        #expect(ready.commentCount == 3)
+        #expect(ready.author?.avatarURL?.host() == "avatars.githubusercontent.com")
+        #expect(draft.isDraft)
+        #expect(draft.author == nil)
+        #expect(draft.checks == nil)
+        #expect(draft.reviewDecision == nil)
+        #expect(draft.commentCount == 0)
+        let body = try JSONDecoder().decode(GraphQLBody.self, from: try #require(StubURLProtocol.requests(token: token).first).body)
+        #expect(body.variables["query"] == "repo:octo/app is:pr is:open -author:@me sort:updated-desc")
+    }
+
+    @Test func openPullRequestsStopsAtOneHundred() async throws {
+        let session = StubURLProtocol.session(token: token) { request in
+            let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)
+            let page = body.variables["cursor"] == nil ? 0 : 1
+            let nodes = (0..<50).map { index in
+                #"{"number":\#(page * 50 + index + 1),"title":"t","isDraft":false,"updatedAt":"2026-09-01T00:00:00Z","totalCommentsCount":0,"reviewDecision":null,"repository":{"name":"app","owner":{"login":"octo"}},"author":null,"commits":{"nodes":[]}}"#
+            }
+            return
+                #"{"data":{"search":{"issueCount":400,"pageInfo":{"hasNextPage":true,"endCursor":"k\#(page + 1)"},"nodes":[\#(nodes.joined(separator: ","))]}}}"#
+        }
+        let list = try await GitHubClient(token: token, session: session)
+            .openPullRequests(in: RepoRef(owner: "octo", name: "app"), scope: .mine)
+        #expect(list.pullRequests.count == 100)
+        #expect(Set(list.pullRequests.map(\.ref.number)).count == 100)
+        let requests = try StubURLProtocol.requests(token: token).map { try JSONDecoder().decode(GraphQLBody.self, from: $0.body) }
+        #expect(requests.map { $0.variables["cursor"] } == [nil, "k1"])
+        #expect(requests.first?.variables["query"]?.contains(" author:@me ") == true)
+    }
+
     @Test(arguments: [
         (#"<https://api.github.com/x?per_page=100&page=2>; rel="next", <https://api.github.com/x?per_page=100&page=7>; rel="last""#, 7),
         (#"<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first""#, nil),

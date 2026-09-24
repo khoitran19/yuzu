@@ -12,6 +12,7 @@ flowchart LR
     end
     subgraph Screens["Screens (MainActor)"]
         PRDetail[PRDetail<br/>Summary + Files changed]
+        PRList[PRList<br/>open pull request panel]
         SignIn[SignIn<br/>device flow UI]
     end
     subgraph Views["AppKit views (MainActor)"]
@@ -27,6 +28,9 @@ flowchart LR
         PRFixtures[PRFixtures<br/>offline service]
     end
     App -->|routes to| PRDetail
+    App -->|shows over the content| PRList
+    PRList -->|PullRequestService| GitHubKit
+    PRList -->|Octicon, AvatarCache| PRDetail
     App -->|shows when signed out| SignIn
     Harness -->|drives| PRDetail
     PRDetail -->|hosts| FileTree
@@ -94,6 +98,25 @@ sequenceDiagram
   after the first paint and move the content.
 - A PR link on the clipboard starts a prefetch when the app becomes active. Opening that PR within 60 seconds uses the
   prefetch (`PrefetchedService`).
+
+## Keyboard shortcuts
+
+- `AppShortcuts` defines every shortcut once (`Shortcut.all`). Menu items and `.onKeyPress` use `keyboardShortcut` and
+  `keyEquivalent`; AppKit `keyDown` handlers call `Shortcut.matches(_:)`. The Shortcuts settings tab lists `Shortcut.all`.
+- Add a shortcut to the catalog first. `ShortcutTests` fails when two menu shortcuts, or two shortcuts in one area, use
+  the same keys.
+- Menu commands that move keyboard focus call AppKit `makeFirstResponder`. A `@FocusState` write from a command did not
+  move first responder away from the diff table.
+
+## Open pull request panel
+
+- The active repository is the repository of the open pull request. On Home, it is the repository of the most recent
+  entry in Recent. With no active repository, the toolbar button and ⌘D / ⌘⇧D are disabled.
+- ⌘D requests the Mine tab and ⌘⇧D the Others tab. A request for the tab that shows closes the panel; a request for the
+  other tab switches to it (`PRListPanelState`).
+- When the panel opens, both tabs load in parallel. `PRListModel` keeps each list per repository and tab, so a repository
+  switch shows that repository's last list, or a loading state, at once. A load that finishes for an earlier repository
+  writes only to that repository's entry.
 
 ## Viewed state
 

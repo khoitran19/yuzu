@@ -22,6 +22,8 @@ public protocol PullRequestService: Sendable {
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String
     /// The current checks of the head commit.
     func checks(of ref: PRRef) async throws -> [Check]
+    /// Up to 100 open pull requests of `repo`, most recently updated first.
+    func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList
 }
 
 extension PullRequestService {

@@ -39,10 +39,35 @@ public final class PRDetailModel {
     public private(set) var summaryPage: SummaryPage?
     public private(set) var hasMarkdownFiles = false
     public var tab: Tab = .files {
-        didSet { if tab == .files, oldValue != .files { filesController.diff.focus() } }
+        didSet {
+            guard tab != oldValue else { return }
+            switch tab {
+            case .files:
+                summaryFocusPending = false
+                filesController.diff.focus()
+            case .summary: filesController.resignFocus()
+            }
+        }
     }
+    /// The Summary page takes keyboard focus when it is in a window, then calls `summaryDidTakeFocus()`.
+    public private(set) var summaryFocusPending = false
 
     @ObservationIgnored public let filesController = FilesChangedViewController()
+
+    /// Selects `tab` and moves keyboard focus into it: the diff table or the Summary page.
+    public func show(_ tab: Tab) {
+        self.tab = tab
+        switch tab {
+        case .files: filesController.diff.focus()
+        case .summary:
+            filesController.resignFocus()
+            summaryFocusPending = true
+        }
+    }
+
+    public func summaryDidTakeFocus() {
+        summaryFocusPending = false
+    }
     /// Called once when all parts have arrived.
     @ObservationIgnored public var onLoaded: (() -> Void)?
     @ObservationIgnored public var onDetail: ((PullRequest) -> Void)?

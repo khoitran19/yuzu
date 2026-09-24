@@ -2,10 +2,10 @@ import CryptoKit
 import Foundation
 
 /// Avatar images in memory and on disk. A stale file is served at once and refreshed in the background.
-actor AvatarCache {
+public actor AvatarCache {
     typealias Fetch = @Sendable (URL) async throws -> Data
 
-    static let shared = AvatarCache(
+    public static let shared = AvatarCache(
         directory: URL.cachesDirectory.appending(path: "dev.khoitran.prviewer/Avatars", directoryHint: .isDirectory),
         fetch: { url in
             let (data, response) = try await URLSession.shared.data(from: url)
@@ -26,7 +26,7 @@ actor AvatarCache {
         self.fetch = fetch
     }
 
-    func data(for url: URL) async throws -> Data {
+    public func data(for url: URL) async throws -> Data {
         if let data = memory[url] { return data }
         let file = fileURL(for: url)
         if let data = try? Data(contentsOf: file) {

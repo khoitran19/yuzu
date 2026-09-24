@@ -29,7 +29,11 @@ final class AppServices {
         } else {
             rulesStore = ReviewRulesStore()
         }
-        if let fixture = options.fixture { fixtureService = FixturePullRequestService(directory: fixture, latency: options.latency) }
+        if let fixture = options.fixture {
+            fixtureService = FixturePullRequestService(
+                directory: fixture, latency: options.latency, emptyPullRequestLists: options.emptyPullRequestLists
+            )
+        }
     }
 
     var isSignedIn: Bool {

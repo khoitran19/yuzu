@@ -1,4 +1,5 @@
 import AppKit
+import AppShortcuts
 import PRModels
 import SwiftUI
 
@@ -25,7 +26,7 @@ public struct PRDetailView: View {
                     .opacity(model.tab == .files && model.phase == .loaded ? 1 : 0)
                     .allowsHitTesting(model.tab == .files)
                 if let page = model.summaryPage {
-                    SummaryView(page: page)
+                    SummaryView(page: page, focusPending: model.summaryFocusPending, onFocus: model.summaryDidTakeFocus)
                         .opacity(model.tab == .summary ? 1 : 0)
                         .allowsHitTesting(model.tab == .summary)
                 } else if model.tab == .summary, model.phase == .loaded {
@@ -63,7 +64,7 @@ public struct PRDetailView: View {
                     selected: model.tab == tab
                 ) { model.tab = tab }
                     .fixedSize()
-                    .keyboardShortcut(tab == .summary ? "1" : "2", modifiers: .command)
+                    .keyboardShortcut((tab == .summary ? Shortcut.summaryTab : Shortcut.filesTab).keyboardShortcut)
                     .accessibilityIdentifier("prDetail.tab.\(tab == .summary ? "summary" : "files")")
             }
             Spacer()
@@ -73,15 +74,15 @@ public struct PRDetailView: View {
             if model.tab == .files, model.phase == .loaded {
                 ViewedProgress(viewed: model.viewedCount, total: model.fileCount)
                 Menu {
-                    Button("Collapse All Files") { model.setAllCollapsed(true) }
-                        .keyboardShortcut("[", modifiers: [.command, .option])
-                    Button("Expand All Files") { model.setAllCollapsed(false) }
-                        .keyboardShortcut("]", modifiers: [.command, .option])
+                    Button(Shortcut.collapseAll.title) { model.setAllCollapsed(true) }
+                        .keyboardShortcut(Shortcut.collapseAll.keyboardShortcut)
+                    Button(Shortcut.expandAll.title) { model.setAllCollapsed(false) }
+                        .keyboardShortcut(Shortcut.expandAll.keyboardShortcut)
                     Divider()
-                    Button("Show or Hide File Tree") { model.filesController.toggleFileTree() }
-                        .keyboardShortcut("b", modifiers: [.command, .shift])
-                    Button("Show or Hide Markdown Preview") { model.toggleMarkdownPreview() }
-                        .keyboardShortcut("m", modifiers: [.command, .shift])
+                    Button(Shortcut.toggleFileTree.title) { model.filesController.toggleFileTree() }
+                        .keyboardShortcut(Shortcut.toggleFileTree.keyboardShortcut)
+                    Button(Shortcut.toggleMarkdownPreview.title) { model.toggleMarkdownPreview() }
+                        .keyboardShortcut(Shortcut.toggleMarkdownPreview.keyboardShortcut)
                         .disabled(!model.hasMarkdownFiles)
                 } label: {
                     Image(systemName: "ellipsis.circle")
