@@ -88,7 +88,22 @@ var targets: [Target] = [app]
 targets += module("PRModels", isolation: .nonisolated, tests: true)
 targets += module("ReviewRules", isolation: .nonisolated, tests: true)
 targets += module("DiffEngine", isolation: .nonisolated, dependencies: [.target(name: "PRModels")], tests: true)
-targets += module("SyntaxHighlight", isolation: .nonisolated, dependencies: [.target(name: "DiffEngine")])
+targets += module("SyntaxHighlight", isolation: .nonisolated, dependencies: [
+    .target(name: "DiffEngine"),
+    .external(name: "TreeSitter"),
+    .external(name: "TreeSitterBash"),
+    .external(name: "TreeSitterCSS"),
+    .external(name: "TreeSitterGo"),
+    .external(name: "TreeSitterJavaScript"),
+    .external(name: "TreeSitterJSON"),
+    .external(name: "TreeSitterMarkdown"),
+    .external(name: "TreeSitterPython"),
+    .external(name: "TreeSitterRust"),
+    .external(name: "TreeSitterSql"),
+    .external(name: "TreeSitterSwift"),
+    .external(name: "TreeSitterTypeScript"),
+    .external(name: "TreeSitterYAML"),
+], tests: true, resources: ["Modules/SyntaxHighlight/Resources/**"])
 targets += module("GitHubKit", isolation: .nonisolated, dependencies: [.target(name: "PRModels")])
 targets += module("PRFixtures", isolation: .nonisolated, dependencies: [
     .target(name: "PRModels"),
