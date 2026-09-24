@@ -13,13 +13,20 @@ import SyntaxHighlight
 final class AppServices {
     let options = LaunchOptions.current
     let auth = AuthSession()
-    let rulesStore = ReviewRulesStore()
+    let rulesStore: ReviewRulesStore
     let recents = RecentPullRequests()
     @ObservationIgnored let highlighter: any SyntaxHighlighting = TreeSitterHighlighter()
     @ObservationIgnored private var fixtureService: FixturePullRequestService?
 
     init() {
-        if let rules = options.rules { rulesStore.rules = rules }
+        if let rules = options.rules {
+            let scratch = UserDefaults(suiteName: "dev.khoitran.prviewer.harness")!
+            scratch.removePersistentDomain(forName: "dev.khoitran.prviewer.harness")
+            rulesStore = ReviewRulesStore(defaults: scratch)
+            rulesStore.rules = rules
+        } else {
+            rulesStore = ReviewRulesStore()
+        }
         if let fixture = options.fixture { fixtureService = FixturePullRequestService(directory: fixture) }
     }
 
