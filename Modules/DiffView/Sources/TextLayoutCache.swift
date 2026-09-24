@@ -114,8 +114,13 @@ final class TextLayoutCache {
         let typesetter = CTTypesetterCreateWithAttributedString(text)
         var ranges: [NSRange] = []
         var start = 0
+        let string = text.string as NSString
         while start < text.length {
-            let count = max(1, CTTypesetterSuggestLineBreak(typesetter, start, Double(width)))
+            var count = max(1, CTTypesetterSuggestLineBreak(typesetter, start, Double(width)))
+            if start + count < text.length,
+               string.substring(with: NSRange(location: start, length: count)).allSatisfy(\.isWhitespace) {
+                count = max(1, CTTypesetterSuggestClusterBreak(typesetter, start, Double(width)))
+            }
             ranges.append(NSRange(location: start, length: count))
             start += count
         }
