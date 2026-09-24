@@ -18,6 +18,7 @@ Debug builds skip sign-in when `PRVIEWER_GITHUB_TOKEN` is set, for example `PRVI
 - Paste a pull request link into the address field (⌘L), or press ⇧⌘V to open the link on the clipboard.
 - **Files changed** (⌘2): the file tree on the left, the split diff on the right.
 - **Summary** (⌘1): the pull request description.
+- Links to GitHub pull requests open in the app. Other links open in the browser.
 
 | Key            | Action                                           |
 | -------------- | ------------------------------------------------ |

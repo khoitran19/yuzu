@@ -27,6 +27,7 @@ private struct HTMLView: NSViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(context.coordinator.avatars, forURLScheme: AvatarScheme.name)
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        context.coordinator.openURL = context.environment.openURL
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
         context.coordinator.load(page, in: webView)
@@ -34,11 +35,13 @@ private struct HTMLView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.openURL = context.environment.openURL
         context.coordinator.load(page, in: webView)
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         let avatars = AvatarScheme()
+        var openURL: OpenURLAction?
         private var document = ""
         private var page: SummaryPage?
         /// The parts in the DOM; they differ from `page` while newer parts wait for the page to load.
@@ -94,7 +97,7 @@ private struct HTMLView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
             guard action.navigationType == .linkActivated, let url = action.request.url else { return .allow }
-            NSWorkspace.shared.open(url)
+            if let openURL { openURL(url) } else { NSWorkspace.shared.open(url) }
             return .cancel
         }
     }

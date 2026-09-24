@@ -38,6 +38,7 @@ sleeps. Read the PNG after every UI change.
 | `--tab files\|summary` | Select a tab |
 | `--scroll-to-file <path>` | Scroll the diff to a file |
 | `--summary-scroll <y\|bottom>` | Scroll the Summary page |
+| `--summary-click <css selector>` | Click an element on the Summary page, such as a link |
 | `--collapse-all` | Collapse every file |
 | `--settings` | Open Settings; with `--screenshot`, capture it and quit |
 | `--toggle-viewed <path>` | Toggle Viewed (repeatable) |

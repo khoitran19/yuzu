@@ -16,6 +16,8 @@ struct LaunchOptions {
     var scrollToFile: String?
     /// A JavaScript `scrollTo` y value for the Summary page, or `bottom`.
     var summaryScroll: String?
+    /// A CSS selector for a Summary page element to click, such as a link.
+    var summaryClick: String?
     var collapseAll = false
     var settings = false
     var toggleViewed: [String] = []
@@ -44,6 +46,7 @@ struct LaunchOptions {
             case "--tab": tab = iterator.next().flatMap { $0 == "summary" ? .summary : $0 == "files" ? .files : nil }
             case "--scroll-to-file": scrollToFile = iterator.next()
             case "--summary-scroll": summaryScroll = iterator.next()
+            case "--summary-click": summaryClick = iterator.next()
             case "--collapse-all": collapseAll = true
             case "--settings": settings = true
             case "--toggle-viewed": if let path = iterator.next() { toggleViewed.append(path) }

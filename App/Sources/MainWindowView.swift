@@ -32,6 +32,7 @@ struct MainWindowView: View {
         .navigationTitle(detail?.pullRequest?.title ?? "PR Viewer")
         .navigationSubtitle(detail?.ref.displayName ?? "")
         .background(WindowAccessor { window = $0 })
+        .environment(\.openURL, OpenURLAction(handler: openLink))
         .focusedSceneValue(\.windowActions, WindowActions(
             focusAddress: { addressFocused = true },
             openFromClipboard: openFromClipboard
@@ -87,6 +88,16 @@ struct MainWindowView: View {
         }
         if let tab = services.options.tab { model.tab = tab }
         detail = model
+    }
+
+    private func openLink(_ url: URL) -> OpenURLAction.Result {
+        guard let link = PRLink(url: url) else { return .systemAction }
+        if let detail, detail.ref == link.ref {
+            if link.showsFiles { detail.tab = .files }
+        } else {
+            open(link.ref)
+        }
+        return .handled
     }
 
     private func goHome() {

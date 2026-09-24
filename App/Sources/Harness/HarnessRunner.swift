@@ -26,6 +26,7 @@ final class HarnessRunner {
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             if let path = options.scrollToFile { model.filesController.diff.scrollToFile(path) }
             if let scroll = options.summaryScroll { await scrollSummary(to: scroll) }
+            if let selector = options.summaryClick { await clickSummary(selector) }
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             let loadMs = Self.milliseconds(model.liveLoad)
             log([
@@ -73,6 +74,14 @@ final class HarnessRunner {
             _ = try? await webView.evaluateJavaScript("window.scrollTo(0, \(y))")
             try? await Task.sleep(for: .milliseconds(200))
         }
+    }
+
+    private func clickSummary(_ selector: String) async {
+        let window = window ?? NSApp.windows.first { $0.isVisible && $0.canBecomeMain }
+        guard let root = window?.contentView, let webView = Self.webView(in: root) else { return }
+        _ = try? await webView.callAsyncJavaScript(
+            "document.querySelector(selector)?.click()", arguments: ["selector": selector], contentWorld: .page
+        )
     }
 
     private static func webView(in view: NSView) -> WKWebView? {
