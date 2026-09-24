@@ -88,6 +88,13 @@ public struct ChangedFile: Sendable, Identifiable, Equatable, Codable {
         self.patch = patch
         self.viewedState = viewedState
     }
+
+    public var isMarkdown: Bool {
+        switch (path as NSString).pathExtension.lowercased() {
+        case "md", "markdown", "mdown", "mkd": true
+        default: false
+        }
+    }
 }
 
 public enum DiffSide: String, Sendable, Codable {

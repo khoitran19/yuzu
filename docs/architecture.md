@@ -136,6 +136,18 @@ stateDiagram-v2
 
 Each transition installs new content and increments the file's content generation.
 
+## Markdown preview
+
+- `FilesChangedViewController` holds the preview as a collapsed inspector split item. `previewPath` is the file it shows.
+- `PRDetailModel.loadPreview` gets the head file (the merge-base file for a removed file). `MarkdownHTML` renders it
+  off the main actor with `swift-markdown` and the tree-sitter highlighter.
+- Each block has its source lines (`data-start`, `data-end`). `MarkdownChanges` gives the added lines and the removal
+  points from the file's `FileDiff`. Blocks that contain them get `data-add` or `data-del`.
+- Page JavaScript is off and a Content Security Policy blocks scripts and frames, because the file comes from the pull
+  request. Only the gutter script runs, in its own content world. It draws the bars and sends clicked lines to
+  `DiffViewController.revealLines`.
+- A link to a file at the same commit opens that file in the app when the pull request changes it.
+
 ## Invariants
 
 - **Content generation.** Every content change of a file increments `generations[path]`. A highlight or expansion result

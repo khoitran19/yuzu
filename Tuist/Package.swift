@@ -26,5 +26,6 @@ let package = Package(
         .package(url: "https://github.com/tree-sitter/tree-sitter-rust", exact: "0.24.2"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-bash", exact: "0.25.1"),
         .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-markdown", exact: "0.5.3"),
+        .package(url: "https://github.com/swiftlang/swift-markdown", exact: "0.9.0"),
     ]
 )

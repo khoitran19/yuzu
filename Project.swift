@@ -127,6 +127,7 @@ targets += module("PRDetail", isolation: .mainActor, dependencies: [
     .target(name: "GitHubKit"),
     .target(name: "FileTree"),
     .target(name: "DiffView"),
+    .external(name: "Markdown"),
 ], tests: true).map { target in
     var target = target
     if target.name == "PRDetailTests" { target.dependencies += [.target(name: "PRFixtures"), .target(name: "DiffView")] }

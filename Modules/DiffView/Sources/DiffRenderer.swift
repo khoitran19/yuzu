@@ -7,6 +7,7 @@ enum HitTarget: Equatable {
     case toggleCollapse
     case toggleViewed
     case copyPath
+    case preview
     case loadFullDiff
     case toggleThread(Int)
     case expandHunk(Int)
@@ -22,6 +23,8 @@ struct LineSelection: Equatable {
 final class DiffRenderer {
     var files: [FileState] = []
     var selection: LineSelection?
+    /// The file that the Markdown preview shows; its header button draws as active.
+    var previewPath: String?
     let cache = TextLayoutCache()
     private var symbols: [String: NSImage] = [:]
 
@@ -121,6 +124,8 @@ final class DiffRenderer {
         let chevron: CGRect
         let pathOrigin: CGPoint
         let copy: CGRect
+        /// `nil` for files that are not Markdown.
+        let preview: CGRect?
         let viewed: CGRect
         let statsMaxX: CGFloat
     }
@@ -130,14 +135,17 @@ final class DiffRenderer {
         let chevron = CGRect(x: geometry.minX + 10, y: midY - 8, width: 16, height: 16)
         let pathWidth = (pathText(state) as NSString).size(withAttributes: [.font: Metrics.headerFont]).width
         let viewed = CGRect(x: geometry.maxX - 12 - 76, y: midY - 12, width: 76, height: 24)
+        let preview = state.item.file.isMarkdown ? CGRect(x: viewed.minX - 8 - 28, y: midY - 12, width: 28, height: 24) : nil
+        let statsMaxX = (preview ?? viewed).minX - 14
         let pathX = chevron.maxX + 8
-        let copyX = min(pathX + pathWidth + 8, viewed.minX - 180)
+        let copyX = min(pathX + pathWidth + 8, statsMaxX - 166)
         return HeaderLayout(
             chevron: chevron,
             pathOrigin: CGPoint(x: pathX, y: midY - 8),
             copy: CGRect(x: copyX, y: midY - 9, width: 18, height: 18),
+            preview: preview,
             viewed: viewed,
-            statsMaxX: viewed.minX - 14
+            statsMaxX: statsMaxX
         )
     }
 
@@ -183,7 +191,21 @@ final class DiffRenderer {
         )
         drawSymbol("doc.on.doc", in: layout.copy, color: theme.mutedText, pointSize: 11)
         drawStats(state.item.file, maxX: layout.statsMaxX, midY: bounds.minY + Metrics.headerHeight / 2, context: context)
+        if let preview = layout.preview {
+            drawPreviewButton(active: previewPath == state.item.file.path, in: preview, context: context)
+        }
         drawViewedToggle(viewed: state.item.file.viewedState == .viewed, in: layout.viewed, context: context)
+    }
+
+    private func drawPreviewButton(active: Bool, in rect: CGRect, context: CGContext) {
+        let path = CGPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerWidth: 6, cornerHeight: 6, transform: nil)
+        context.addPath(path)
+        context.setFillColor(active ? theme.accent.copy(alpha: 0.15)! : theme.background)
+        context.fillPath()
+        context.addPath(path)
+        context.setStrokeColor(active ? theme.accent : theme.border)
+        context.strokePath()
+        drawSymbol("doc.richtext", in: rect, color: active ? theme.accent : theme.mutedText, pointSize: 12)
     }
 
     private func drawStats(_ file: ChangedFile, maxX: CGFloat, midY: CGFloat, context: CGContext) {
@@ -462,6 +484,7 @@ final class DiffRenderer {
         case .header:
             let layout = headerLayout(state, bounds: bounds, geometry: geometry)
             if layout.viewed.contains(point) { return .toggleViewed }
+            if layout.preview?.contains(point) == true { return .preview }
             if layout.copy.insetBy(dx: -4, dy: -4).contains(point) { return .copyPath }
             return .toggleCollapse
         case .notice:

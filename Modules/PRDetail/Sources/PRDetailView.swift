@@ -80,6 +80,9 @@ public struct PRDetailView: View {
                     Divider()
                     Button("Show or Hide File Tree") { model.filesController.toggleFileTree() }
                         .keyboardShortcut("b", modifiers: [.command, .shift])
+                    Button("Show or Hide Markdown Preview") { model.toggleMarkdownPreview() }
+                        .keyboardShortcut("m", modifiers: [.command, .shift])
+                        .disabled(!model.hasMarkdownFiles)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }

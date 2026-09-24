@@ -37,6 +37,7 @@ public final class PRDetailModel {
     public private(set) var liveLoad: Duration?
     /// `nil` until the details arrive.
     public private(set) var summaryPage: SummaryPage?
+    public private(set) var hasMarkdownFiles = false
     public var tab: Tab = .files {
         didSet { if tab == .files, oldValue != .files { filesController.diff.focus() } }
     }
@@ -60,6 +61,9 @@ public final class PRDetailModel {
     @ObservationIgnored private let checksRefreshInterval: Duration
     @ObservationIgnored private var checksRefresh: Task<Void, Never>?
     @ObservationIgnored private var autoViewedSent: Set<String> = []
+    @ObservationIgnored private var previewGeneration = 0
+    /// A preview asked for before the details arrived; it needs the head commit.
+    @ObservationIgnored private var pendingPreview: String?
 
     @ObservationIgnored private var highlightTask: Task<Void, Never>?
     @ObservationIgnored private var items: [String: DiffFileItem] = [:]
@@ -86,6 +90,7 @@ public final class PRDetailModel {
         filesController.onToggleViewed = { [weak self] path, viewed in self?.setViewed(viewed, paths: [path]) }
         filesController.onLoadFullDiff = { [weak self] path in self?.loadFullDiff(path) }
         filesController.onExpand = { [weak self] path, hunk in self?.expand(path, hunk: hunk) }
+        filesController.onPreview = { [weak self] path in self?.loadPreview(path) }
     }
 
     public var viewedCount: Int { viewedPaths.count }
@@ -138,6 +143,7 @@ public final class PRDetailModel {
         rebuildSummary()
         updateIncompleteNotice()
         onDetail?(pullRequest)
+        if let path = pendingPreview { loadPreview(path) }
     }
 
     /// Builds the HTML off the main actor. Only the newest build is shown.
@@ -226,6 +232,7 @@ public final class PRDetailModel {
             let built = await Self.buildItems(files, threads: threads ?? [], order: order)
             signposter.endInterval("build", buildState)
             filesController.setDiffFiles(built)
+            hasMarkdownFiles = filesController.hasMarkdownFiles
             items = Dictionary(built.map { ($0.file.path, $0) }, uniquingKeysWith: { first, _ in first })
             for path in items.keys { generations[path, default: 0] += 1 }
             phase = .loaded
@@ -274,6 +281,10 @@ public final class PRDetailModel {
 
     public func setAllCollapsed(_ collapsed: Bool) {
         filesController.setAllCollapsed(collapsed)
+    }
+
+    public func toggleMarkdownPreview() {
+        filesController.toggleMarkdownPreview()
     }
 
     public func dismissError() {
@@ -411,6 +422,59 @@ public final class PRDetailModel {
             guard var current = items[path] else { return }
             current.content = content
             install(current)
+            if filesController.previewPath == path { loadPreview(path) }
+        }
+    }
+
+    // MARK: Markdown preview
+
+    /// Renders the head version, or the merge-base version of a removed file, off the main actor.
+    private func loadPreview(_ path: String) {
+        previewGeneration += 1
+        let generation = previewGeneration
+        guard let pullRequest else {
+            pendingPreview = path
+            return
+        }
+        pendingPreview = nil
+        guard let item = items[path] else { return }
+        let file = item.file
+        let changes: MarkdownChanges? = if case let .diff(diff) = item.content, file.status != .added, file.status != .removed {
+            MarkdownChanges(diff: diff)
+        } else {
+            nil
+        }
+        let status = switch file.status {
+        case .added: "New file"
+        case .removed: "Deleted file"
+        default: ""
+        }
+        let highlighter = highlighter
+        Task {
+            do {
+                let oid: String
+                let source: String
+                if file.status == .removed {
+                    oid = try await mergeBaseOid(pullRequest)
+                    source = try await service.fileContents(of: ref, oid: oid, path: path) ?? ""
+                } else {
+                    oid = pullRequest.headOid
+                    source = try await headFileLines(path, oid: oid).joined(separator: "\n")
+                }
+                let context = MarkdownHTML.Context(owner: ref.owner, repo: ref.repo, oid: oid, path: path)
+                let rendered = await Task.detached(priority: .userInitiated) {
+                    MarkdownHTML.render(source: source, changes: changes, context: context, highlighter: highlighter)
+                }.value
+                guard generation == previewGeneration else { return }
+                let changeText = rendered.changedBlocks == 1 ? "1 change" : "\(rendered.changedBlocks) changes"
+                filesController.showPreview(MarkdownPreviewPage(
+                    path: path, html: MarkdownHTML.document(rendered), context: context,
+                    status: status.isEmpty && changes != nil ? changeText : status, changedBlocks: rendered.changedBlocks
+                ))
+            } catch {
+                guard generation == previewGeneration else { return }
+                filesController.showPreviewError(path: path, message: error.localizedDescription)
+            }
         }
     }
 

@@ -14,6 +14,8 @@ struct LaunchOptions {
     var windowSize: CGSize?
     var tab: PRDetailModel.Tab?
     var scrollToFile: String?
+    var preview: String?
+    var previewScript: String?
     /// A JavaScript `scrollTo` y value for the Summary page, or `bottom`.
     var summaryScroll: String?
     /// A CSS selector for a Summary page element to click, such as a link.
@@ -45,6 +47,8 @@ struct LaunchOptions {
                 if parts.count == 2 { windowSize = CGSize(width: parts[0], height: parts[1]) }
             case "--tab": tab = iterator.next().flatMap { $0 == "summary" ? .summary : $0 == "files" ? .files : nil }
             case "--scroll-to-file": scrollToFile = iterator.next()
+            case "--preview": preview = iterator.next()
+            case "--preview-script": previewScript = iterator.next()
             case "--summary-scroll": summaryScroll = iterator.next()
             case "--summary-click": summaryClick = iterator.next()
             case "--collapse-all": collapseAll = true

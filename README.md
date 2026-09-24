@@ -25,11 +25,16 @@ Debug builds skip sign-in when `PRVIEWER_GITHUB_TOKEN` is set, for example `PRVI
 | `j` / `k`      | Next or previous file                            |
 | `v`            | Toggle Viewed on the current file; syncs to GitHub |
 | `x`            | Collapse or expand the current file              |
+| `m`, ⇧⌘M       | Show or hide the Markdown preview                |
 | Drag, then ⌘C  | Copy the selected lines of one side              |
 | ⌥⌘[ / ⌥⌘]      | Collapse or expand all files                     |
 | ⇧⌘B            | Show or hide the file tree                       |
 
 Click a hunk header's gutter to show the unchanged lines above it. Click the last row of a file to show the lines below.
+
+Click the preview button on a Markdown file header to see the rendered file next to the diff. Green bars mark changed
+blocks and red marks show removed text. Click a bar to select its lines in the diff. In the preview, `n` and `p` go to
+the next and previous change, and Esc closes it. The preview follows the diff to the next Markdown file.
 
 ## Review rules
 

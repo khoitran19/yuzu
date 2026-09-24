@@ -8,6 +8,8 @@ public final class DiffViewController: NSViewController {
     public var onLoadFullDiff: ((_ path: String) -> Void)?
     /// `hunk` is `nil` for the lines after the last hunk.
     public var onExpand: ((_ path: String, _ hunk: Int?) -> Void)?
+    /// The preview button or the `m` key; `path` is the current file for the key.
+    public var onPreview: ((_ path: String) -> Void)?
 
     public let scrollView = NSScrollView()
     private let tableView = DiffTableView()
@@ -175,6 +177,40 @@ public final class DiffViewController: NSViewController {
     public func setAllCollapsed(_ collapsed: Bool) {
         for state in renderer.files { state.collapsed = collapsed }
         rebuild(anchor: visibleFile.map(Anchor.fileHeader) ?? .keepTopRow)
+    }
+
+    public func setPreviewPath(_ path: String?) {
+        _ = view
+        guard path != renderer.previewPath else { return }
+        let changed = [renderer.previewPath, path].compactMap { $0.flatMap { fileIndex[$0] } }
+        renderer.previewPath = path
+        for file in changed { redrawRows(ofFile: file) }
+    }
+
+    /// Scrolls to new-side `lines` and selects the ones the diff shows.
+    /// With no shown line in range, scrolls to the first shown line after it.
+    public func revealLines(_ lines: ClosedRange<Int>, path: String) {
+        guard let index = fileIndex[path] else { return }
+        if renderer.files[index].collapsed { setCollapsed(false, file: index) }
+        var refs = Set<RowRef>()
+        var first: Int?
+        var after: Int?
+        for row in rowRange(ofFile: index) where rows[row].slice == 0 {
+            guard case let .line(hunk, lineRow) = rows[row].kind,
+                  let cell = renderer.files[index].diff?.hunks[hunk].rows[lineRow].right
+            else { continue }
+            if lines.contains(cell.number) {
+                refs.insert(rows[row])
+                first = first ?? row
+            } else if cell.number > lines.upperBound, after == nil {
+                after = row
+            }
+        }
+        let target = first ?? after ?? headerRows[index]
+        let headerY = tableView.rect(ofRow: headerRows[index]).minY
+        scrollTo(y: max(headerY, tableView.rect(ofRow: target).minY - Metrics.headerHeight - Metrics.lineHeight * 3))
+        setSelection(refs.isEmpty ? nil : LineSelection(side: .right, refs: refs))
+        focus()
     }
 
     public func scrollToFile(_ path: String) {
@@ -346,6 +382,8 @@ public final class DiffViewController: NSViewController {
             let viewed = state.item.file.viewedState != .viewed
             setViewed(viewed, path: path)
             onToggleViewed?(path, viewed)
+        case .preview:
+            onPreview?(path)
         case .copyPath:
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(path, forType: .string)
@@ -436,6 +474,9 @@ public final class DiffViewController: NSViewController {
         case "v":
             guard let file = visibleFile else { return true }
             handle(.toggleViewed, ref: RowRef(file: file, kind: .header))
+        case "m":
+            guard let file = visibleFile else { return true }
+            onPreview?(renderer.files[file].item.file.path)
         case "x", "o":
             guard let file = visibleFile else { return true }
             setCollapsed(!renderer.files[file].collapsed, file: file)

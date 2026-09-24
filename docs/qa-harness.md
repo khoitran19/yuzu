@@ -41,6 +41,8 @@ sleeps. Read the PNG after every UI change.
 | `--summary-click <css selector>` | Click an element on the Summary page, such as a link |
 | `--collapse-all` | Collapse every file |
 | `--settings` | Open Settings; with `--screenshot`, capture it and quit |
+| `--preview <path>` | Open the Markdown preview of a file |
+| `--preview-script '<js>'` | Run JavaScript in the preview's gutter world (for example `step(1)`); logs the result |
 | `--toggle-viewed <path>` | Toggle Viewed (repeatable) |
 | `--expand <path>:<hunk\|tail>` | Expand context above a hunk, or the tail (repeatable) |
 | `--rules '<ReviewRules JSON>'` | Use these rules. Without it, a harness run uses no rules (`--settings` shows the defaults). Rules stay in a scratch defaults domain, never in the user's settings |

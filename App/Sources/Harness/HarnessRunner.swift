@@ -25,6 +25,12 @@ final class HarnessRunner {
             for (path, hunk) in options.expand { model.expand(path, hunk: hunk) }
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             if let path = options.scrollToFile { model.filesController.diff.scrollToFile(path) }
+            if let path = options.preview { model.filesController.togglePreview(path) }
+            if let script = options.previewScript {
+                try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
+                let result = await model.filesController.evaluatePreviewScript(script)
+                log(["event": "previewScript", "result": String(describing: result ?? "nil")])
+            }
             if let scroll = options.summaryScroll { await scrollSummary(to: scroll) }
             if let selector = options.summaryClick { await clickSummary(selector) }
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
