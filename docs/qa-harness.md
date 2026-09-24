@@ -1,0 +1,73 @@
+# QA harness
+
+This document uses ASD-STE100 Simplified Technical English.
+
+The harness lets an agent check its own UI work: it loads a pull request with no network, applies actions, then writes a
+screenshot or a frame-time report and quits.
+
+## Fixtures
+
+| Fixture | Contents | Committed |
+| --- | --- | --- |
+| `Fixtures/synthetic-50` | 50 files, 1,000 changed lines, threads, mixed viewed states | Yes |
+| `Fixtures/synthetic-300` | 300 files, 20,000 changed lines; the performance benchmark | Yes |
+| `Fixtures/recorded/<name>` | A real pull request recorded from GitHub | No: it holds private code |
+
+- `scripts/fixtures.sh` rebuilds all fixtures.
+- `prfixture record <link> --out Fixtures/recorded/<name>` records one pull request with the base (merge base) and head
+  contents of every file.
+- The synthetic generator is deterministic: the same seed gives the same bytes. Its patches are real diffs of its
+  generated contents, so expansion works on them.
+
+## Screenshots
+
+```sh
+scripts/shot.sh Fixtures/synthetic-50 .build/shots/x.png [app args]
+APPEARANCE=light SIZE=1200x800 NO_BUILD=1 scripts/shot.sh …
+```
+
+The window renders in process (`cacheDisplay`), so it needs no screen-recording permission and works while the display
+sleeps. Read the PNG after every UI change.
+
+## App arguments
+
+| Argument | Effect |
+| --- | --- |
+| `--fixture <dir>` | Use `FixturePullRequestService`; skip sign-in |
+| `--open <link>` | Open this pull request (with a token, this is the live GitHub path) |
+| `--tab files\|summary` | Select a tab |
+| `--scroll-to-file <path>` | Scroll the diff to a file |
+| `--collapse-all` | Collapse every file |
+| `--toggle-viewed <path>` | Toggle Viewed (repeatable) |
+| `--expand <path>:<hunk\|tail>` | Expand context above a hunk, or the tail (repeatable) |
+| `--rules '<ReviewRules JSON>'` | Use these rules; stored in a scratch defaults domain, never in the user's settings |
+| `--settle <seconds>` | Wait before the capture (default 1) |
+| `--screenshot <png>` | Capture and quit. With no session, captures the sign-in screen |
+| `--perf-scroll <json>` | Run the scroll benchmark and quit |
+
+Controls have accessibility identifiers (`diff.table`, `fileTree.outline`, `fileTree.filter`, `address.field`,
+`prDetail.tab.files`, `signIn.button`), so computer-use tools can drive the app.
+
+## Performance
+
+```sh
+scripts/perf.sh Fixtures/synthetic-300 .build/perf.json
+```
+
+The benchmark scrolls the diff at 6,000 pt/s for up to 30 s and writes JSON:
+
+- `displayLink` mode (display awake): frame time is the time between display-link callbacks.
+- `forcedDisplay` mode (display asleep or headless): each step scrolls, forces a synchronous redraw, and times the main
+  thread against a 120 Hz budget (8.3 ms). This is stricter than the display-link mode.
+- `hitchTimeRatioMsPerSecond` is Apple's hitch metric: under 5 is good, over 10 is poor.
+- Frames over 1.5× the budget print `[harness] slow <ms> at <offset>: <visible rows>`. Row codes: `H` header,
+  `@` hunk, `L` line, `T` thread, `N` notice, `E` expand, `F` footer. A number after a code is a row height over 40 pt.
+
+Run perf with no other heavy process on the machine; a parallel build or review changes the numbers by 2×.
+
+## Safety
+
+- The harness with `--open` and a token uses real GitHub. `--toggle-viewed` and auto-viewed rules then write to the
+  user's Viewed state. Use fixtures for any action that writes.
+- On 2026-09-24 a harness run saved its test rules to the user's settings. A later live run then marked 3 files Viewed
+  on GitHub. `--rules` now uses a scratch defaults domain.
