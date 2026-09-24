@@ -2722,7 +2722,7 @@
     "nodeID" : "PR_synthetic_300_20000_1",
     "ref" : {
       "number" : 1,
-      "owner" : "prviewer-fixtures",
+      "owner" : "yuzu-fixtures",
       "repo" : "synthetic-300-20000"
     },
     "state" : "OPEN",

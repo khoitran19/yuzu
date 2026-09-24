@@ -3,7 +3,7 @@ import QuartzCore
 
 final class DiffRowView: NSTableRowView {
     static let identifier = NSUserInterfaceItemIdentifier("DiffRow")
-    static let traceDraw = ProcessInfo.processInfo.environment["PRVIEWER_TRACE_DRAW"] != nil
+    static let traceDraw = ProcessInfo.processInfo.environment["YUZU_TRACE_DRAW"] != nil
 
     weak var renderer: DiffRenderer?
     var onHit: ((HitTarget, RowRef) -> Void)?

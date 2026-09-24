@@ -236,8 +236,8 @@ final class MarkdownPreviewViewController: NSViewController, WKNavigationDelegat
     const marks = () => [...document.querySelectorAll('[data-add],[data-del]')]
     const shown = element => element.classList.contains('html-marker') && element.nextElementSibling || element
     function layout() {
-      let gutter = document.getElementById('prv-gutter')
-      if (!gutter) { gutter = document.createElement('div'); gutter.id = 'prv-gutter'; document.body.appendChild(gutter) }
+      let gutter = document.getElementById('yuzu-gutter')
+      if (!gutter) { gutter = document.createElement('div'); gutter.id = 'yuzu-gutter'; document.body.appendChild(gutter) }
       gutter.replaceChildren()
       const origin = document.body.getBoundingClientRect().top
       for (const element of marks()) {
@@ -251,8 +251,8 @@ final class MarkdownPreviewViewController: NSViewController, WKNavigationDelegat
         bar.addEventListener('click', () => {
           window.webkit.messageHandlers.reveal.postMessage([Number(element.dataset.start), Number(element.dataset.end)])
         })
-        bar.addEventListener('mouseenter', () => shown(element).classList.add('prv-hover'))
-        bar.addEventListener('mouseleave', () => shown(element).classList.remove('prv-hover'))
+        bar.addEventListener('mouseenter', () => shown(element).classList.add('yuzu-hover'))
+        bar.addEventListener('mouseleave', () => shown(element).classList.remove('yuzu-hover'))
         gutter.appendChild(bar)
       }
     }
@@ -274,9 +274,9 @@ final class MarkdownPreviewViewController: NSViewController, WKNavigationDelegat
       window.scrollTo(0, tops[index] - 24)
       expectedScroll = window.scrollY
       const element = list[index]
-      element.classList.remove('prv-flash')
+      element.classList.remove('yuzu-flash')
       void element.offsetWidth
-      element.classList.add('prv-flash')
+      element.classList.add('yuzu-flash')
       return [index + 1, list.length]
     }
     new ResizeObserver(layout).observe(document.body)

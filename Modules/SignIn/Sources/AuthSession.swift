@@ -124,7 +124,7 @@ public final class AuthSession {
             if fromKeychain {
                 signOut()
             } else {
-                state = .failed("GitHub rejected the token in PRVIEWER_GITHUB_TOKEN.")
+                state = .failed("GitHub rejected the token in YUZU_GITHUB_TOKEN.")
             }
         } catch {
             guard generation == self.generation else { return }
@@ -132,11 +132,11 @@ public final class AuthSession {
         }
     }
 
-    private static let log = Logger(subsystem: "dev.khoitran.prviewer", category: "SignIn")
+    private static let log = Logger(subsystem: "dev.khoitran.yuzu", category: "SignIn")
 
     static var missingClientIDMessage: String {
         #if DEBUG
-            "This build has no GitHub client ID. Build with GITHUB_CLIENT_ID, or launch with PRVIEWER_GITHUB_TOKEN."
+            "This build has no GitHub client ID. Build with GITHUB_CLIENT_ID, or launch with YUZU_GITHUB_TOKEN."
         #else
             "This build has no GitHub client ID."
         #endif
@@ -166,7 +166,7 @@ extension AuthSession {
 
         private static var debugEnvironmentToken: String? {
             #if DEBUG
-                ProcessInfo.processInfo.environment["PRVIEWER_GITHUB_TOKEN"]
+                ProcessInfo.processInfo.environment["YUZU_GITHUB_TOKEN"]
             #else
                 nil
             #endif

@@ -24,7 +24,7 @@ struct MainWindowView: View {
         screen
         .pullRequestListPanel(pullRequestList, open: open(_:))
         .toolbar { toolbar }
-        .navigationTitle(detail?.pullRequest?.title ?? "PR Viewer")
+        .navigationTitle(detail?.pullRequest?.title ?? "Yuzu")
         .navigationSubtitle(detail?.ref.displayName ?? "")
         .background(WindowAccessor { window = $0 })
         .environment(\.openURL, OpenURLAction(handler: openLink))

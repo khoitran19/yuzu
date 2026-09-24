@@ -22,8 +22,8 @@ final class AppServices {
 
     init() {
         if options.isHarness || options.rules != nil {
-            let scratch = UserDefaults(suiteName: "dev.khoitran.prviewer.harness")!
-            scratch.removePersistentDomain(forName: "dev.khoitran.prviewer.harness")
+            let scratch = UserDefaults(suiteName: "dev.khoitran.yuzu.harness")!
+            scratch.removePersistentDomain(forName: "dev.khoitran.yuzu.harness")
             rulesStore = ReviewRulesStore(storage: scratch)
             rulesStore.rules = options.rules ?? (options.settings ? .defaults : ReviewRules())
         } else {

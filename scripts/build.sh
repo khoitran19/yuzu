@@ -2,5 +2,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 tuist generate --no-open > /dev/null
-xcodebuild -workspace PRViewer.xcworkspace -scheme PRViewer -configuration "${CONFIGURATION:-Debug}" \
+xcodebuild -workspace Yuzu.xcworkspace -scheme Yuzu -configuration "${CONFIGURATION:-Debug}" \
   -derivedDataPath .build/dd build | xcbeautify --quiet

@@ -12,7 +12,7 @@ This document uses ASD-STE100 Simplified Technical English.
 | Viewed state (write) | GraphQL `markFileAsViewed` / `unmarkFileAsViewed` | Many paths in one request, one alias (`m0`, `m1`, …) per path. |
 | Summary timeline | GraphQL `timelineItems(itemTypes: [ISSUE_COMMENT, PULL_REQUEST_REVIEW])` with review `comments { diffHunk replyTo }` | Event rows (commits, labels, deployments) are not requested. A review that only replies to threads is not shown; its replies show under the first comment of the thread. |
 | Summary checks | GraphQL `commits(last: 1) { statusCheckRollup { contexts } }` | `CheckRun` and `StatusContext`, paginated by cursor, with `isRequired(pullRequestNumber:)`. While a check runs, this request repeats every 15 s; it stops when all checks finish or the pull request closes. |
-| Avatars | `avatarUrl(size: 80)`, served to the Summary web view through the `prv-avatar:` scheme | `AvatarCache` keeps each image in `~/Library/Caches/dev.khoitran.prviewer/Avatars`. A copy older than 7 days is shown, then refreshed in the background. |
+| Avatars | `avatarUrl(size: 80)`, served to the Summary web view through the `yuzu-avatar:` scheme | `AvatarCache` keeps each image in `~/Library/Caches/dev.khoitran.yuzu/Avatars`. A copy older than 7 days is shown, then refreshed in the background. |
 | Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments }` | Comments over 100 per thread load through `node(id:)`. |
 | Full file contents | REST `GET /repos/{o}/{r}/contents/{path}?ref={oid}` with `Accept: application/vnd.github.raw+json` | For "Load diff" and context expansion. |
 | Merge base | REST `GET /repos/{o}/{r}/compare/{base}...{head}?per_page=1&page=2` | Page 2 leaves out the file list, so the response is small. |
@@ -46,4 +46,4 @@ This document uses ASD-STE100 Simplified Technical English.
 - Release builds use the OAuth device flow. The client ID is the `GITHUB_CLIENT_ID` build setting in `Project.swift`.
   The app needs no client secret.
 - Organizations with OAuth App restrictions must approve the app before it can read their repositories.
-- Debug builds use `PRVIEWER_GITHUB_TOKEN` when it is set, and do not save it to the Keychain.
+- Debug builds use `YUZU_GITHUB_TOKEN` when it is set, and do not save it to the Keychain.

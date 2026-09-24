@@ -1,6 +1,6 @@
 <img src="App/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="128" alt="">
 
-# PR Viewer
+# Yuzu
 
 A native macOS app to review GitHub pull requests. It replaces the GitHub web "Files changed" page for large pull requests.
 
@@ -11,7 +11,7 @@ A native macOS app to review GitHub pull requests. It replaces the GitHub web "F
    turned on. A client ID is not a secret.
 3. `tuist install`, then `scripts/run.sh`.
 
-Debug builds skip sign-in when `PRVIEWER_GITHUB_TOKEN` is set, for example `PRVIEWER_GITHUB_TOKEN=$(gh auth token)`.
+Debug builds skip sign-in when `YUZU_GITHUB_TOKEN` is set, for example `YUZU_GITHUB_TOKEN=$(gh auth token)`.
 
 ## Use
 

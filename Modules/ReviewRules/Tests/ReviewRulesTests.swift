@@ -46,7 +46,7 @@ struct ReviewRulesTests {
     }
 
     @MainActor @Test func storeStartsWithDefaultsAndKeepsSavedRules() throws {
-        let name = "dev.khoitran.prviewer.ReviewRulesTests"
+        let name = "dev.khoitran.yuzu.ReviewRulesTests"
         let storage = try #require(UserDefaults(suiteName: name))
         storage.removePersistentDomain(forName: name)
         defer { storage.removePersistentDomain(forName: name) }

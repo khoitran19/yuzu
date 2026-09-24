@@ -6,7 +6,7 @@ public actor AvatarCache {
     typealias Fetch = @Sendable (URL) async throws -> Data
 
     public static let shared = AvatarCache(
-        directory: URL.cachesDirectory.appending(path: "dev.khoitran.prviewer/Avatars", directoryHint: .isDirectory),
+        directory: URL.cachesDirectory.appending(path: "dev.khoitran.yuzu/Avatars", directoryHint: .isDirectory),
         fetch: { url in
             let (data, response) = try await URLSession.shared.data(from: url)
             guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else { throw URLError(.badServerResponse) }

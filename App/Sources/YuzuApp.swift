@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct PRViewerApp: App {
+struct YuzuApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var services = AppServices()
 

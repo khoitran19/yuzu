@@ -101,7 +101,7 @@ public final class PRDetailModel {
     /// Viewed state GitHub last confirmed; a failed request reverts to it.
     @ObservationIgnored private var confirmedViewed: [String: Bool] = [:]
     @ObservationIgnored private var viewedSync: Task<Void, Never>?
-    @ObservationIgnored private let signposter = OSSignposter(subsystem: "dev.khoitran.prviewer", category: "PRDetail")
+    @ObservationIgnored private let signposter = OSSignposter(subsystem: "dev.khoitran.yuzu", category: "PRDetail")
 
     public init(
         ref: PRRef, service: any PullRequestService, highlighter: (any SyntaxHighlighting)?, rules: ReviewRules,

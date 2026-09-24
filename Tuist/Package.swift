@@ -11,7 +11,7 @@ let packageSettings = PackageSettings(
 #endif
 
 let package = Package(
-    name: "PRViewer",
+    name: "Yuzu",
     dependencies: [
         .package(url: "https://github.com/tree-sitter/tree-sitter", .upToNextMinor(from: "0.25.0")),
         .package(url: "https://github.com/tree-sitter/tree-sitter-typescript", exact: "0.23.2"),

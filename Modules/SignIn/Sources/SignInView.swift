@@ -17,7 +17,7 @@ public struct SignInView: View {
                     .resizable()
                     .frame(width: 96, height: 96)
                     .accessibilityHidden(true)
-                Text("PR Viewer")
+                Text("Yuzu")
                     .font(.title.bold())
                 Text("Review large GitHub pull requests.")
                     .foregroundStyle(.secondary)

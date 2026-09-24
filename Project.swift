@@ -1,6 +1,6 @@
 import ProjectDescription
 
-let bundleIdPrefix = "dev.khoitran.prviewer"
+let bundleIdPrefix = "dev.khoitran.yuzu"
 let destinations: Destinations = [.mac]
 let deployment: DeploymentTargets = .macOS("15.0")
 
@@ -53,13 +53,13 @@ func module(
 }
 
 let app: Target = .target(
-    name: "PRViewer",
+    name: "Yuzu",
     destinations: destinations,
     product: .app,
     bundleId: bundleIdPrefix,
     deploymentTargets: deployment,
     infoPlist: .extendingDefault(with: [
-        "CFBundleDisplayName": "PR Viewer",
+        "CFBundleDisplayName": "Yuzu",
         "LSApplicationCategoryType": "public.app-category.developer-tools",
         "GitHubClientID": "$(GITHUB_CLIENT_ID)",
     ]),
@@ -160,4 +160,4 @@ targets.append(.target(
     settings: .settings(base: settings(.nonisolated).base.merging(["LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path"]) { $1 })
 ))
 
-let project = Project(name: "PRViewer", targets: targets)
+let project = Project(name: "Yuzu", targets: targets)

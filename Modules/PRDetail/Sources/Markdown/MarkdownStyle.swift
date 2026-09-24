@@ -10,18 +10,18 @@ nonisolated enum MarkdownStyle {
     .markdown-body :hover > .anchor { opacity: 1; text-decoration: none; }
     .markdown-body table.front-matter td { white-space: pre-wrap; }
     .markdown-body [data-start] { transition: background-color .15s, box-shadow .15s; }
-    .markdown-body .prv-hover { background-color: var(--add); box-shadow: 0 0 0 4px var(--add); border-radius: 2px; }
-    .markdown-body .prv-flash { animation: prv-flash 1.2s ease-out; }
-    @keyframes prv-flash { from { background-color: var(--add-num); box-shadow: 0 0 0 6px var(--add-num); } }
+    .markdown-body .yuzu-hover { background-color: var(--add); box-shadow: 0 0 0 4px var(--add); border-radius: 2px; }
+    .markdown-body .yuzu-flash { animation: yuzu-flash 1.2s ease-out; }
+    @keyframes yuzu-flash { from { background-color: var(--add-num); box-shadow: 0 0 0 6px var(--add-num); } }
     .end-marker { height: 1px; }
     .html-marker { height: 0; }
 
-    #prv-gutter { position: absolute; left: 0; top: 0; width: 32px; }
-    #prv-gutter .bar { position: absolute; left: 16px; width: 4px; border-radius: 2px; cursor: pointer; }
-    #prv-gutter .bar::before { content: ""; position: absolute; inset: 0 -6px; }
-    #prv-gutter .bar.add { background: var(--success); }
-    #prv-gutter .bar.add:hover { left: 15px; width: 6px; }
-    #prv-gutter .bar.del { left: 13px; width: 10px; height: 4px; background: var(--danger); }
+    #yuzu-gutter { position: absolute; left: 0; top: 0; width: 32px; }
+    #yuzu-gutter .bar { position: absolute; left: 16px; width: 4px; border-radius: 2px; cursor: pointer; }
+    #yuzu-gutter .bar::before { content: ""; position: absolute; inset: 0 -6px; }
+    #yuzu-gutter .bar.add { background: var(--success); }
+    #yuzu-gutter .bar.add:hover { left: 15px; width: 6px; }
+    #yuzu-gutter .bar.del { left: 13px; width: 10px; height: 4px; background: var(--danger); }
 
     .tk-keyword, .tk-operator { color: #cf222e; } .tk-string { color: #0a3069; }
     .tk-number, .tk-constant, .tk-property, .tk-attribute { color: #0550ae; } .tk-comment { color: #59636e; }

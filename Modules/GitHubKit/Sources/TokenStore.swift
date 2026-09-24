@@ -14,7 +14,7 @@ public struct TokenStore: Sendable {
     private let service: String
     private let account: String
 
-    public init(service: String = "dev.khoitran.prviewer", account: String = "github") {
+    public init(service: String = "dev.khoitran.yuzu", account: String = "github") {
         self.service = service
         self.account = account
     }

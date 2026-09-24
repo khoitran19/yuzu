@@ -1,4 +1,4 @@
-# PR Viewer
+# Yuzu
 
 Native macOS app to review GitHub pull requests. It replaces the GitHub web "Files changed" page for large pull requests.
 
@@ -58,6 +58,6 @@ A module depends only on modules above it in this table. New screens are new mod
 
 - `scripts/build.sh`: generate the Tuist project and build. `CONFIGURATION=Release` for a Release build.
 - `scripts/test.sh`: run all unit tests.
-- `scripts/run.sh`: build and open the app. In debug builds, `PRVIEWER_GITHUB_TOKEN` skips sign-in.
+- `scripts/run.sh`: build and open the app. In debug builds, `YUZU_GITHUB_TOKEN` skips sign-in.
 - `scripts/shot.sh`, `scripts/perf.sh`, `scripts/fixtures.sh`: see [docs/qa-harness.md](docs/qa-harness.md).
 - `scripts/format.sh`: format with `swift format`. `--lint` checks only.

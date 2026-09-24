@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 tuist generate --no-open > /dev/null
-xcodebuild -workspace PRViewer.xcworkspace -scheme prfixture -configuration Release -derivedDataPath .build/dd \
+xcodebuild -workspace Yuzu.xcworkspace -scheme prfixture -configuration Release -derivedDataPath .build/dd \
   -destination "platform=macOS,arch=arm64" build \
   | xcbeautify --quiet
 prfixture=.build/dd/Build/Products/Release/prfixture

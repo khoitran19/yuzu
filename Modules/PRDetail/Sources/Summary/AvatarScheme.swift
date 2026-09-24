@@ -1,9 +1,9 @@
 import Foundation
 import WebKit
 
-/// Serves `prv-avatar:` image URLs from `AvatarCache`, so the Summary page never downloads an avatar twice.
+/// Serves `yuzu-avatar:` image URLs from `AvatarCache`, so the Summary page never downloads an avatar twice.
 final class AvatarScheme: NSObject, WKURLSchemeHandler {
-    static let name = "prv-avatar"
+    static let name = "yuzu-avatar"
 
     private let cache: AvatarCache
     private var running: Set<ObjectIdentifier> = []

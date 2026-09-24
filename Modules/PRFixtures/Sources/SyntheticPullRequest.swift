@@ -4,7 +4,7 @@ import PRModels
 /// Builds large, deterministic pull requests for performance and UI tests.
 public enum SyntheticPullRequest {
     public static func ref(fileCount: Int, changedLines: Int, seed: UInt64) -> PRRef {
-        PRRef(owner: "prviewer-fixtures", repo: "synthetic-\(fileCount)-\(changedLines)", number: Int(clamping: max(seed, 1)))
+        PRRef(owner: "yuzu-fixtures", repo: "synthetic-\(fileCount)-\(changedLines)", number: Int(clamping: max(seed, 1)))
     }
 
     /// `changedLines` is the exact sum of additions and deletions over all files.

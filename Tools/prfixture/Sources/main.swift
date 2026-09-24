@@ -39,7 +39,7 @@ func integer(_ named: [String: String], _ key: String) throws -> Int {
 }
 
 func gitHubToken() throws -> String {
-    if let token = ProcessInfo.processInfo.environment["PRVIEWER_GITHUB_TOKEN"], !token.isEmpty { return token }
+    if let token = ProcessInfo.processInfo.environment["YUZU_GITHUB_TOKEN"], !token.isEmpty { return token }
     let process = Process()
     let pipe = Pipe()
     process.executableURL = URL(filePath: "/usr/bin/env")
@@ -50,7 +50,7 @@ func gitHubToken() throws -> String {
     process.waitUntilExit()
     let token = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
     guard process.terminationStatus == 0, !token.isEmpty else {
-        throw UsageError(description: "set PRVIEWER_GITHUB_TOKEN or sign in with `gh auth login`")
+        throw UsageError(description: "set YUZU_GITHUB_TOKEN or sign in with `gh auth login`")
     }
     return token
 }

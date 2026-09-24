@@ -710,7 +710,7 @@
     "nodeID" : "PR_synthetic_50_1000_1",
     "ref" : {
       "number" : 1,
-      "owner" : "prviewer-fixtures",
+      "owner" : "yuzu-fixtures",
       "repo" : "synthetic-50-1000"
     },
     "state" : "OPEN",
