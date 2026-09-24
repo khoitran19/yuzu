@@ -4,6 +4,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppServices.self) private var services
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Group {
@@ -14,6 +15,7 @@ struct RootView: View {
             }
         }
         .task {
+            if services.options.settings { return await captureSettings() }
             guard services.options.fixture == nil else { return }
             await services.auth.bootstrap()
             await captureSignInIfRequested()
@@ -25,6 +27,17 @@ struct RootView: View {
         guard let url = services.options.screenshot, services.service == nil else { return }
         try? await Task.sleep(for: .seconds(services.options.settleSeconds))
         if let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) {
+            try? await WindowSnapshot.write(window, to: url)
+        }
+        NSApp.terminate(nil)
+    }
+
+    /// Harness: with `--settings --screenshot`, captures the Settings window and quits.
+    private func captureSettings() async {
+        openSettings()
+        try? await Task.sleep(for: .seconds(services.options.settleSeconds))
+        if let url = services.options.screenshot,
+           let window = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }) {
             try? await WindowSnapshot.write(window, to: url)
         }
         NSApp.terminate(nil)

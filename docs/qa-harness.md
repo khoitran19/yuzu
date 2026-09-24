@@ -39,9 +39,10 @@ sleeps. Read the PNG after every UI change.
 | `--scroll-to-file <path>` | Scroll the diff to a file |
 | `--summary-scroll <y\|bottom>` | Scroll the Summary page |
 | `--collapse-all` | Collapse every file |
+| `--settings` | Open Settings; with `--screenshot`, capture it and quit |
 | `--toggle-viewed <path>` | Toggle Viewed (repeatable) |
 | `--expand <path>:<hunk\|tail>` | Expand context above a hunk, or the tail (repeatable) |
-| `--rules '<ReviewRules JSON>'` | Use these rules; stored in a scratch defaults domain, never in the user's settings |
+| `--rules '<ReviewRules JSON>'` | Use these rules. Without it, a harness run uses no rules (`--settings` shows the defaults). Rules stay in a scratch defaults domain, never in the user's settings |
 | `--settle <seconds>` | Wait before the capture (default 1) |
 | `--latency <ms>` | Delay every fixture response, to simulate the network |
 | `--screenshot <png>` | Capture and quit. With no session, captures the sign-in screen |
@@ -75,3 +76,5 @@ Run perf with no other heavy process on the machine; a parallel build or review 
   user's Viewed state. Use fixtures for any action that writes.
 - On 2026-09-24 a harness run saved its test rules to the user's settings. A later live run then marked 3 files Viewed
   on GitHub. `--rules` now uses a scratch defaults domain.
+- The app has default auto-viewed rules. A harness run ignores the user's rules and the defaults, so a live `--open`
+  run writes nothing unless you pass `--rules`.

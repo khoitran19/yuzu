@@ -32,10 +32,11 @@ Click a hunk header's gutter to show the unchanged lines above it. Click the las
 
 ## Review rules
 
-Settings (⌘,) holds two lists of `.gitignore`-style globs:
+Settings (⌘,) holds one list of `.gitignore`-style globs. Matching files are marked Viewed on GitHub when a pull
+request opens, so they collapse in the diff and dim in the file tree.
 
-- **Collapse in file tree:** matching folders start collapsed.
-- **Mark as viewed:** matching files are marked Viewed on GitHub when a pull request opens.
+The default list covers tests, snapshots, test doubles, fixtures, generated files, and lockfiles. **Restore Defaults**
+brings it back after an edit.
 
 ## Development
 

@@ -80,7 +80,7 @@ struct MainWindowView: View {
             if !options.isHarness { recents.record(ref, title: pullRequest.title) }
         }
         model.onLoaded = { [weak model, options = services.options] in
-            guard options.isHarness, let model else { return }
+            guard options.isHarness, !options.settings, let model else { return }
             let runner = HarnessRunner(options: options, model: model, window: window)
             harness = runner
             runner.run()

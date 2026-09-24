@@ -221,7 +221,7 @@ public final class PRDetailModel {
             self.files = files
             fileCount = files.count
             viewedPaths = Set(files.filter { $0.viewedState == .viewed }.map(\.path))
-            let order = filesController.setTreeFiles(files, matcher: matcher)
+            let order = filesController.setTreeFiles(files)
             let buildState = signposter.beginInterval("build")
             let built = await Self.buildItems(files, threads: threads ?? [], order: order)
             signposter.endInterval("build", buildState)

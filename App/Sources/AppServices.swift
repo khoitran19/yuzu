@@ -21,11 +21,11 @@ final class AppServices {
     @ObservationIgnored private var fixtureService: FixturePullRequestService?
 
     init() {
-        if let rules = options.rules {
+        if options.isHarness || options.rules != nil {
             let scratch = UserDefaults(suiteName: "dev.khoitran.prviewer.harness")!
             scratch.removePersistentDomain(forName: "dev.khoitran.prviewer.harness")
-            rulesStore = ReviewRulesStore(defaults: scratch)
-            rulesStore.rules = rules
+            rulesStore = ReviewRulesStore(storage: scratch)
+            rulesStore.rules = options.rules ?? (options.settings ? .defaults : ReviewRules())
         } else {
             rulesStore = ReviewRulesStore()
         }

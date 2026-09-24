@@ -34,7 +34,7 @@ flowchart LR
     PRDetail -->|PullRequestService| GitHubKit
     PRDetail -->|builds FileDiff| DiffEngine
     PRDetail -->|SyntaxHighlighting| SyntaxHighlight
-    FileTree -->|collapse rules| ReviewRules
+    PRDetail -->|auto-viewed rules| ReviewRules
     DiffView -->|renders| DiffEngine
     App -->|fixture mode| PRFixtures
     PRFixtures -->|implements| GitHubKit

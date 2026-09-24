@@ -1,5 +1,4 @@
 import AppKit
-import ReviewRules
 
 public final class FileTreeViewController: NSViewController {
     public var onSelectFile: ((String) -> Void)?
@@ -87,8 +86,8 @@ public final class FileTreeViewController: NSViewController {
 
     // MARK: Public API
 
-    /// Resets folders to the matcher defaults when the set of paths changes. Keeps the user's state otherwise.
-    public func setFiles(_ entries: [FileTreeEntry], matcher: ReviewRuleMatcher) {
+    /// Expands every folder when the set of paths changes. Keeps the user's state otherwise.
+    public func setFiles(_ entries: [FileTreeEntry]) {
         loadViewIfNeeded()
         let samePaths = entries.count == self.entries.count
             && entries.allSatisfy { entryIndexByPath[$0.path] != nil }
@@ -96,9 +95,7 @@ public final class FileTreeViewController: NSViewController {
         entryIndexByPath = Dictionary(entries.enumerated().map { ($1.path, $0) }, uniquingKeysWith: { first, _ in first })
         fullTree = FileTreeBuilder.build(entries)
         if !samePaths {
-            expansion = Dictionary(uniqueKeysWithValues: fullTree.directories.map {
-                ($0.path, !matcher.isCollapsedInTree(directory: $0.path))
-            })
+            expansion = Dictionary(uniqueKeysWithValues: fullTree.directories.map { ($0.path, true) })
         }
         showCurrentTree()
     }

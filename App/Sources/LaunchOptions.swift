@@ -17,6 +17,7 @@ struct LaunchOptions {
     /// A JavaScript `scrollTo` y value for the Summary page, or `bottom`.
     var summaryScroll: String?
     var collapseAll = false
+    var settings = false
     var toggleViewed: [String] = []
     var expand: [(path: String, hunk: Int?)] = []
     var rules: ReviewRules?
@@ -44,6 +45,7 @@ struct LaunchOptions {
             case "--scroll-to-file": scrollToFile = iterator.next()
             case "--summary-scroll": summaryScroll = iterator.next()
             case "--collapse-all": collapseAll = true
+            case "--settings": settings = true
             case "--toggle-viewed": if let path = iterator.next() { toggleViewed.append(path) }
             case "--expand":
                 if let value = iterator.next(), let colon = value.lastIndex(of: ":") {

@@ -2,34 +2,56 @@ import Foundation
 import Observation
 
 public struct ReviewRules: Codable, Sendable, Equatable {
-    /// Tree folders that start collapsed.
-    public var collapsedInTree: [String]
     /// Files the app marks as viewed on GitHub when a pull request opens.
     public var autoViewed: [String]
 
-    public init(collapsedInTree: [String] = [], autoViewed: [String] = []) {
-        self.collapsedInTree = collapsedInTree
+    public init(autoViewed: [String] = []) {
         self.autoViewed = autoViewed
     }
 
     public var matcher: ReviewRuleMatcher { ReviewRuleMatcher(rules: self) }
+
+    public static let defaults = ReviewRules(autoViewed: [
+        "# Tests",
+        "*.spec.*",
+        "*.test.*",
+        "*.e2e.*",
+        "__tests__/",
+        "__integration__/",
+        "__snapshots__/",
+        "*.snap",
+        "# Test doubles and fixtures",
+        "__mocks__/",
+        "testing/",
+        "fixtures/",
+        "fake*",
+        "mock*",
+        "setup-tests.*",
+        "vitest*.config.*",
+        "# Generated files and lockfiles",
+        "*.gen.*",
+        "__generated__/",
+        "__generated/",
+        "worker-configuration.d.ts",
+        "pnpm-lock.yaml",
+        "*.lock",
+    ])
 }
 
 public struct ReviewRuleMatcher: Sendable {
-    private let collapsed: [GlobPattern]
     private let viewed: [GlobPattern]
 
     public init(rules: ReviewRules) {
-        collapsed = rules.collapsedInTree.compactMap(GlobPattern.init)
         viewed = rules.autoViewed.compactMap(GlobPattern.init)
     }
 
-    public func isCollapsedInTree(directory path: String) -> Bool {
-        collapsed.contains { $0.matches(path: path, isDirectory: true) }
+    public func isAutoViewed(file path: String) -> Bool {
+        autoViewedPattern(file: path) != nil
     }
 
-    public func isAutoViewed(file path: String) -> Bool {
-        viewed.contains { $0.matches(path: path) }
+    /// The first pattern that matches the file.
+    public func autoViewedPattern(file path: String) -> String? {
+        viewed.first { $0.matches(path: path) }?.source
     }
 }
 
@@ -40,16 +62,17 @@ public final class ReviewRulesStore {
         didSet { save() }
     }
 
-    private let defaults: UserDefaults
+    private let storage: UserDefaults
     private static let key = "reviewRules"
 
-    public init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        rules = defaults.data(forKey: Self.key)
-            .flatMap { try? JSONDecoder().decode(ReviewRules.self, from: $0) } ?? ReviewRules()
+    public init(storage: UserDefaults = .standard) {
+        self.storage = storage
+        rules =
+            storage.data(forKey: Self.key)
+            .flatMap { try? JSONDecoder().decode(ReviewRules.self, from: $0) } ?? .defaults
     }
 
     private func save() {
-        defaults.set(try? JSONEncoder().encode(rules), forKey: Self.key)
+        storage.set(try? JSONEncoder().encode(rules), forKey: Self.key)
     }
 }

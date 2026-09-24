@@ -114,10 +114,7 @@ targets += module("PRFixtures", isolation: .nonisolated, dependencies: [
     return target
 }
 targets += module("SignIn", isolation: .mainActor, dependencies: [.target(name: "GitHubKit"), .target(name: "PRModels")], tests: true)
-targets += module("FileTree", isolation: .mainActor, dependencies: [
-    .target(name: "PRModels"),
-    .target(name: "ReviewRules"),
-], tests: true)
+targets += module("FileTree", isolation: .mainActor, dependencies: [.target(name: "PRModels")], tests: true)
 targets += module("DiffView", isolation: .mainActor, dependencies: [
     .target(name: "DiffEngine"),
     .target(name: "PRModels"),

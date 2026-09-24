@@ -28,7 +28,7 @@ Read the doc for the area you change:
 | Module            | Contents                                                      | Isolation   |
 | ----------------- | ------------------------------------------------------------- | ----------- |
 | `PRModels`        | Pull request, file, and review thread models; `PRRef` parsing | nonisolated |
-| `ReviewRules`     | Glob patterns for tree collapse and auto-viewed files         | nonisolated |
+| `ReviewRules`     | Glob patterns for auto-viewed files, with built-in defaults   | nonisolated |
 | `DiffEngine`      | Patch parsing, split rows, word diff, expansion               | nonisolated |
 | `SyntaxHighlight` | Tree-sitter implementation of `SyntaxHighlighting`            | nonisolated |
 | `GitHubKit`       | `PullRequestService`, REST and GraphQL client, device flow    | nonisolated |

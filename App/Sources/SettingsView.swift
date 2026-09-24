@@ -3,73 +3,82 @@ import SwiftUI
 
 struct SettingsView: View {
     var body: some View {
-        TabView {
-            ReviewRulesSettings()
-                .tabItem { Label("Review Rules", systemImage: "line.3.horizontal.decrease.circle") }
-        }
-        .frame(width: 620, height: 560)
+        ReviewRulesSettings()
+            .frame(width: 560, height: 620)
     }
 }
 
 private struct ReviewRulesSettings: View {
     @Environment(AppServices.self) private var services
-    @State private var collapsed = ""
-    @State private var autoViewed = ""
+    @State private var patterns = ""
     @State private var testPath = "apps/web/src/__tests__/checkout.spec.ts"
 
     var body: some View {
         Form {
             Section {
-                PatternEditor(text: $collapsed, identifier: "settings.collapsed")
+                TextEditor(text: $patterns)
+                    .font(.system(.callout, design: .monospaced))
+                    .frame(height: 320)
+                    .scrollContentBackground(.hidden)
+                    .accessibilityIdentifier("settings.autoViewed")
+                HStack {
+                    Text("One glob per line, as in .gitignore. Lines that start with # are comments.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Restore Defaults") { patterns = Self.text(ReviewRules.defaults) }
+                        .disabled(Self.lines(patterns) == ReviewRules.defaults.autoViewed)
+                }
             } header: {
-                Text("Collapse in file tree")
-            } footer: {
-                Text("Folders that match start collapsed in the file tree.")
-            }
-            Section {
-                PatternEditor(text: $autoViewed, identifier: "settings.autoViewed")
-            } header: {
-                Text("Mark as viewed")
-            } footer: {
-                Text("Files that match are marked Viewed on GitHub when a pull request opens. Viewed files collapse in the diff.")
-            }
-            Section("Pattern syntax") {
-                Text("One glob per line, as in .gitignore. `__tests__` or `*.spec.ts` matches at any depth. `docs/**` matches from the root. `**` crosses folders; `*` does not. Lines that start with # are comments.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Mark as viewed")
+                    Text(
+                        "Matching files are marked Viewed on GitHub when a pull request opens. They collapse in the diff and dim in the file tree."
+                    )
                     .font(.callout)
+                    .fontWeight(.regular)
                     .foregroundStyle(.secondary)
+                }
             }
             Section("Test a path") {
                 TextField("Path", text: $testPath)
+                    .labelsHidden()
                     .font(.system(.body, design: .monospaced))
-                let matcher = ReviewRules(collapsedInTree: lines(collapsed), autoViewed: lines(autoViewed)).matcher
-                let folder = testPath.split(separator: "/").dropLast().joined(separator: "/")
-                LabeledContent("Folder collapsed in tree", value: !folder.isEmpty && matcher.isCollapsedInTree(directory: folder) ? "Yes" : "No")
-                LabeledContent("File marked as viewed", value: matcher.isAutoViewed(file: testPath) ? "Yes" : "No")
+                    .accessibilityIdentifier("settings.testPath")
+                MatchResult(pattern: ReviewRules(autoViewed: Self.lines(patterns)).matcher.autoViewedPattern(file: testPath))
             }
         }
         .formStyle(.grouped)
-        .onAppear {
-            collapsed = services.rulesStore.rules.collapsedInTree.joined(separator: "\n")
-            autoViewed = services.rulesStore.rules.autoViewed.joined(separator: "\n")
-        }
-        .onChange(of: collapsed) { _, value in services.rulesStore.rules.collapsedInTree = lines(value) }
-        .onChange(of: autoViewed) { _, value in services.rulesStore.rules.autoViewed = lines(value) }
+        .navigationTitle("Review Rules")
+        .onAppear { patterns = Self.text(services.rulesStore.rules) }
+        .onChange(of: patterns) { _, value in services.rulesStore.rules.autoViewed = Self.lines(value) }
     }
 
-    private func lines(_ text: String) -> [String] {
+    private static func text(_ rules: ReviewRules) -> String {
+        rules.autoViewed.joined(separator: "\n")
+    }
+
+    private static func lines(_ text: String) -> [String] {
         text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 }
 
-private struct PatternEditor: View {
-    @Binding var text: String
-    let identifier: String
+private struct MatchResult: View {
+    let pattern: String?
 
     var body: some View {
-        TextEditor(text: $text)
-            .font(.system(.body, design: .monospaced))
-            .frame(minHeight: 90)
-            .scrollContentBackground(.hidden)
-            .accessibilityIdentifier(identifier)
+        if let pattern {
+            Label {
+                Text("Marked as viewed by ") + Text(pattern).font(.system(.body, design: .monospaced))
+            } icon: {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }
+        } else {
+            Label {
+                Text("No match. The file stays unviewed.").foregroundStyle(.secondary)
+            } icon: {
+                Image(systemName: "circle").foregroundStyle(.secondary)
+            }
+        }
     }
 }

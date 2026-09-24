@@ -2,7 +2,6 @@ import AppKit
 import DiffView
 import FileTree
 import PRModels
-import ReviewRules
 
 public final class FilesChangedViewController: NSSplitViewController {
     public let tree = FileTreeViewController()
@@ -42,9 +41,9 @@ public final class FilesChangedViewController: NSSplitViewController {
     }
 
     /// Returns file paths in tree display order; the diff uses the same order.
-    func setTreeFiles(_ files: [ChangedFile], matcher: ReviewRuleMatcher) -> [String] {
+    func setTreeFiles(_ files: [ChangedFile]) -> [String] {
         loadViewIfNeeded()
-        tree.setFiles(files.map(FileTreeEntry.init), matcher: matcher)
+        tree.setFiles(files.map(FileTreeEntry.init))
         return tree.orderedFilePaths
     }
 

@@ -1,7 +1,6 @@
 import AppKit
 @testable import FileTree
 import PRModels
-import ReviewRules
 import Testing
 
 struct FileTreeViewControllerTests {
@@ -13,45 +12,40 @@ struct FileTreeViewControllerTests {
         "packages/db/schema.ts"
     )
 
-    @Test func matcherCollapsesFoldersOnFirstLoad() throws {
+    @Test func expandsEveryFolderOnFirstLoad() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher("__tests__", "migrations"))
-        #expect(!isExpanded(controller, "apps/web/src/__tests__"))
-        #expect(!isExpanded(controller, "packages/db/migrations"))
-        #expect(isExpanded(controller, "apps/web/src"))
-        #expect(isExpanded(controller, "packages/db"))
-        #expect(visibleFiles(controller) == [
-            "apps/web/src/page.tsx", "apps/web/package.json", "packages/db/schema.ts",
-        ])
+        controller.setFiles(files)
+        #expect(controller.displayedTree.directories.allSatisfy { isExpanded(controller, $0.path) })
+        #expect(visibleFiles(controller).count == files.count)
     }
 
     @Test func keepsUserExpansionWhenPathsAreUnchanged() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher("migrations"))
-        controller.outlineView.expandItem(try directory(controller, "packages/db/migrations"))
+        controller.setFiles(files)
+        controller.outlineView.collapseItem(try directory(controller, "packages/db/migrations"))
         controller.outlineView.collapseItem(try directory(controller, "apps/web/src"))
 
         var updated = files
         updated[0].isViewed = true
-        controller.setFiles(updated, matcher: matcher("migrations"))
+        controller.setFiles(updated)
 
-        #expect(isExpanded(controller, "packages/db/migrations"))
+        #expect(!isExpanded(controller, "packages/db/migrations"))
         #expect(!isExpanded(controller, "apps/web/src"))
     }
 
-    @Test func resetsExpansionToRulesWhenPathsChange() throws {
+    @Test func expandsEveryFolderWhenPathsChange() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher("migrations"))
-        controller.outlineView.expandItem(try directory(controller, "packages/db/migrations"))
+        controller.setFiles(files)
+        controller.outlineView.collapseItem(try directory(controller, "packages/db/migrations"))
 
-        controller.setFiles(files + entries("packages/db/seed.ts"), matcher: matcher("migrations"))
+        controller.setFiles(files + entries("packages/db/seed.ts"))
 
-        #expect(!isExpanded(controller, "packages/db/migrations"))
+        #expect(isExpanded(controller, "packages/db/migrations"))
     }
 
     @Test func expandingCollapsedParentRestoresSavedChildState() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher())
+        controller.setFiles(files)
         controller.outlineView.collapseItem(try directory(controller, "apps/web"))
         controller.outlineView.expandItem(try directory(controller, "apps/web"))
         #expect(isExpanded(controller, "apps/web/src"))
@@ -60,7 +54,8 @@ struct FileTreeViewControllerTests {
 
     @Test func filterShowsMatchesExpandedAndClearingRestoresExpansion() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher("__tests__"))
+        controller.setFiles(files)
+        controller.outlineView.collapseItem(try directory(controller, "apps/web/src/__tests__"))
         controller.outlineView.collapseItem(try directory(controller, "packages/db"))
 
         controller.applyFilter("SPEC")
@@ -74,7 +69,8 @@ struct FileTreeViewControllerTests {
 
     @Test func revealKeepsCollapsedFoldersAndSelectsClosestVisibleFolder() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher("migrations"))
+        controller.setFiles(files)
+        controller.outlineView.collapseItem(try directory(controller, "packages/db/migrations"))
         var selected: [String] = []
         controller.onSelectFile = { selected.append($0) }
 
@@ -88,7 +84,7 @@ struct FileTreeViewControllerTests {
 
     @Test func revealSelectsVisibleFileWithoutCallingOnSelectFile() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher())
+        controller.setFiles(files)
         var selected: [String] = []
         controller.onSelectFile = { selected.append($0) }
 
@@ -101,7 +97,7 @@ struct FileTreeViewControllerTests {
 
     @Test func returnKeyCallsOnSelectFileForSelectedFile() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher())
+        controller.setFiles(files)
         var selected: [String] = []
         controller.onSelectFile = { selected.append($0) }
         controller.reveal(path: "packages/db/schema.ts")
@@ -117,7 +113,7 @@ struct FileTreeViewControllerTests {
 
     @Test func setViewedUpdatesNodeWithoutChangingOrder() throws {
         let controller = makeController()
-        controller.setFiles(files, matcher: matcher())
+        controller.setFiles(files)
         let before = controller.orderedFilePaths
         controller.setViewed(path: "apps/web/package.json", viewed: true)
         #expect(controller.displayedTree.filesByPath["apps/web/package.json"]?.isViewed == true)
@@ -129,7 +125,7 @@ struct FileTreeViewControllerTests {
         let large = largeEntries(count: 3_000)
         let clock = ContinuousClock()
         let elapsed = clock.measure {
-            controller.setFiles(large, matcher: matcher("__tests__"))
+            controller.setFiles(large)
             controller.view.layoutSubtreeIfNeeded()
             controller.view.displayIfNeeded()
         }
@@ -153,10 +149,6 @@ struct FileTreeViewControllerTests {
         window.contentViewController = controller
         window.setContentSize(NSSize(width: 320, height: 800))
         return controller
-    }
-
-    private func matcher(_ patterns: String...) -> ReviewRuleMatcher {
-        ReviewRules(collapsedInTree: patterns).matcher
     }
 
     private func directory(_ controller: FileTreeViewController, _ path: String) throws -> FileTreeNode {
