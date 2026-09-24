@@ -1,6 +1,7 @@
-<img src="App/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="128" alt="">
-
-# Yuzu
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Design/logo-dark.png">
+  <img src="Design/logo-light.png" width="270" alt="Yuzu">
+</picture>
 
 A native macOS app to review GitHub pull requests. It replaces the GitHub web "Files changed" page for large pull requests.
 
@@ -48,5 +49,4 @@ brings it back after an edit.
 
 See [AGENTS.md](AGENTS.md) for the module map, the rules, and the QA harness.
 
-The app icon comes from `Design/icon-artwork.png`. After you change the artwork, run
-`swift scripts/icon.swift Design/icon-artwork.png App/Resources/Assets.xcassets/AppIcon.appiconset`.
+`swift scripts/brand.swift` draws the app icon and writes the App Icon set and the logos in `Design/`.
