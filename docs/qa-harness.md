@@ -43,7 +43,9 @@ but not in the live window. Use the Files changed tab for panel screenshots.
 | `--pr-list-empty` | The fixture serves no open pull requests, for the empty state |
 | `--scroll-to-file <path>` | Scroll the diff to a file |
 | `--summary-scroll <y\|bottom>` | Scroll the Summary page |
-| `--summary-click <css selector>` | Click an element on the Summary page, such as a link |
+| `--summary-click <css selector>` | Click an element on the Summary page, such as a link or a sidebar button (`'[data-action=enqueue]'`). It runs in the `summarySidebar` world, because the sidebar ignores clicks from page scripts |
+| `--merge-status <preset>` | Replace the fixture's merge box state: `clean`, `blocked` (the default), `queued`, `auto-merge`, `draft`, `conflicts`, `merged`, `author`, `queue-enabled`, `no-permission`, `new-commits` (GitHub reports another head, so the "New commits were
+pushed" notice shows). `clean` also makes all checks pass. Actions then change only the fixture in memory |
 | `--collapse-all` | Collapse every file |
 | `--settings` | Open Settings; with `--screenshot`, capture it and quit |
 | `--preview <path>` | Open the Markdown preview of a file |
@@ -58,7 +60,13 @@ but not in the live window. Use the Files changed tab for panel screenshots.
 | `--perf-scroll <json>` | Run the scroll benchmark and quit |
 
 Controls have accessibility identifiers (`diff.table`, `fileTree.outline`, `fileTree.filter`, `address.field`,
-`prDetail.tab.files`, `signIn.button`, `prList.toggle`, `prList.panel`, `prList.tab`), so computer-use tools can drive the app.
+`prDetail.tab.files`, `prDetail.state`, `signIn.button`, `prList.toggle`, `prList.panel`, `prList.tab`, `reviewSheet`,
+`reviewSheet.editor`, `reviewSheet.submit`, `mergeSheet`, `mergeSheet.method`, `mergeSheet.headline`, `mergeSheet.body`,
+`mergeSheet.confirm`), so computer-use tools can drive the app. Sidebar buttons in the Summary page have a `data-action`
+attribute, for example `approve`, `merge`, `enqueue`, and `bypassMerge`.
+
+The window capture does not include sheets. To see a running action, add `--latency 2500` and click a button that runs
+at once, for example `--merge-status queue-enabled --summary-click '[data-action=enqueue]'`.
 
 ## Performance
 
@@ -82,7 +90,8 @@ Run perf with no other heavy process on the machine; a parallel build or review 
 ## Safety
 
 - The harness with `--open` and a token uses real GitHub. `--toggle-viewed` and auto-viewed rules then write to the
-  user's Viewed state. Use fixtures for any action that writes.
+  user's Viewed state. A `--summary-click` on a sidebar button can approve, merge, or enqueue a real pull request. Use
+  fixtures for any action that writes.
 - On 2026-09-24 a harness run saved its test rules to the user's settings. A later live run then marked 3 files Viewed
   on GitHub. `--rules` now uses a scratch defaults domain.
 - The app has default auto-viewed rules. A harness run ignores the user's rules and the defaults, so a live `--open`

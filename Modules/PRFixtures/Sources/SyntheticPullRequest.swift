@@ -75,7 +75,8 @@ public enum SyntheticPullRequest {
             additions: additions, deletions: deletions, changedFiles: files.count,
             commitCount: rng.int(3...40), createdAt: createdAt
         )
-        let conversation = makeConversation(files: files, threads: threads, createdAt: createdAt, seed: seed)
+        var conversation = makeConversation(files: files, threads: threads, createdAt: createdAt, seed: seed)
+        conversation.merge = MergeStatusPreset.base(for: pullRequest)
         return Fixture(
             snapshot: PullRequestSnapshot(pullRequest: pullRequest, files: files, threads: threads, conversation: conversation),
             contents: contents

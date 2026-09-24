@@ -25,6 +25,16 @@ extension Shortcut {
     public static let toggleMarkdownPreview = Shortcut(
         "toggleMarkdownPreview", "Show or Hide Markdown Preview", area: .pullRequest, keys: [.character("m")],
         modifiers: [.shift, .command])
+    public static let approve = Shortcut("approve", "Approve…", area: .pullRequest, keys: [.character("a")], modifiers: [.shift, .command])
+    public static let requestChanges = Shortcut(
+        "requestChanges", "Request Changes…", area: .pullRequest, keys: [.character("r")], modifiers: [.shift, .command]
+    )
+    public static let merge = Shortcut("merge", "Merge…", area: .pullRequest, keys: [.returnKey], modifiers: [.shift, .command])
+
+    public static let submitSheet = Shortcut(
+        "submitSheet", "Submit the review or confirm the merge", area: .sheet, keys: [.returnKey], modifiers: .command
+    )
+    public static let cancelSheet = Shortcut("cancelSheet", "Cancel", area: .sheet, keys: [.escape])
 
     public static let nextFile = Shortcut("nextFile", "Next file", area: .diff, keys: [.character("j"), .character("n")])
     public static let previousFile = Shortcut("previousFile", "Previous file", area: .diff, keys: [.character("k"), .character("p")])
@@ -51,7 +61,8 @@ extension Shortcut {
     /// Every shortcut, in settings order.
     public static let all: [Shortcut] = [
         openPullRequest, openFromClipboard, myPullRequests, otherPullRequests, showSummary, showFiles,
-        summaryTab, filesTab, collapseAll, expandAll, toggleFileTree, toggleMarkdownPreview,
+        summaryTab, filesTab, collapseAll, expandAll, toggleFileTree, toggleMarkdownPreview, approve, requestChanges, merge,
+        submitSheet, cancelSheet,
         nextFile, previousFile, toggleViewed, previewFile, toggleCollapse, copyLines, clearSelection,
         openTreeItem,
         filterToTree, filterOpenFirst,

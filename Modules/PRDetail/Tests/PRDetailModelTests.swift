@@ -133,7 +133,7 @@ struct ProgressiveLoadTests {
         await loading.value
         try await waitUntil { model.summaryPage?.timeline != first.timeline }
         #expect(model.summaryPage?.document == first.document)
-        #expect(model.summaryPage?.checks.contains("Some checks were not successful") == true)
+        #expect(model.summaryPage?.sidebar.contains("Some checks were not successful") == true)
     }
 
     @Test func runningChecksReloadUntilTheyFinishAndKeepTheTimeline() async throws {
@@ -151,17 +151,17 @@ struct ProgressiveLoadTests {
         service.checksResponses = [[check(.pending)], [check(.success)], [check(.failure)]]
         let model = PRDetailModel(
             ref: snapshot.pullRequest.ref, service: service, highlighter: nil, rules: ReviewRules(),
-            checksRefreshInterval: .milliseconds(10)
+            statusRefreshInterval: .milliseconds(10)
         )
         let loading = Task { await model.load() }
         service.continuation.yield(.detail(snapshot.pullRequest))
         service.continuation.yield(.conversation(Conversation(items: conversation.items, checks: [check(.pending)])))
         service.continuation.finish()
         await loading.value
-        try await waitUntil { model.summaryPage?.checks.contains("haven’t completed") == true }
+        try await waitUntil { model.summaryPage?.sidebar.contains("haven’t completed") == true }
         let timeline = try #require(model.summaryPage?.timeline)
 
-        try await waitUntil { model.summaryPage?.checks.contains("All checks have passed") == true }
+        try await waitUntil { model.summaryPage?.sidebar.contains("All checks have passed") == true }
         try await Task.sleep(for: .milliseconds(100))
         #expect(service.checksCalls == 2)
         #expect(model.summaryPage?.timeline == timeline)
@@ -192,11 +192,13 @@ private final class ManualPartsService: PullRequestService, @unchecked Sendable 
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
 
+    func perform(_ action: PullRequestAction, pullRequestID: String) async throws {}
+
     var checksResponses: [[Check]] = []
     private(set) var checksCalls = 0
 
-    @MainActor func checks(of ref: PRRef) async throws -> [Check] {
+    @MainActor func status(of ref: PRRef) async throws -> PullRequestStatus {
         checksCalls += 1
-        return checksResponses.isEmpty ? [] : checksResponses.removeFirst()
+        return PullRequestStatus(checks: checksResponses.isEmpty ? [] : checksResponses.removeFirst(), merge: nil)
     }
 }

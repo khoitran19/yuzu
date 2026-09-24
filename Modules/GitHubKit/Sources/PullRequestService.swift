@@ -20,16 +20,25 @@ public protocol PullRequestService: Sendable {
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String?
     /// The commit that the pull request diff compares `head` against.
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String
-    /// The current checks of the head commit.
-    func checks(of ref: PRRef) async throws -> [Check]
+    /// The current checks of the head commit and the merge box state.
+    func status(of ref: PRRef) async throws -> PullRequestStatus
+    /// The comment and review timeline, the checks, and the merge box state.
+    func conversation(of ref: PRRef) async throws -> Conversation
+    /// Throws `GitHubError.rejected` with GitHub's message when GitHub refuses the action.
+    func perform(_ action: PullRequestAction, pullRequestID: String) async throws
     /// Up to 100 open pull requests of `repo`, most recently updated first.
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList
 }
 
 extension PullRequestService {
-    /// Services that serve a fixed snapshot return its checks.
-    public func checks(of ref: PRRef) async throws -> [Check] {
-        try await snapshot(of: ref).conversation?.checks ?? []
+    /// Services that serve a fixed snapshot return its checks and merge box state.
+    public func status(of ref: PRRef) async throws -> PullRequestStatus {
+        let conversation = try await snapshot(of: ref).conversation
+        return PullRequestStatus(checks: conversation?.checks ?? [], merge: conversation?.merge)
+    }
+
+    public func conversation(of ref: PRRef) async throws -> Conversation {
+        try await snapshot(of: ref).conversation ?? Conversation(items: [], checks: [])
     }
 
     /// Services without progressive loading deliver every part after one snapshot.
@@ -88,7 +97,7 @@ extension GitHubClient: PullRequestService {
                         }
                         group.addTask { continuation.yield(.detail(try await pullRequestDetail(ref))) }
                         group.addTask { continuation.yield(.threads(try await reviewThreads(ref))) }
-                        group.addTask { continuation.yield(.conversation(try await conversation(ref))) }
+                        group.addTask { continuation.yield(.conversation(try await conversation(of: ref))) }
                         try await group.waitForAll()
                     }
                     continuation.finish()

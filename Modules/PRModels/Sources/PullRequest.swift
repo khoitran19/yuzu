@@ -6,8 +6,8 @@ public struct PullRequest: Sendable, Equatable, Codable {
     public let nodeID: String
     public let ref: PRRef
     public let title: String
-    public let state: State
-    public let isDraft: Bool
+    public var state: State
+    public var isDraft: Bool
     public let author: Actor?
     public let bodyHTML: String
     public let baseRefName: String
@@ -143,11 +143,11 @@ public struct ReviewComment: Sendable, Identifiable, Equatable, Codable {
 }
 
 public struct PullRequestSnapshot: Sendable, Equatable, Codable {
-    public let pullRequest: PullRequest
+    public var pullRequest: PullRequest
     public var files: [ChangedFile]
     public let threads: [ReviewThread]
     /// `nil` in fixtures recorded before the Conversation part existed.
-    public let conversation: Conversation?
+    public var conversation: Conversation?
 
     public init(pullRequest: PullRequest, files: [ChangedFile], threads: [ReviewThread], conversation: Conversation? = nil) {
         self.pullRequest = pullRequest

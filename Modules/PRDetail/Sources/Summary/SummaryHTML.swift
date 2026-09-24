@@ -1,18 +1,17 @@
 import Foundation
 import PRModels
 
-/// Builds the Summary page: the description, the comment and review timeline, and the Checks box, styled like GitHub.
+/// Builds the Summary page: the description and the comment and review timeline, with the actions sidebar, styled like GitHub.
 nonisolated enum SummaryHTML {
     static let timelineElementID = "timeline"
-    static let checksElementID = "checks"
 
-    static func document(pullRequest: PullRequest, timeline: String, checks: String, now: Date) -> String {
+    static func document(pullRequest: PullRequest, timeline: String, sidebar: String, now: Date) -> String {
         let body = pullRequest.bodyHTML.isEmpty ? "<p class=\"empty\">No description provided.</p>" : pullRequest.bodyHTML
         let author = pullRequest.author
         return """
         <!doctype html>
         <html><head><meta charset="utf-8"><style>\(SummaryStyle.css)</style></head>
-        <body><main class="discussion">
+        <body><div class="layout"><main class="discussion">
         <div class="tl-comment">
         \(avatar(author, size: 40, className: "tl-avatar"))
         <div class="box arrow">
@@ -21,8 +20,7 @@ nonisolated enum SummaryHTML {
         <div class="markdown-body">\(body)</div>
         </div></div>
         <div id="\(timelineElementID)">\(timeline)</div>
-        <div id="\(checksElementID)">\(checks)</div>
-        </main></body></html>
+        </main><aside id="\(sidebarElementID)">\(sidebar)</aside></div></body></html>
         """
     }
 
@@ -140,47 +138,6 @@ nonisolated enum SummaryHTML {
                 + "<td class=\"code\"><span class=\"marker\">\(escape(marker))</span>\(code)</td></tr>"
         }
         return "<table class=\"hunk\">\(cells.joined())</table>"
-    }
-
-    // MARK: Checks
-
-    static func checks(_ checks: [Check]) -> String {
-        guard let summary = SummaryTimeline.checksSummary(checks) else { return "" }
-        let (tone, icon): (String, Octicon) = switch summary.tone {
-        case .success: ("success", .check)
-        case .failure: ("failure", .x)
-        case .pending: ("pending", .dotFill)
-        }
-        let rows = SummaryTimeline.sortedChecks(checks).map { check in
-            let (stateTone, stateIcon): (String, Octicon) = switch check.state {
-            case .success: ("success", .checkCircleFill)
-            case .failure: ("failure", .xCircleFill)
-            case .cancelled: ("muted", .stop)
-            case .pending: ("pending", .dotFill)
-            case .skipped: ("muted", .skipFill)
-            case .neutral: ("muted", .squareFill)
-            }
-            let app = check.avatarURL.map { url in
-                "<img class=\"app-avatar\" src=\"\(escape(AvatarScheme.url(for: url)))\" width=\"20\" height=\"20\" loading=\"lazy\" alt=\"\">"
-            } ?? ""
-            let required = check.isRequired ? #"<span class="label">Required</span>"# : ""
-            let details = check.url.map { "<a class=\"details\" href=\"\(escape($0.absoluteString))\">Details</a>" } ?? ""
-            return """
-            <div class="check-row"><span class="state \(stateTone)">\(stateIcon.svg())</span>\(app)
-            <div class="check-text"><strong>\(escape(SummaryTimeline.displayName(check)))</strong>
-            <span class="muted">\(escape(SummaryTimeline.checkDescription(check)))</span></div>
-            <span class="grow"></span>\(required)\(details)</div>
-            """
-        }
-        let open = summary.tone == .success ? "" : " open"
-        return """
-        <section class="merge-box">
-        <details class="box checks"\(open)><summary class="checks-header">
-        <span class="status-circle \(tone)">\(icon.svg(size: 16))</span>
-        <div><div class="checks-title">\(summary.title)</div><div class="muted">\(escape(summary.subtitle))</div></div>
-        <span class="grow"></span><span class="link show">Show all checks</span><span class="link hide">Hide all checks</span>
-        </summary><div class="check-list">\(rows.joined())</div></details></section>
-        """
     }
 
     // MARK: Pieces

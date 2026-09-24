@@ -8,6 +8,8 @@ public enum GitHubError: Error, LocalizedError, Equatable {
     case graphQL(String)
     case malformedResponse
     case partialFailure(paths: [String])
+    /// GitHub refused a change, for example a merge that branch rules block.
+    case rejected(String)
 
     public var errorDescription: String? {
         switch self {
@@ -18,6 +20,7 @@ public enum GitHubError: Error, LocalizedError, Equatable {
         case .malformedResponse: "GitHub returned a response the app cannot read."
         case let .partialFailure(paths):
             "GitHub did not update \(paths.count) of the files: \(paths.joined(separator: ", "))"
+        case let .rejected(message): message
         }
     }
 }
@@ -110,6 +113,7 @@ public struct GitHubClient: Sendable {
 enum JSONValue: Encodable, Sendable {
     case string(String)
     case int(Int)
+    case bool(Bool)
     case null
 
     func encode(to encoder: Encoder) throws {
@@ -117,6 +121,7 @@ enum JSONValue: Encodable, Sendable {
         switch self {
         case let .string(value): try container.encode(value)
         case let .int(value): try container.encode(value)
+        case let .bool(value): try container.encode(value)
         case .null: try container.encodeNil()
         }
     }

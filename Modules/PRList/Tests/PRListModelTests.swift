@@ -159,5 +159,6 @@ private nonisolated final class GatedListService: PullRequestService, Sendable {
     func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws { throw GitHubError.notFound }
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
-    func checks(of ref: PRRef) async throws -> [Check] { [] }
+    func status(of ref: PRRef) async throws -> PullRequestStatus { PullRequestStatus(checks: [], merge: nil) }
+    func perform(_ action: PullRequestAction, pullRequestID: String) async throws { throw GitHubError.notFound }
 }

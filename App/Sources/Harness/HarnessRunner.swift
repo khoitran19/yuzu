@@ -89,9 +89,10 @@ final class HarnessRunner {
     private func clickSummary(_ selector: String) async {
         let window = window ?? NSApp.windows.first { $0.isVisible && $0.canBecomeMain }
         guard let root = window?.contentView, let webView = Self.webView(in: root) else { return }
-        _ = try? await webView.callAsyncJavaScript(
-            "document.querySelector(selector)?.click()", arguments: ["selector": selector], contentWorld: .page
+        let result = try? await webView.callAsyncJavaScript(
+            "return activate(selector)", arguments: ["selector": selector], contentWorld: .summarySidebar
         )
+        log(["event": "summaryClick", "selector": selector, "found": String(describing: result ?? "nil")])
     }
 
     private static func webView(in view: NSView) -> WKWebView? {

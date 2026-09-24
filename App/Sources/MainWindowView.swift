@@ -82,6 +82,25 @@ struct MainWindowView: View {
                     list.close()
                     detail.show(tab)
                 }
+            },
+            review: detail.flatMap { detail in
+                detail.canReview
+                    ? { event in
+                        list.close()
+                        detail.show(.summary)
+                        detail.startReview(event)
+                    } : nil
+            },
+            merge: detail.flatMap { detail in
+                detail.canMerge
+                    ? {
+                        list.close()
+                        detail.show(.summary)
+                        detail.runPrimaryMergeAction()
+                    } : nil
+            },
+            draftToggle: detail.flatMap { detail in
+                detail.draftToggleTitle.map { title in (title, detail.toggleDraft) }
             }
         )
     }
@@ -172,6 +191,12 @@ struct WindowActions {
     let showPullRequests: ((PullRequestListScope) -> Void)?
     /// `nil` when no pull request is open.
     let showTab: ((PRDetailModel.Tab) -> Void)?
+    /// `nil` when the viewer cannot review now: no pull request, the viewer is the author, or an action runs.
+    let review: ((PullRequestAction.ReviewEvent) -> Void)?
+    /// `nil` when the merge box has no primary action.
+    let merge: (() -> Void)?
+    /// "Mark as Ready for Review" or "Convert to Draft"; `nil` when the viewer cannot change it.
+    let draftToggle: (title: String, run: () -> Void)?
 }
 
 extension FocusedValues {
@@ -205,6 +230,20 @@ struct PullRequestCommands: Commands {
                 .keyboardShortcut(Shortcut.showFiles.keyboardShortcut)
                 .disabled(actions?.showTab == nil)
             Divider()
+        }
+        CommandMenu("Pull Request") {
+            Button(Shortcut.approve.title) { actions?.review?(.approve) }
+                .keyboardShortcut(Shortcut.approve.keyboardShortcut)
+                .disabled(actions?.review == nil)
+            Button(Shortcut.requestChanges.title) { actions?.review?(.requestChanges) }
+                .keyboardShortcut(Shortcut.requestChanges.keyboardShortcut)
+                .disabled(actions?.review == nil)
+            Button(Shortcut.merge.title) { actions?.merge?() }
+                .keyboardShortcut(Shortcut.merge.keyboardShortcut)
+                .disabled(actions?.merge == nil)
+            Divider()
+            Button(actions?.draftToggle?.title ?? "Convert to Draft") { actions?.draftToggle?.run() }
+                .disabled(actions?.draftToggle == nil)
         }
     }
 }

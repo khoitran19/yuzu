@@ -11,7 +11,12 @@ This document uses ASD-STE100 Simplified Technical English.
 | Viewed state (read) | GraphQL `pullRequest { id files { path viewerViewedState } }` | Paginated by cursor. Returns the node ID, so the file list does not wait for the details request. |
 | Viewed state (write) | GraphQL `markFileAsViewed` / `unmarkFileAsViewed` | Many paths in one request, one alias (`m0`, `m1`, …) per path. |
 | Summary timeline | GraphQL `timelineItems(itemTypes: [ISSUE_COMMENT, PULL_REQUEST_REVIEW])` with review `comments { diffHunk replyTo }` | Event rows (commits, labels, deployments) are not requested. A review that only replies to threads is not shown; its replies show under the first comment of the thread. |
-| Summary checks | GraphQL `commits(last: 1) { statusCheckRollup { contexts } }` | `CheckRun` and `StatusContext`, paginated by cursor, with `isRequired(pullRequestNumber:)`. While a check runs, this request repeats every 15 s; it stops when all checks finish or the pull request closes. |
+| Summary checks and merge box (`status(of:)`) | GraphQL `commits(last: 1) { statusCheckRollup { contexts } }`, plus on page 1 only (`@include(if: $first)`): `state isDraft headRefOid mergeable mergeStateStatus reviewDecision viewerDidAuthor viewerCanUpdate viewerCanMergeAsAdmin viewerCanEnableAutoMerge viewerCanDisableAutoMerge viewerLatestReview { state } isMergeQueueEnabled mergeQueueEntry { position state estimatedTimeToMerge enqueuedAt } mergeQueue { url entries { totalCount } } autoMergeRequest { mergeMethod enabledBy { login } }` and repository `viewerPermission mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed viewerDefaultMergeMethod autoMergeAllowed` | `CheckRun` and `StatusContext`, paginated by cursor, with `isRequired(pullRequestNumber:)`. The merge fields cost no extra request. Write, maintain, or admin permission means the viewer can merge. See [Status polling](architecture.md#summary-sidebar-and-pull-request-actions). |
+| Approve, Request changes | GraphQL `addPullRequestReview(input: {pullRequestId, event: APPROVE \| REQUEST_CHANGES, body})` | An empty Approve comment is left out. Then `conversation(of:)` reloads the timeline and the merge box. |
+| Merge now, bypass merge | GraphQL `mergePullRequest(input: {pullRequestId, mergeMethod, expectedHeadOid, commitHeadline, commitBody})` | `expectedHeadOid` is the head of the loaded diff, so GitHub refuses a merge of commits the viewer did not review. An empty headline or body is left out, so GitHub uses the repository default. Rebase sends neither. |
+| Enable or disable auto-merge | GraphQL `enablePullRequestAutoMerge(input: {pullRequestId, mergeMethod, expectedHeadOid})`, `disablePullRequestAutoMerge(input: {pullRequestId})` | |
+| Merge queue | GraphQL `enqueuePullRequest(input: {pullRequestId, expectedHeadOid})`, `dequeuePullRequest(input: {id})` | `DequeuePullRequestInput` names the pull request `id`, not `pullRequestId`. |
+| Draft | GraphQL `markPullRequestReadyForReview(input: {pullRequestId})`, `convertPullRequestToDraft(input: {pullRequestId})` | |
 | Avatars | `avatarUrl(size: 80)`, served to the Summary web view through the `yuzu-avatar:` scheme | `AvatarCache` keeps each image in `~/Library/Caches/dev.khoitran.yuzu/Avatars`. A copy older than 7 days is shown, then refreshed in the background. |
 | Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments }` | Comments over 100 per thread load through `node(id:)`. |
 | Full file contents | REST `GET /repos/{o}/{r}/contents/{path}?ref={oid}` with `Accept: application/vnd.github.raw+json` | For "Load diff" and context expansion. |
@@ -26,8 +31,12 @@ This document uses ASD-STE100 Simplified Technical English.
 - **Omitted patches.** GitHub leaves out `patch` for large diffs and binary files. With 0 additions and 0 deletions the
   app shows "Binary file"; otherwise it shows "Load diff", which diffs the two full versions locally.
 - **Outdated threads** (`line == nil`) do not show in the diff. GitHub shows them only on the Conversation page.
-- **Rate limit.** Opening a pull request costs 5 GraphQL requests (detail, viewed states, threads, timeline, checks) plus one REST request
-  per 100 files. Expansion and "Load diff" cost 1–3 requests per file. Opening the pull request panel costs 2–4 GraphQL
+- **Rate limit.** Opening a pull request costs 5 GraphQL requests (detail, viewed states, threads, timeline, status) plus one REST request
+  per 100 files. Each sidebar action costs 2 requests: the mutation and one status refresh (a review reloads the timeline
+  too, so it costs 3). Polling costs 1 request per 15 s while checks run, the pull request is queued, or auto-merge is on,
+  and at most 5 requests at 3 s while mergeability is unknown.
+- **Mutation errors.** GitHub returns refused actions as GraphQL errors. `GitHubClient.perform` throws
+  `GitHubError.rejected` with GitHub's message, and the banner shows "Could not merge: <message>". Expansion and "Load diff" cost 1–3 requests per file. Opening the pull request panel costs 2–4 GraphQL
   requests.
 - **Response time.** On #6663 (22 files): files 0.46 s, Viewed states 0.49 s, details 0.75 s, threads 0.91 s. The first
   paint waits for the first two only: about 0.6 s.

@@ -289,7 +289,29 @@
           }
         }
       }
-    ]
+    ],
+    "merge" : {
+      "allowedMethods" : [
+        "MERGE",
+        "SQUASH",
+        "REBASE"
+      ],
+      "autoMergeAllowed" : true,
+      "defaultMethod" : "SQUASH",
+      "headOid" : "db3add52ee425f6192fe81c8b400912dfb979dc1",
+      "isDraft" : false,
+      "isMergeQueueEnabled" : false,
+      "mergeStateStatus" : "BLOCKED",
+      "mergeable" : "MERGEABLE",
+      "reviewDecision" : "APPROVED",
+      "state" : "OPEN",
+      "viewerCanDisableAutoMerge" : true,
+      "viewerCanEnableAutoMerge" : true,
+      "viewerCanMerge" : true,
+      "viewerCanMergeAsAdmin" : true,
+      "viewerCanUpdate" : true,
+      "viewerDidAuthor" : false
+    }
   },
   "files" : [
     {

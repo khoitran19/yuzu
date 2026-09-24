@@ -48,8 +48,16 @@ struct PrefetchedService: PullRequestService {
         try await base.fileContents(of: ref, oid: oid, path: path)
     }
 
-    func checks(of ref: PRRef) async throws -> [Check] {
-        try await base.checks(of: ref)
+    func status(of ref: PRRef) async throws -> PullRequestStatus {
+        try await base.status(of: ref)
+    }
+
+    func conversation(of ref: PRRef) async throws -> Conversation {
+        try await base.conversation(of: ref)
+    }
+
+    func perform(_ action: PullRequestAction, pullRequestID: String) async throws {
+        try await base.perform(action, pullRequestID: pullRequestID)
     }
 
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList {

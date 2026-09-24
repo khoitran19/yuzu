@@ -79,11 +79,11 @@ sequenceDiagram
     Model->>Diff: updateFiles (threads for changed files, one rebuild)
     Service-->>Model: .conversation(Conversation)
     Model->>BG: Build the Summary HTML
-    BG-->>Model: SummaryPage (the web view replaces only the changed timeline or checks element)
-    loop Every 15 s while a check runs
-        Model->>Service: checks(of:)
-        Service-->>Model: [Check]
-        Model->>BG: Build the checks HTML (the timeline HTML is kept)
+    BG-->>Model: SummaryPage (the web view replaces only the changed timeline or sidebar element)
+    loop Every 15 s while a check runs, the pull request is queued, or auto-merge is on
+        Model->>Service: status(of:)
+        Service-->>Model: PullRequestStatus (checks + merge box)
+        Model->>BG: Build the sidebar HTML (the timeline HTML is kept)
     end
     loop Every 50 ms
         BG-->>Model: Batch of highlights
@@ -98,6 +98,64 @@ sequenceDiagram
   after the first paint and move the content.
 - A PR link on the clipboard starts a prefetch when the app becomes active. Opening that PR within 60 seconds uses the
   prefetch (`PrefetchedService`).
+
+## Summary sidebar and pull request actions
+
+The Summary page has two columns: the conversation and a 320 px sidebar. The sidebar stays at the top of the window while
+the conversation scrolls (`position: sticky`). Below 960 px, the sidebar goes above the conversation and does not stick.
+
+- The sidebar is one fragment (`<aside id="sidebar">`): the review card, the merge box (review decision, checks,
+  mergeability, action row), and the "Convert to draft" link. `SummaryHTML.sidebar` builds it off the main actor from
+  `SidebarContent`. The web view replaces only this element, so the scroll position and the Checks open state stay.
+- `MergeBoxState` picks the action row from `MergeStatus`, in this order: merged, closed, draft, queued, auto-merge on, no
+  write access, conflicts, merge queue, clean (split merge button), blocked with auto-merge (Enable auto-merge), blocked.
+  Admins also get "Bypass rules and merge now" when the normal merge is not available.
+- `SidebarState.actions` is the set of buttons that show. The model ignores a click on any other action.
+- Clicks go to Swift through a `WKScriptMessageHandler` in the `summarySidebar` content world. The page world cannot
+  post to it. The script accepts only trusted clicks on `[data-action]` buttons inside `body > .layout > aside#sidebar`.
+  Swift accepts only `SidebarAction` names.
+- The caret of the split button opens a native `NSMenu` below the caret. The chosen method stays for this pull request.
+- Approve and Request changes open `ReviewSheet`. A merge opens `MergeSheet`, because GitHub cannot undo it. Enqueue,
+  dequeue, and auto-merge changes run at once.
+- Only one action runs at a time. While it runs, its button shows a spinner and a verb, and all buttons are disabled.
+- Merge, enqueue, and auto-merge send `expectedHeadOid` = the head of the loaded diff (`pullRequest.headOid`). The merge
+  sheet captures it when it opens. When a status refresh shows another head, the merge box shows "New commits were pushed.
+  Reload to review them." with a Reload button. Merge actions and ⇧⌘↩ stay disabled until the reload. Review and draft
+  actions stay enabled.
+- A status that changes the state or the draft flag updates `pullRequest`, so the header badge changes. The Summary
+  document does not reload. The header shows "Queued" while the pull request is in the merge queue.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Page as Sidebar (web view)
+    participant Model as PRDetailModel
+    participant Service as PullRequestService
+
+    User->>Page: Click "Squash and merge" (or press ⇧⌘↩)
+    Page->>Model: handle(.merge) (message from the summarySidebar world)
+    Model->>User: MergeSheet
+    User->>Model: Confirm (⌘↩)
+    Model->>Page: Spinner "Merging…", all buttons disabled
+    Model->>Service: perform(.merge(method, headOid, title, body))
+    alt Success
+        Model->>Service: status(of:) (a review reloads conversation(of:) instead)
+        Service-->>Model: Merged
+        Model->>Page: New sidebar fragment; header badge shows Merged
+    else GitHub refuses
+        Service-->>Model: GitHubError.rejected(message)
+        Model->>Page: Error banner; sidebar as before
+    end
+```
+
+Status polling:
+
+- Every 15 s while a check runs, the pull request is queued, or auto-merge is on.
+- Every 3 s, at most 5 times in a row, while GitHub still computes mergeability (`mergeable == UNKNOWN`).
+- No polling after the pull request is merged or closed. An action cancels a scheduled refresh and refreshes at once.
+- A successful action and a new head reset the 5-refresh budget for unknown mergeability.
+- When the refresh after a successful action fails, a banner shows "Done, but could not refresh from GitHub: …". The
+  refresh then retries every 3 s, at most 3 times, also when nothing else polls.
 
 ## Keyboard shortcuts
 

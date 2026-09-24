@@ -31,7 +31,8 @@ final class AppServices {
         }
         if let fixture = options.fixture {
             fixtureService = FixturePullRequestService(
-                directory: fixture, latency: options.latency, emptyPullRequestLists: options.emptyPullRequestLists
+                directory: fixture, latency: options.latency, emptyPullRequestLists: options.emptyPullRequestLists,
+                mergeStatus: options.mergeStatus
             )
         }
     }

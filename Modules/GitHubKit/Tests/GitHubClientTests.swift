@@ -123,7 +123,7 @@ struct GitHubClientTests {
             let next = body.variables["cursor"] == nil ? #"true,"endCursor":"k1""# : #"false,"endCursor":null"#
             return #"{"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":\#(next)},"nodes":[\#(context)]}}}}]}}}}}"#
         }
-        let conversation = try await GitHubClient(token: token, session: session).conversation(ref)
+        let conversation = try await GitHubClient(token: token, session: session).conversation(of: ref)
 
         guard conversation.items.count == 2, case let .comment(comment) = conversation.items[0],
               case let .review(review) = conversation.items[1]
@@ -191,6 +191,116 @@ struct GitHubClientTests {
         #expect(requests.first?.variables["query"]?.contains(" author:@me ") == true)
     }
 
+    @Test func statusReadsMergeFieldsFromTheFirstPageOnly() async throws {
+        let session = StubURLProtocol.session(token: token) { request in
+            let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)
+            let first = body.variables["first"] == "true"
+            let context =
+                #"{"__typename":"StatusContext","context":"ci\#(first ? 1 : 2)","state":"SUCCESS","description":null,"targetUrl":null,"avatarUrl":null,"isRequired":true}"#
+            let next = first ? #"true,"endCursor":"k1""# : #"false,"endCursor":null"#
+            let commits =
+                #""commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":\#(next)},"nodes":[\#(context)]}}}}]}"#
+            guard first else { return #"{"data":{"repository":{"pullRequest":{\#(commits)}}}}"# }
+            return #"""
+                {"data":{"repository":{"viewerPermission":"MAINTAIN","mergeCommitAllowed":false,"squashMergeAllowed":true,"rebaseMergeAllowed":true,
+                  "viewerDefaultMergeMethod":"REBASE","autoMergeAllowed":true,"pullRequest":{
+                  "state":"OPEN","isDraft":false,"headRefOid":"h3ad","mergeable":"MERGEABLE","mergeStateStatus":"HAS_HOOKS","reviewDecision":"REVIEW_REQUIRED",
+                  "viewerDidAuthor":true,"viewerCanUpdate":true,"viewerCanMergeAsAdmin":false,"viewerCanEnableAutoMerge":true,"viewerCanDisableAutoMerge":false,
+                  "viewerLatestReview":{"state":"COMMENTED"},"isMergeQueueEnabled":true,
+                  "mergeQueueEntry":{"position":2,"state":"AWAITING_CHECKS","estimatedTimeToMerge":300,"enqueuedAt":"2026-09-01T00:00:00Z"},
+                  "mergeQueue":{"url":"https://github.com/octo/app/queue/main","entries":{"totalCount":4}},
+                  "autoMergeRequest":{"mergeMethod":"SQUASH","enabledBy":{"login":"rik"}},\#(commits)}}}}
+                """#
+        }
+        let status = try await GitHubClient(token: token, session: session).status(of: ref)
+        #expect(status.checks.map(\.name) == ["ci1", "ci2"])
+        let merge = try #require(status.merge)
+        #expect(merge.headOid == "h3ad")
+        #expect(merge.mergeStateStatus == .hasHooks)
+        #expect(merge.reviewDecision == .reviewRequired)
+        #expect(merge.viewerCanMerge && merge.viewerDidAuthor && !merge.viewerCanMergeAsAdmin)
+        #expect(merge.viewerReviewState == .commented)
+        #expect(merge.allowedMethods == [.squash, .rebase])
+        #expect(merge.defaultMethod == .rebase)
+        #expect(
+            merge.queueEntry
+                == MergeStatus.QueueEntry(
+                    position: 2, totalCount: 4, state: .awaitingChecks, estimatedSecondsToMerge: 300,
+                    enqueuedAt: Date(timeIntervalSince1970: 1_788_220_800)
+                ))
+        #expect(merge.mergeQueueURL?.absoluteString == "https://github.com/octo/app/queue/main")
+        #expect(merge.autoMerge == MergeStatus.AutoMerge(method: .squash, enabledBy: "rik"))
+        let requests = try StubURLProtocol.requests(token: token).map { try JSONDecoder().decode(GraphQLBody.self, from: $0.body) }
+        #expect(requests.map { $0.variables["first"] } == ["true", "false"])
+        #expect(requests.first?.query.contains("@include(if: $first)") == true)
+    }
+
+    @Test func statusWithReadPermissionCannotMerge() async throws {
+        let session = StubURLProtocol.session(token: token) { _ in
+            #"""
+            {"data":{"repository":{"viewerPermission":"TRIAGE","mergeCommitAllowed":true,"squashMergeAllowed":false,"rebaseMergeAllowed":false,
+              "viewerDefaultMergeMethod":"MERGE","autoMergeAllowed":false,"pullRequest":{
+              "state":"MERGED","isDraft":false,"headRefOid":"h","mergeable":"UNKNOWN","mergeStateStatus":"SOMETHING_NEW","reviewDecision":null,
+              "viewerDidAuthor":false,"viewerCanUpdate":false,"viewerCanMergeAsAdmin":false,"viewerCanEnableAutoMerge":false,
+              "viewerCanDisableAutoMerge":false,"viewerLatestReview":null,"isMergeQueueEnabled":false,"mergeQueueEntry":null,"mergeQueue":null,
+              "autoMergeRequest":null,"commits":{"nodes":[{"commit":{"statusCheckRollup":null}}]}}}}}
+            """#
+        }
+        let merge = try #require(try await GitHubClient(token: token, session: session).status(of: ref).merge)
+        #expect(!merge.viewerCanMerge)
+        #expect(merge.state == .merged)
+        #expect(merge.mergeable == .unknown)
+        #expect(merge.mergeStateStatus == .unknown)
+        #expect(merge.queueEntry == nil && merge.autoMerge == nil)
+    }
+
+    @Test(arguments: [
+        (PullRequestAction.review(.approve, body: ""), "addPullRequestReview", ["pullRequestId": "PR_1", "event": "APPROVE"]),
+        (
+            .review(.requestChanges, body: "Fix it"), "addPullRequestReview",
+            ["pullRequestId": "PR_1", "event": "REQUEST_CHANGES", "body": "Fix it"]
+        ),
+        (
+            .merge(.squash, headOid: "h3ad", title: "Title (#7)", body: nil), "mergePullRequest",
+            ["pullRequestId": "PR_1", "mergeMethod": "SQUASH", "expectedHeadOid": "h3ad", "commitHeadline": "Title (#7)"]
+        ),
+        (
+            .merge(.rebase, headOid: "h3ad", title: nil, body: nil), "mergePullRequest",
+            ["pullRequestId": "PR_1", "mergeMethod": "REBASE", "expectedHeadOid": "h3ad"]
+        ),
+        (
+            .enableAutoMerge(.merge, headOid: "h3ad"), "enablePullRequestAutoMerge",
+            ["pullRequestId": "PR_1", "mergeMethod": "MERGE", "expectedHeadOid": "h3ad"]
+        ),
+        (.disableAutoMerge, "disablePullRequestAutoMerge", ["pullRequestId": "PR_1"]),
+        (.enqueue(headOid: "h3ad"), "enqueuePullRequest", ["pullRequestId": "PR_1", "expectedHeadOid": "h3ad"]),
+        (.dequeue, "dequeuePullRequest", ["id": "PR_1"]),
+        (.markReadyForReview, "markPullRequestReadyForReview", ["pullRequestId": "PR_1"]),
+        (.convertToDraft, "convertPullRequestToDraft", ["pullRequestId": "PR_1"]),
+    ])
+    func actionSendsOneMutationWithOnlyTheGivenInputs(action: PullRequestAction, field: String, variables: [String: String]) async throws {
+        let session = StubURLProtocol.session(token: token) { _ in #"{"data":{"\#(field)":{"clientMutationId":null}}}"# }
+        try await GitHubClient(token: token, session: session).perform(action, pullRequestID: "PR_1")
+        let requests = try StubURLProtocol.requests(token: token).map { try JSONDecoder().decode(GraphQLBody.self, from: $0.body) }
+        let body = try #require(requests.first)
+        #expect(requests.count == 1)
+        #expect(body.query.hasPrefix("mutation("))
+        #expect(body.query.contains("\(field)(input: {"))
+        #expect(body.variables == variables)
+        for name in variables.keys { #expect(body.query.contains("\(name): $\(name)")) }
+    }
+
+    @Test func rejectedActionThrowsGitHubsMessage() async throws {
+        let session = StubURLProtocol.session(token: token) { _ in
+            #"{"data":{"mergePullRequest":null},"errors":[{"type":"UNPROCESSABLE","path":["mergePullRequest"],"message":"Base branch was modified. Review and try the merge again."}]}"#
+        }
+        await #expect(throws: GitHubError.rejected("Base branch was modified. Review and try the merge again.")) {
+            try await GitHubClient(token: token, session: session)
+                .perform(.merge(.merge, headOid: "h", title: nil, body: nil), pullRequestID: "PR_1")
+        }
+        #expect(GitHubError.rejected("Nope.").localizedDescription == "Nope.")
+    }
+
     @Test(arguments: [
         (#"<https://api.github.com/x?per_page=100&page=2>; rel="next", <https://api.github.com/x?per_page=100&page=7>; rel="last""#, 7),
         (#"<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first""#, nil),
@@ -223,6 +333,8 @@ private struct GraphQLBody: Decodable {
                 string = nil
             } else if let value = try? container.decode(String.self) {
                 string = value
+            } else if let value = try? container.decode(Bool.self) {
+                string = String(value)
             } else {
                 string = String(try container.decode(Int.self))
             }

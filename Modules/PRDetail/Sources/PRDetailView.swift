@@ -12,7 +12,7 @@ public struct PRDetailView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            PRHeaderView(ref: model.ref, pullRequest: model.pullRequest)
+            PRHeaderView(ref: model.ref, pullRequest: model.pullRequest, isQueued: model.isQueued)
             tabBar
             Divider()
             if let banner = model.errorBanner {
@@ -26,9 +26,13 @@ public struct PRDetailView: View {
                     .opacity(model.tab == .files && model.phase == .loaded ? 1 : 0)
                     .allowsHitTesting(model.tab == .files)
                 if let page = model.summaryPage {
-                    SummaryView(page: page, focusPending: model.summaryFocusPending, onFocus: model.summaryDidTakeFocus)
-                        .opacity(model.tab == .summary ? 1 : 0)
-                        .allowsHitTesting(model.tab == .summary)
+                    SummaryView(
+                        page: page, focusPending: model.summaryFocusPending, onFocus: model.summaryDidTakeFocus,
+                        methods: MethodMenu(allowed: model.allowedMethods, selected: model.mergeMethod, select: model.selectMethod),
+                        onAction: model.handle
+                    )
+                    .opacity(model.tab == .summary ? 1 : 0)
+                    .allowsHitTesting(model.tab == .summary)
                 } else if model.tab == .summary, model.phase == .loaded {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -52,6 +56,20 @@ public struct PRDetailView: View {
         }
         .task(id: model.ref) {
             if model.pullRequest == nil { await model.load() }
+        }
+        .sheet(item: $model.sheet) { sheet in
+            switch sheet {
+            case let .review(event):
+                ReviewSheet(event: event, submit: { model.submitReview(event, body: $0) }, cancel: { model.sheet = nil })
+            case let .merge(bypass, headOid):
+                if let pullRequest = model.pullRequest {
+                    MergeSheet(
+                        pullRequest: pullRequest, methods: model.allowedMethods, method: model.mergeMethod, bypass: bypass,
+                        confirm: { model.confirmMerge(method: $0, title: $1, body: $2, bypass: bypass, headOid: headOid) },
+                        cancel: { model.sheet = nil }
+                    )
+                }
+            }
         }
     }
 
@@ -101,6 +119,7 @@ public struct PRDetailView: View {
 struct PRHeaderView: View {
     let ref: PRRef
     let pullRequest: PullRequest?
+    let isQueued: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -115,7 +134,7 @@ struct PRHeaderView: View {
             }
             if let pullRequest {
                 HStack(spacing: 8) {
-                    StateBadge(state: pullRequest.state, isDraft: pullRequest.isDraft)
+                    StateBadge(state: pullRequest.state, isDraft: pullRequest.isDraft, isQueued: isQueued)
                     Group {
                         Text(pullRequest.author?.login ?? "ghost").bold()
                             + Text(" wants to merge \(pullRequest.commitCount) commit\(pullRequest.commitCount == 1 ? "" : "s") into ")
@@ -146,9 +165,11 @@ struct PRHeaderView: View {
 struct StateBadge: View {
     let state: PullRequest.State
     let isDraft: Bool
+    let isQueued: Bool
 
     var body: some View {
         let (title, icon, color): (String, String, Color) = switch (state, isDraft) {
+        case (.open, false) where isQueued: ("Queued", "clock", Color(red: 0.75, green: 0.53, blue: 0))
         case (.open, true): ("Draft", "circle.dashed", .gray)
         case (.open, false): ("Open", "arrow.triangle.pull", .green)
         case (.merged, _): ("Merged", "arrow.triangle.merge", .purple)
@@ -160,6 +181,7 @@ struct StateBadge: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(color, in: Capsule())
+            .accessibilityIdentifier("prDetail.state")
     }
 }
 

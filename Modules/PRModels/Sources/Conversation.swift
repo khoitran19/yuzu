@@ -1,13 +1,16 @@
 import Foundation
 
-/// The pull request Conversation page without event rows: comments, reviews, and the head commit checks.
+/// The pull request Conversation page without event rows: comments, reviews, the head commit checks, and the merge box.
 public struct Conversation: Sendable, Equatable, Codable {
-    public let items: [TimelineItem]
-    public let checks: [Check]
+    public var items: [TimelineItem]
+    public var checks: [Check]
+    /// `nil` in fixtures recorded before the merge box existed.
+    public var merge: MergeStatus?
 
-    public init(items: [TimelineItem], checks: [Check]) {
+    public init(items: [TimelineItem], checks: [Check], merge: MergeStatus? = nil) {
         self.items = items
         self.checks = checks
+        self.merge = merge
     }
 }
 

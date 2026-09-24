@@ -24,6 +24,7 @@ public struct Shortcut: Sendable, Hashable, Identifiable {
     public enum Area: String, Sendable, CaseIterable, Identifiable {
         case general = "General"
         case pullRequest = "Pull request"
+        case sheet = "Review and merge sheets"
         case diff = "Diff"
         case fileTree = "File tree"
         case fileFilter = "File filter"

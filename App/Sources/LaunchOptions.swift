@@ -1,5 +1,6 @@
 import Foundation
 import PRDetail
+import PRFixtures
 import PRModels
 import ReviewRules
 
@@ -22,6 +23,8 @@ struct LaunchOptions {
     var summaryScroll: String?
     /// A CSS selector for a Summary page element to click, such as a link.
     var summaryClick: String?
+    /// Replaces the fixture's merge box state.
+    var mergeStatus: MergeStatusPreset?
     var collapseAll = false
     var settings = false
     var settingsTab: SettingsView.Tab?
@@ -56,6 +59,7 @@ struct LaunchOptions {
             case "--preview-script": previewScript = iterator.next()
             case "--summary-scroll": summaryScroll = iterator.next()
             case "--summary-click": summaryClick = iterator.next()
+            case "--merge-status": mergeStatus = iterator.next().flatMap(MergeStatusPreset.init(rawValue:))
             case "--collapse-all": collapseAll = true
             case "--settings": settings = true
             case "--settings-tab":
