@@ -27,8 +27,8 @@ struct LaunchOptions {
     var mergeStatus: MergeStatusPreset?
     /// Pull requests to open in new tabs after the first one loads.
     var openTabs: [PRRef] = []
-    /// Text to submit in the address field after the first pull request loads, such as `@rik`.
-    var submit: String?
+    /// Texts to submit in the address field after the first pull request loads, such as `@rik`.
+    var submits: [String] = []
     /// Key combinations, such as `shift+cmd+]`, that the main menu gets after the tabs open.
     var keys: [String] = []
     var collapseAll = false
@@ -68,7 +68,7 @@ struct LaunchOptions {
             case "--merge-status": mergeStatus = iterator.next().flatMap(MergeStatusPreset.init(rawValue:))
             case "--open-tab": if let ref = iterator.next().flatMap(PRRef.init(string:)) { openTabs.append(ref) }
             case "--key": if let key = iterator.next() { keys.append(key) }
-            case "--submit": submit = iterator.next()
+            case "--submit": if let text = iterator.next() { submits.append(text) }
             case "--collapse-all": collapseAll = true
             case "--settings": settings = true
             case "--settings-tab":

@@ -85,17 +85,18 @@ final class HarnessRunner {
     }
 
     private func openTabsAndSendKeys() async {
-        guard !options.openTabs.isEmpty || !options.keys.isEmpty || options.submit != nil else { return }
+        guard !options.openTabs.isEmpty || !options.keys.isEmpty || !options.submits.isEmpty else { return }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
         for ref in options.openTabs {
             openTab(ref)
             try? await Task.sleep(for: .milliseconds(500))
         }
-        if let text = options.submit {
+        for text in options.submits {
             submit(text)
-            try? await Task.sleep(for: .seconds(options.settleSeconds))
+            try? await Task.sleep(for: .milliseconds(50))
         }
+        if !options.submits.isEmpty { try? await Task.sleep(for: .seconds(options.settleSeconds)) }
         for key in options.keys {
             let handled = Self.keyEvent(key).map { NSApp.mainMenu?.performKeyEquivalent(with: $0) == true } ?? false
             try? await Task.sleep(for: .milliseconds(300))

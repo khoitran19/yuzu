@@ -11,7 +11,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if let service = services.service {
-                MainWindowView(ref: ref, lists: services.pullRequestLists(for: service))
+                MainWindowView(ref: ref, tabID: tab?.id, lists: services.pullRequestLists(for: service))
             } else {
                 SignInView(session: services.auth)
             }

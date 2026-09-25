@@ -11,6 +11,7 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     /// The window's scene value, kept for state restoration.
     @Binding var ref: PRRef?
+    let tabID: UUID?
     @State private var detail: PRDetailModel?
     @State private var address = ""
     @State private var addressInvalid = false
@@ -20,8 +21,9 @@ struct MainWindowView: View {
     @State private var pullRequestList: PRListModel
     @FocusState private var addressFocused: Bool
 
-    init(ref: Binding<PRRef?>, lists: PRListStore) {
+    init(ref: Binding<PRRef?>, tabID: UUID?, lists: PRListStore) {
         _ref = ref
+        self.tabID = tabID
         _pullRequestList = State(initialValue: PRListModel(store: lists))
     }
 
@@ -31,7 +33,7 @@ struct MainWindowView: View {
         .toolbar { toolbar }
         .navigationTitle(title)
         .navigationSubtitle(ref?.displayName ?? "")
-        .background(WindowAccessor(onAttach: { [ref] in services.windows.attach($0, showing: ref) }) { window = $0 })
+        .background(WindowAccessor(onAttach: { [tabID] in services.windows.attach($0, tab: tabID) }) { window = $0 })
         .environment(\.openURL, OpenURLAction(handler: openLink))
         .focusedSceneValue(\.windowActions, windowActions)
         .onChange(of: activeRepository, initial: true) { _, repo in pullRequestList.setRepository(repo) }
@@ -55,6 +57,7 @@ struct MainWindowView: View {
             if note.object as? NSWindow === window { loadIfSelected() }
         }
         .onDisappear {
+            cancelAuthorSearch()
             if let window { services.windows.set(nil, for: window) }
         }
     }
@@ -170,14 +173,16 @@ struct MainWindowView: View {
 
     /// Switches to the tab that shows `ref` when one exists.
     private func open(_ ref: PRRef, in placement: Placement) {
+        cancelAuthorSearch()
         if ref != detail?.ref, let other = services.windows.window(showing: ref) {
             addressInvalid = false
             addressFocused = false
             address = detail?.ref.webURL.absoluteString ?? ""
             other.makeKeyAndOrderFront(nil)
         } else if placement == .newTab, let detail, detail.ref != ref {
-            services.windows.openingTab(ref, from: window)
-            openWindow(id: "main", value: WindowTab(ref: ref))
+            let tab = WindowTab(ref: ref)
+            services.windows.openingTab(tab, from: window)
+            openWindow(id: "main", value: tab)
         } else {
             show(ref)
         }
@@ -190,7 +195,7 @@ struct MainWindowView: View {
             return
         }
         addressInvalid = false
-        authorSearch?.cancel()
+        cancelAuthorSearch()
         authorSearch = Task {
             let list = try? await service.openPullRequests(in: repo, author: author)
             guard !Task.isCancelled else { return }
@@ -203,12 +208,21 @@ struct MainWindowView: View {
             for other in window?.tabbedWindows ?? [] where other !== window { other.close() }
             if first.ref != detail?.ref { show(first.ref) }
             let rest = pullRequests.dropFirst()
-            services.windows.openingBackgroundTabs(rest.map { ($0.ref, $0.title) }, from: window)
-            for pullRequest in rest { openWindow(id: "main", value: WindowTab(ref: pullRequest.ref)) }
+            guard let window else { return }
+            let tabs = rest.map { (tab: WindowTab(ref: $0.ref), title: $0.title) }
+            services.windows.openingBackgroundTabs(tabs, from: window)
+            for item in tabs { openWindow(id: "main", value: item.tab) }
         }
     }
 
+    /// A later navigation wins over a search that has not finished.
+    private func cancelAuthorSearch() {
+        authorSearch?.cancel()
+        authorSearch = nil
+    }
+
     private func show(_ ref: PRRef, runsHarness: Bool = false) {
+        cancelAuthorSearch()
         guard let service = services.service(for: ref) else { return }
         self.ref = ref
         addressInvalid = false
@@ -242,6 +256,7 @@ struct MainWindowView: View {
     }
 
     private func goHome() {
+        cancelAuthorSearch()
         detail = nil
         ref = nil
         address = ""

@@ -47,7 +47,7 @@ but not in the live window. Use the Files changed tab for panel screenshots.
 | `--merge-status <preset>` | Replace the fixture's merge box state: `clean`, `blocked` (the default), `queued`, `auto-merge`, `draft`, `conflicts`, `merged`, `author`, `queue-enabled`, `no-permission`, `new-commits` (GitHub reports another head, so the "New commits were
 pushed" notice shows). `clean` also makes all checks pass. Actions then change only the fixture in memory |
 | `--open-tab <link>` | After the load, open this pull request in a new tab (repeatable). A fixture serves only its own pull request, so other tabs show the load error |
-| `--submit <text>` | After the tabs open, submit this text in the address field, such as `@rik`. In a fixture, `@rik` gives the Mine rows and the fixture pull request |
+| `--submit <text>` | After the tabs open, submit this text in the address field, such as `@rik` (repeatable, 50 ms apart). In a fixture, `@rik` gives the Mine rows and the fixture pull request |
 | `--key <combo>` | After the tabs open, send a key combination such as `shift+cmd+]` to the main menu (repeatable). Logs the selected tab |
 | `--collapse-all` | Collapse every file |
 | `--settings` | Open Settings; with `--screenshot`, capture it and quit |
