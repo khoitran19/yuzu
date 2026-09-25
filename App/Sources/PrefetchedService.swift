@@ -64,6 +64,10 @@ struct PrefetchedService: PullRequestService {
         try await base.openPullRequests(in: repo, scope: scope)
     }
 
+    func comment(_ action: CommentAction, pullRequestID: String) async throws -> CommentResult {
+        try await base.comment(action, pullRequestID: pullRequestID)
+    }
+
     func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList {
         try await base.openPullRequests(in: repo, author: author)
     }

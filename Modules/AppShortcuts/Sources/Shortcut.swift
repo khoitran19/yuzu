@@ -26,6 +26,7 @@ public struct Shortcut: Sendable, Hashable, Identifiable {
         case pullRequest = "Pull request"
         case sheet = "Review and merge sheets"
         case diff = "Diff"
+        case composer = "Comment box"
         case fileTree = "File tree"
         case fileFilter = "File filter"
         case panel = "Pull request panel"

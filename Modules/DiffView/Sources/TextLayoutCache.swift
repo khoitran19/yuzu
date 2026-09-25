@@ -12,6 +12,10 @@ struct CommentLayout {
     let header: CTLine
     let body: CTFrame
     let bodyHeight: CGFloat
+    /// The top of the comment, from the top of the box.
+    let top: CGFloat
+    /// The viewer can edit or delete the comment.
+    let hasMenu: Bool
 }
 
 struct ThreadLayout {
@@ -19,6 +23,7 @@ struct ThreadLayout {
     static let innerPadding: CGFloat = 12
     static let headerHeight: CGFloat = 20
     static let collapsedHeight: CGFloat = 36
+    static let replyHeight: CGFloat = 44
 
     let comments: [CommentLayout]
     let summary: CTLine
@@ -26,6 +31,16 @@ struct ThreadLayout {
     let collapsed: Bool
 
     var rowHeight: CGFloat { boxHeight + Self.outerPadding * 2 }
+
+    /// The menu button of one comment, in box coordinates.
+    func menuRect(comment index: Int, box: CGRect) -> CGRect {
+        CGRect(x: box.maxX - Self.innerPadding - 22, y: box.minY + comments[index].top + Self.innerPadding - 1, width: 22, height: 22)
+    }
+
+    /// The Reply field at the bottom of an open thread.
+    func replyRect(box: CGRect) -> CGRect {
+        CGRect(x: box.minX + Self.innerPadding, y: box.maxY - Self.replyHeight + 8, width: box.width - Self.innerPadding * 2, height: 28)
+    }
 }
 
 /// Caches Core Text layouts per cell and width. Only visible rows create layouts.
@@ -34,11 +49,13 @@ final class TextLayoutCache {
     private var cells: [CellKey: CellLayout] = [:]
     private var lineCounts: [CellKey: Int] = [:]
     private var threads: [ThreadKey: ThreadLayout] = [:]
+    private var reply: CTLine?
     private static let maxCachedCells = 6_000
     private static let foregroundKey = NSAttributedString.Key(kCTForegroundColorAttributeName as String)
     private let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
+        formatter.dateTimeStyle = .named
         return formatter
     }()
 
@@ -56,8 +73,18 @@ final class TextLayoutCache {
         let collapsed: Bool
     }
 
+    var replyPlaceholder: CTLine {
+        if let reply { return reply }
+        let line = CTLineCreateWithAttributedString(NSAttributedString(
+            string: "Reply…", attributes: [.font: Metrics.bodyFont, Self.foregroundKey: theme.mutedText]
+        ))
+        reply = line
+        return line
+    }
+
     func setTheme(_ theme: DiffTheme) {
         guard theme.isDark != self.theme.isDark else { return }
+        reply = nil
         self.theme = theme
         cells.removeAll()
         threads.removeAll()
@@ -152,9 +179,14 @@ final class TextLayoutCache {
                     attributes: [.font: Metrics.uiBoldFont, Self.foregroundKey: theme.text]
                 )
                 header.append(NSAttributedString(
-                    string: "  \(relativeFormatter.localizedString(for: comment.createdAt, relativeTo: .now))",
+                    string: "  \(relativeFormatter.localizedString(for: min(comment.createdAt, .now), relativeTo: .now))",
                     attributes: [.font: Metrics.uiFont, Self.foregroundKey: theme.mutedText]
                 ))
+                if comment.isPending {
+                    header.append(NSAttributedString(
+                        string: "  Pending", attributes: [.font: Metrics.uiBoldFont, Self.foregroundKey: theme.pending]
+                    ))
+                }
                 let body = NSAttributedString(
                     string: comment.bodyText.trimmingCharacters(in: .whitespacesAndNewlines),
                     attributes: [.font: Metrics.bodyFont, Self.foregroundKey: theme.text]
@@ -168,9 +200,13 @@ final class TextLayoutCache {
                     framesetter, CFRange(),
                     CGPath(rect: CGRect(x: 0, y: 0, width: textWidth, height: bodyHeight + 1), transform: nil), nil
                 )
-                comments.append(CommentLayout(header: CTLineCreateWithAttributedString(header), body: frame, bodyHeight: bodyHeight))
+                comments.append(CommentLayout(
+                    header: CTLineCreateWithAttributedString(header), body: frame, bodyHeight: bodyHeight, top: boxHeight,
+                    hasMenu: comment.viewerCanUpdate || comment.viewerCanDelete
+                ))
                 boxHeight += ThreadLayout.innerPadding * 2 + ThreadLayout.headerHeight + 4 + bodyHeight
             }
+            boxHeight += ThreadLayout.replyHeight
         }
         let layout = ThreadLayout(comments: comments, summary: summary, boxHeight: max(boxHeight, ThreadLayout.collapsedHeight), collapsed: collapsed)
         threads[key] = layout

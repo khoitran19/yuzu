@@ -35,6 +35,13 @@ Debug builds skip sign-in when `YUZU_GITHUB_TOKEN` is set, for example `YUZU_GIT
 | Drag, then ⌘C  | Copy the selected lines of one side              |
 | ⌥⌘[ / ⌥⌘]      | Collapse or expand all files                     |
 | ⇧⌘B            | Show or hide the file tree                       |
+| `c`            | Comment on the selected lines                    |
+| ⌘↩ / ⌥⌘↩       | In a comment box: main button / single comment   |
+
+Point at a code line and click the "+" button to comment on it. Drag the "+" to comment on a range. A comment box
+offers "Add single comment" (posts at once) and "Start a review" (keeps the comment pending until you submit the
+review). "Finish your review" in the Files changed tab submits the review with Comment, Approve, or Request changes.
+Use the "…" menu of your own comment to edit or delete it.
 
 Click a hunk header's gutter to show the unchanged lines above it. Click the last row of a file to show the lines below.
 

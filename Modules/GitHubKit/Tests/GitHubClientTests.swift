@@ -72,6 +72,18 @@ struct GitHubClientTests {
         #expect(StubURLProtocol.requests(token: token).count == 3)
     }
 
+    @Test func reviewThreadsReadPendingStateAndPermissions() async throws {
+        let session = StubURLProtocol.session(token: token) { _ in
+            let nodes = [commentJSON("c1", state: "SUBMITTED", review: "PRR_1"), commentJSON("c2", state: "PENDING", review: "PRR_2")]
+            return #"{"data": {"repository": {"pullRequest": {"reviewThreads": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [\#(threadJSON("T1", comments: nodes))]}}}}}"#
+        }
+        let threads = try await GitHubClient(token: token, session: session).reviewThreads(ref)
+        #expect(threads.first?.comments == [comment("c1", pending: false, review: "PRR_1"), comment("c2", pending: true, review: "PRR_2")])
+        let body = try JSONDecoder().decode(GraphQLBody.self, from: try #require(StubURLProtocol.requests(token: token).first).body)
+        #expect(body.query.contains("body bodyText state createdAt viewerCanUpdate viewerCanDelete"))
+        #expect(body.query.contains("pullRequestReview { id }"))
+    }
+
     @Test func filesArriveWhenTheDetailRequestFails() async throws {
         let session = StubURLProtocol.session(token: token) { request in
             let body = String(decoding: request.body, as: UTF8.self)
@@ -312,6 +324,118 @@ struct GitHubClientTests {
         #expect(GitHubError.rejected("Nope.").localizedDescription == "Nope.")
     }
 
+    @Test func singleCommentPostsOneCommentReviewAndReturnsItsThread() async throws {
+        let session = StubURLProtocol.session(token: token) { _ in
+            let threads = [
+                threadJSON("T_new", comments: [commentJSON("c1", state: "SUBMITTED", review: "PRR_new")]),
+                threadJSON("T_other", comments: [commentJSON("c2", state: "SUBMITTED", review: "PRR_other")]),
+            ]
+            return #"{"data": {"addPullRequestReview": {"pullRequestReview": {"id": "PRR_new", "pullRequest": {"reviewThreads": {"nodes": [\#(threads.joined(separator: ", "))]}}}}}}"#
+        }
+        let target = CommentTarget(path: "a.swift", side: .right, line: 12)
+        let result = try await GitHubClient(token: token, session: session)
+            .comment(.addThread(target, body: "Nit", review: nil), pullRequestID: "PR_1")
+        #expect(result == .thread(thread("T_new", comments: [comment("c1", pending: false, review: "PRR_new")])))
+        let requests = try StubURLProtocol.requests(token: token).map { try JSONDecoder().decode(GraphQLBody.self, from: $0.body) }
+        let body = try #require(requests.first)
+        #expect(requests.count == 1)
+        #expect(body.query.contains(
+            "addPullRequestReview(input: {pullRequestId: $pullRequestId, event: $event, threads: [{body: $body, path: $path, line: $line, side: $side}]})"
+        ))
+        #expect(body.variables == ["pullRequestId": "PR_1", "event": "COMMENT", "body": "Nit", "path": "a.swift", "line": "12", "side": "RIGHT"])
+    }
+
+    @Test(arguments: [
+        (
+            CommentAction.addThread(CommentTarget(path: "a.swift", side: .left, line: 9, startLine: 7), body: "Nit", review: "PRR_2"),
+            "addPullRequestReviewThread",
+            [
+                "pullRequestReviewId": "PRR_2", "body": "Nit", "path": "a.swift", "line": "9", "side": "LEFT",
+                "startLine": "7", "startSide": "LEFT",
+            ],
+            #"{"thread": \#(threadJSON("T_new", comments: [commentJSON("c1", state: "PENDING", review: "PRR_2")]))}"#,
+            CommentResult.thread(thread("T_new", comments: [comment("c1", pending: true, review: "PRR_2")]))
+        ),
+        (
+            .startReview(commitOid: "h3ad"), "addPullRequestReview", ["pullRequestId": "PR_1", "commitOID": "h3ad"],
+            #"{"pullRequestReview": {"id": "PRR_2"}}"#, .review(id: "PRR_2")
+        ),
+        (
+            .reply(thread: "T1", body: "Done", review: nil), "addPullRequestReviewThreadReply",
+            ["pullRequestReviewThreadId": "T1", "body": "Done"],
+            #"{"comment": \#(commentJSON("c3", state: "SUBMITTED", review: "PRR_3"))}"#, .comment(comment("c3", pending: false, review: "PRR_3"))
+        ),
+        (
+            .reply(thread: "T1", body: "Done", review: "PRR_2"), "addPullRequestReviewThreadReply",
+            ["pullRequestReviewThreadId": "T1", "body": "Done", "pullRequestReviewId": "PRR_2"],
+            #"{"comment": \#(commentJSON("c3", state: "PENDING", review: "PRR_2"))}"#, .comment(comment("c3", pending: true, review: "PRR_2"))
+        ),
+        (
+            .edit(comment: "c1", body: "**text**"), "updatePullRequestReviewComment",
+            ["pullRequestReviewCommentId": "c1", "body": "**text**"],
+            #"{"pullRequestReviewComment": \#(commentJSON("c1", state: "SUBMITTED", review: "PRR_1"))}"#,
+            .comment(comment("c1", pending: false, review: "PRR_1"))
+        ),
+        (.delete(comment: "c1"), "deletePullRequestReviewComment", ["id": "c1"], #"{"clientMutationId": null}"#, .done),
+        (
+            .submitReview(review: "PRR_2", event: .requestChanges, body: "Fix it"), "submitPullRequestReview",
+            ["pullRequestReviewId": "PRR_2", "event": "REQUEST_CHANGES", "body": "Fix it"], #"{"clientMutationId": null}"#, .done
+        ),
+        (
+            .submitReview(review: "PRR_2", event: .comment, body: ""), "submitPullRequestReview",
+            ["pullRequestReviewId": "PRR_2", "event": "COMMENT"], #"{"clientMutationId": null}"#, .done
+        ),
+        (.discardReview(review: "PRR_2"), "deletePullRequestReview", ["pullRequestReviewId": "PRR_2"], #"{"clientMutationId": null}"#, .done),
+    ])
+    func commentActionSendsOneMutationAndDecodesItsPayload(
+        action: CommentAction, field: String, variables: [String: String], payload: String, expected: CommentResult
+    ) async throws {
+        let session = StubURLProtocol.session(token: token) { _ in #"{"data":{"\#(field)":\#(payload)}}"# }
+        let result = try await GitHubClient(token: token, session: session).comment(action, pullRequestID: "PR_1")
+        #expect(result == expected)
+        let requests = try StubURLProtocol.requests(token: token).map { try JSONDecoder().decode(GraphQLBody.self, from: $0.body) }
+        let body = try #require(requests.first)
+        #expect(requests.count == 1)
+        #expect(body.query.hasPrefix("mutation("))
+        #expect(body.query.contains("\(field)(input: {"))
+        #expect(body.variables == variables)
+        for name in variables.keys { #expect(body.query.contains("\(name): $\(name)")) }
+    }
+
+    @Test func startReviewReturnsThePendingReviewThatAlreadyExists() async throws {
+        let session = StubURLProtocol.session(token: token) { request in
+            let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)
+            if body.query.hasPrefix("mutation(") {
+                return #"{"data":{"addPullRequestReview":null},"errors":[{"type":"UNPROCESSABLE","message":"User can only have one pending review per pull request"}]}"#
+            }
+            return #"{"data":{"node":{"reviews":{"nodes":[{"id":"PRR_web"}]}}}}"#
+        }
+        let result = try await GitHubClient(token: token, session: session).comment(.startReview(commitOid: "h3ad"), pullRequestID: "PR_1")
+        #expect(result == .review(id: "PRR_web"))
+        let requests = try StubURLProtocol.requests(token: token).map { try JSONDecoder().decode(GraphQLBody.self, from: $0.body) }
+        #expect(requests.count == 2)
+        #expect(requests.last?.query.contains("reviews(states: [PENDING], first: 1)") == true)
+        #expect(requests.last?.variables == ["id": "PR_1"])
+    }
+
+    @Test func refusedCommentThrowsGitHubsMessage() async throws {
+        let message = "User can only have one pending review per pull request"
+        let session = StubURLProtocol.session(token: token) { request in
+            let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)
+            if body.query.hasPrefix("mutation(") {
+                return #"{"data":{"addPullRequestReview":null},"errors":[{"type":"UNPROCESSABLE","message":"\#(message)"}]}"#
+            }
+            return #"{"data":{"node":{"reviews":{"nodes":[]}}}}"#
+        }
+        let client = GitHubClient(token: token, session: session)
+        await #expect(throws: GitHubError.rejected(message)) {
+            try await client.comment(.addThread(CommentTarget(path: "a.swift", side: .right, line: 1), body: "x", review: nil), pullRequestID: "PR_1")
+        }
+        await #expect(throws: GitHubError.rejected(message)) {
+            try await client.comment(.startReview(commitOid: "h3ad"), pullRequestID: "PR_1")
+        }
+    }
+
     @Test(arguments: [
         (#"<https://api.github.com/x?per_page=100&page=2>; rel="next", <https://api.github.com/x?per_page=100&page=7>; rel="last""#, 7),
         (#"<https://api.github.com/x?page=1>; rel="prev", <https://api.github.com/x?page=1>; rel="first""#, nil),
@@ -361,7 +485,34 @@ private func thread(_ id: String, comments ids: [String], next: String?) -> Stri
 }
 
 private func comments(_ ids: [String], next: String?) -> String {
-    let nodes = ids.map { #"{"id": "\#($0)", "bodyText": "text", "createdAt": "2026-09-01T00:00:00Z", "author": null}"# }
+    let nodes = ids.map { commentJSON($0, state: "SUBMITTED", review: "PRR_1") }
     let cursor = next.map { "\"\($0)\"" } ?? "null"
     return #"{"pageInfo": {"hasNextPage": \#(next != nil), "endCursor": \#(cursor)}, "nodes": [\#(nodes.joined(separator: ", "))]}"#
+}
+
+private func commentJSON(_ id: String, state: String, review: String) -> String {
+    """
+    {"id": "\(id)", "body": "**text**", "bodyText": "text", "state": "\(state)", "createdAt": "2026-09-01T00:00:00Z",
+     "viewerCanUpdate": true, "viewerCanDelete": false, "author": {"login": "octo", "avatarUrl": null},
+     "pullRequestReview": {"id": "\(review)"}}
+    """
+}
+
+private func threadJSON(_ id: String, comments: [String]) -> String {
+    """
+    {"id": "\(id)", "path": "a.swift", "line": 9, "startLine": 7, "diffSide": "LEFT", "isResolved": false, "isOutdated": false,
+     "comments": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [\(comments.joined(separator: ", "))]}}
+    """
+}
+
+private func comment(_ id: String, pending: Bool, review: String) -> ReviewComment {
+    ReviewComment(
+        id: id, author: Actor(login: "octo", avatarURL: nil), bodyText: "text", body: "**text**",
+        createdAt: Date(timeIntervalSince1970: 1_788_220_800), isPending: pending, viewerCanUpdate: true, viewerCanDelete: false,
+        reviewID: review
+    )
+}
+
+private func thread(_ id: String, comments: [ReviewComment]) -> ReviewThread {
+    ReviewThread(id: id, path: "a.swift", line: 9, startLine: 7, side: .left, isResolved: false, isOutdated: false, comments: comments)
 }

@@ -501,6 +501,7 @@ private final class ScriptedStatusService: PullRequestService, @unchecked Sendab
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
     func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList { throw GitHubError.notFound }
+    func comment(_ action: CommentAction, pullRequestID: String) async throws -> CommentResult { throw GitHubError.notFound }
     @MainActor func perform(_ action: PullRequestAction, pullRequestID: String) async throws {
         performed.append(action)
     }
@@ -535,6 +536,7 @@ private final class FlakyStatusService: PullRequestService, @unchecked Sendable 
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
     func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList { throw GitHubError.notFound }
+    func comment(_ action: CommentAction, pullRequestID: String) async throws -> CommentResult { throw GitHubError.notFound }
     func perform(_ action: PullRequestAction, pullRequestID: String) async throws {
         try await base.perform(action, pullRequestID: pullRequestID)
     }

@@ -26,6 +26,8 @@ public protocol PullRequestService: Sendable {
     func conversation(of ref: PRRef) async throws -> Conversation
     /// Throws `GitHubError.rejected` with GitHub's message when GitHub refuses the action.
     func perform(_ action: PullRequestAction, pullRequestID: String) async throws
+    /// Throws `GitHubError.rejected` with GitHub's message when GitHub refuses the change.
+    func comment(_ action: CommentAction, pullRequestID: String) async throws -> CommentResult
     /// Up to 100 open pull requests of `repo`, most recently updated first.
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList
     /// Up to 100 open pull requests of `repo` by one author, most recently updated first.
@@ -295,13 +297,7 @@ private enum Queries {
         pullRequest(number: $number) {
           reviewThreads(first: 100, after: $cursor) {
             pageInfo { hasNextPage endCursor }
-            nodes {
-              id path line startLine diffSide isResolved isOutdated
-              comments(first: 100) {
-                pageInfo { hasNextPage endCursor }
-                nodes { id bodyText createdAt author { login avatarUrl } }
-              }
-            }
+            nodes { \(ReviewThreadFields.thread) }
           }
         }
       }
@@ -314,11 +310,20 @@ private enum Queries {
         ... on PullRequestReviewThread {
           comments(first: 100, after: $cursor) {
             pageInfo { hasNextPage endCursor }
-            nodes { id bodyText createdAt author { login avatarUrl } }
+            nodes { \(ReviewThreadFields.comment) }
           }
         }
       }
     }
+    """
+}
+
+enum ReviewThreadFields {
+    static let comment =
+        "id body bodyText state createdAt viewerCanUpdate viewerCanDelete author { login avatarUrl } pullRequestReview { id }"
+    static let thread = """
+    id path line startLine diffSide isResolved isOutdated \
+    comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { \(comment) } }
     """
 }
 
@@ -399,7 +404,7 @@ private struct FilesNode: Decodable {
     let files: Files
 }
 
-private struct ThreadsNode: Decodable {
+struct ThreadsNode: Decodable {
     struct Threads: Decodable {
         let pageInfo: PageInfo
         let nodes: [Thread]
@@ -411,10 +416,24 @@ private struct ThreadsNode: Decodable {
     }
 
     struct Comment: Decodable {
+        struct Review: Decodable { let id: String }
         let id: String
+        let body: String
         let bodyText: String
+        let state: String
         let createdAt: Date
+        let viewerCanUpdate: Bool
+        let viewerCanDelete: Bool
         let author: AuthorNode?
+        let pullRequestReview: Review?
+
+        var model: ReviewComment {
+            ReviewComment(
+                id: id, author: author?.actor, bodyText: bodyText, body: body, createdAt: createdAt,
+                isPending: state == "PENDING", viewerCanUpdate: viewerCanUpdate, viewerCanDelete: viewerCanDelete,
+                reviewID: pullRequestReview?.id
+            )
+        }
     }
 
     struct Thread: Decodable {
@@ -431,12 +450,11 @@ private struct ThreadsNode: Decodable {
             ReviewThread(
                 id: id, path: path, line: line, startLine: startLine,
                 side: DiffSide(rawValue: diffSide) ?? .right,
-                isResolved: isResolved, isOutdated: isOutdated,
-                comments: comments.map {
-                    ReviewComment(id: $0.id, author: $0.author?.actor, bodyText: $0.bodyText, createdAt: $0.createdAt)
-                }
+                isResolved: isResolved, isOutdated: isOutdated, comments: comments.map(\.model)
             )
         }
+
+        var model: ReviewThread { model(comments: comments.nodes) }
     }
 
     let reviewThreads: Threads

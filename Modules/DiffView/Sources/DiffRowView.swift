@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 
-final class DiffRowView: NSTableRowView {
+class DiffRowView: NSTableRowView {
     static let identifier = NSUserInterfaceItemIdentifier("DiffRow")
     static let traceDraw = ProcessInfo.processInfo.environment["YUZU_TRACE_DRAW"] != nil
 
@@ -69,6 +69,29 @@ final class DiffRowView: NSTableRowView {
 final class DiffTableView: NSTableView {
     var keyHandler: ((NSEvent) -> Bool)?
     var copyHandler: (() -> Bool)?
+    /// The mouse position in table coordinates, or `nil` when it leaves.
+    var hoverHandler: ((CGPoint?) -> Void)?
+    private var hoverArea: NSTrackingArea?
+
+    /// `.inVisibleRect` follows scrolling, so the area is made once.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard hoverArea == nil else { return }
+        let options: NSTrackingArea.Options = [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect]
+        let area = NSTrackingArea(rect: .zero, options: options, owner: self)
+        addTrackingArea(area)
+        hoverArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        hoverHandler?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        hoverHandler?(nil)
+    }
 
     @objc func copy(_ sender: Any?) {
         _ = copyHandler?()
@@ -86,4 +109,23 @@ final class DiffTableView: NSTableView {
     }
 
     override func validateProposedFirstResponder(_ responder: NSResponder, for event: NSEvent?) -> Bool { true }
+}
+
+/// Runs a closure for a menu item. The item keeps it as its represented object.
+final class MenuAction: NSObject {
+    private let handler: () -> Void
+
+    init(_ handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    @objc func run() { handler() }
+
+    static func item(_ title: String, handler: @escaping () -> Void) -> NSMenuItem {
+        let action = MenuAction(handler)
+        let item = NSMenuItem(title: title, action: #selector(run), keyEquivalent: "")
+        item.target = action
+        item.representedObject = action
+        return item
+    }
 }

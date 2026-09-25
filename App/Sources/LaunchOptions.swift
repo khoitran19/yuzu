@@ -31,6 +31,13 @@ struct LaunchOptions {
     var submits: [String] = []
     /// Key combinations, such as `shift+cmd+]`, that the main menu gets after the tabs open.
     var keys: [String] = []
+    /// `path:line` on the new side: opens a comment box there.
+    var comment: (path: String, line: Int)?
+    var commentText: String?
+    /// `single` or `review`: posts the comment box.
+    var commentSubmit: String?
+    /// `path:line` on the new side: shows its "+" button.
+    var hover: (path: String, line: Int)?
     var collapseAll = false
     var settings = false
     var settingsTab: SettingsView.Tab?
@@ -69,6 +76,10 @@ struct LaunchOptions {
             case "--open-tab": if let ref = iterator.next().flatMap(PRRef.init(string:)) { openTabs.append(ref) }
             case "--key": if let key = iterator.next() { keys.append(key) }
             case "--submit": if let text = iterator.next() { submits.append(text) }
+            case "--comment": comment = iterator.next().flatMap(Self.pathLine)
+            case "--comment-text": commentText = iterator.next()
+            case "--comment-submit": commentSubmit = iterator.next()
+            case "--hover": hover = iterator.next().flatMap(Self.pathLine)
             case "--collapse-all": collapseAll = true
             case "--settings": settings = true
             case "--settings-tab":
@@ -85,5 +96,10 @@ struct LaunchOptions {
             default: continue
             }
         }
+    }
+
+    private static func pathLine(_ value: String) -> (path: String, line: Int)? {
+        guard let colon = value.lastIndex(of: ":"), let line = Int(value[value.index(after: colon)...]) else { return nil }
+        return (String(value[..<colon]), line)
     }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import DiffView
 import WebKit
 import PRDetail
 import PRList
@@ -37,6 +38,8 @@ final class HarnessRunner {
             if let scope = options.pullRequestList { pullRequestList.request(scope) }
             try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
             if let path = options.scrollToFile { model.filesController.diff.scrollToFile(path) }
+            if let comment = options.comment { await openComment(comment) }
+            if let hover = options.hover { model.filesController.diff.showAddCommentButton(path: hover.path, line: hover.line) }
             if let path = options.preview { model.filesController.togglePreview(path) }
             if let script = options.previewScript {
                 try? await Task.sleep(for: .seconds(options.settleSeconds / 2))
@@ -82,6 +85,17 @@ final class HarnessRunner {
             log(["event": "perf-start"])
             harness.start()
         }
+    }
+
+    private func openComment(_ comment: (path: String, line: Int)) async {
+        let diff = model.filesController.diff
+        let key = CommentComposer.newThread(CommentTarget(path: comment.path, side: .right, line: comment.line))
+        diff.openComposer(key)
+        if let text = options.commentText { diff.setComposerText(text, for: key) }
+        guard let submit = options.commentSubmit else { return }
+        diff.submitComposer(key, submit == "single" ? .single : .review)
+        try? await Task.sleep(for: .seconds(options.settleSeconds))
+        log(["event": "comment", "open": "\(diff.openComposers.count)", "pending": "\(model.pendingCommentCount)"])
     }
 
     private func openTabsAndSendKeys() async {

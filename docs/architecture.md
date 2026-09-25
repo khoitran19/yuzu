@@ -201,6 +201,24 @@ Status polling:
 - All windows share one `PRListStore`, so the panel in a new tab shows the cached lists at once. Each window keeps its
   own `PRListModel` for the panel state and the selection.
 
+## Review comments
+
+- The hover "+" button, a drag on it, or `c` on selected lines opens a comment box (`Composer`) for one line or a
+  range in one hunk. "Reply…" in a thread opens a box after the thread. "Edit" in the "…" menu of the viewer's comment
+  opens a box with its Markdown source.
+- A comment box is the only diff row with subviews: an `NSTextView` and buttons. The `Composer` owns its row view, so
+  the text stays while the row is off screen, while the file is collapsed, and through a reload. Only the rows of one
+  file rebuild when a box opens or closes. A box grows with its text and never splits into slices.
+- `CommentSubmit.single` posts at once. `.review` adds the comment to the viewer's pending review. The model starts
+  the review when there is none; boxes that start one at the same time share one request, because GitHub allows one
+  pending review for each viewer.
+- The model applies each result to its threads and updates only that file's rows. It does not load the threads
+  again. A refused comment keeps the box, its text, and GitHub's message.
+- `pendingReviewID` comes from the pending comments in the threads, or from `startReview`. While it is set, boxes
+  offer only "Add review comment", and the Files changed tab shows "Finish your review (N)".
+- Approve, Request changes, and Comment submit the pending review when there is one, so its comments go with it.
+  "Discard review" deletes the pending review and its comments.
+
 ## Viewed state
 
 ```mermaid

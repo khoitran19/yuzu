@@ -11,6 +11,13 @@ public final class DiffViewController: NSViewController {
     public var onExpand: ((_ path: String, _ hunk: Int?) -> Void)?
     /// The preview button or the `m` key; `path` is the current file for the key.
     public var onPreview: ((_ path: String) -> Void)?
+    /// A comment box posts. Call `composerDidFinish` with the result.
+    public var onSubmitComment: ((CommentComposer, _ body: String, CommentSubmit) -> Void)?
+    public var onDeleteComment: ((_ commentID: String) -> Void)?
+    /// Comment boxes offer "Add review comment" instead of "Add single comment" and "Start a review".
+    public var hasPendingReview = false {
+        didSet { forEachComposer { $0.view.hasPendingReview = hasPendingReview } }
+    }
 
     public let scrollView = NSScrollView()
     private let tableView = DiffTableView()
@@ -22,6 +29,8 @@ public final class DiffViewController: NSViewController {
     private var layoutWidth: CGFloat = 0
     private var visibleFile: Int?
     private var selectionAnchor: (row: Int, side: DiffSide)?
+    /// The selection started on a "+" button; releasing the mouse opens a comment box.
+    private var commentDrag = false
     private var widthRebuild: Task<Void, Never>?
 
     public override func loadView() {
@@ -46,6 +55,7 @@ public final class DiffViewController: NSViewController {
         tableView.delegate = self
         tableView.keyHandler = { [weak self] event in self?.handleKey(event) ?? false }
         tableView.copyHandler = { [weak self] in self?.copySelection() ?? false }
+        tableView.hoverHandler = { [weak self] point in self?.updateHover(point) }
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
@@ -85,6 +95,7 @@ public final class DiffViewController: NSViewController {
     }
 
     public var fileCount: Int { renderer.files.count }
+    var fileStates: [FileState] { renderer.files }
 
     /// Visible row kinds and heights, for the QA harness.
     public var visibleRowSummary: String {
@@ -95,6 +106,7 @@ public final class DiffViewController: NSViewController {
             case .hunk: "@"
             case .line: "L"
             case .thread: "T"
+            case .composer: "C"
             case .notice: "N"
             case .expandTail: "E"
             case .footer: "F"
@@ -111,9 +123,12 @@ public final class DiffViewController: NSViewController {
     /// Replaces all files. Files already shown keep their collapse state.
     public func setFiles(_ items: [DiffFileItem]) {
         _ = view
-        let previous = Dictionary(renderer.files.map { ($0.item.file.path, $0.collapsed) }, uniquingKeysWith: { first, _ in first })
+        let previous = Dictionary(renderer.files.map { ($0.item.file.path, $0) }, uniquingKeysWith: { first, _ in first })
         renderer.files = items.map { item in
-            FileState(item: item, collapsed: previous[item.file.path] ?? (item.file.viewedState == .viewed))
+            let state = FileState(item: item, collapsed: previous[item.file.path]?.collapsed ?? (item.file.viewedState == .viewed))
+            state.composers = previous[item.file.path]?.composers ?? []
+            state.dropOrphanComposers()
+            return state
         }
         let hadRows = !rows.isEmpty
         fileIndex = Dictionary(items.enumerated().map { ($1.file.path, $0) }, uniquingKeysWith: { first, _ in first })
@@ -214,6 +229,240 @@ public final class DiffViewController: NSViewController {
         focus()
     }
 
+    // MARK: Comment boxes
+
+    /// Opens a comment box, or focuses the one that is open. Beeps when the target is not in the diff.
+    public func openComposer(_ key: CommentComposer) {
+        _ = view
+        if let (file, index) = composerLocation(key) {
+            let composer = renderer.files[file].composers[index]
+            if renderer.files[file].collapsed { setCollapsed(false, file: file) }
+            return reveal(composer)
+        }
+        guard let (file, anchor, side, text) = composerTarget(key) else { return NSSound.beep() }
+        let composer = Composer(key: key, path: renderer.files[file].item.file.path, anchor: anchor, side: side, text: text)
+        composer.view.hasPendingReview = hasPendingReview
+        composer.view.onSubmit = { [weak self] submit in self?.submit(key, submit) }
+        composer.view.onCancel = { [weak self] in self?.cancelComposer(key) }
+        composer.view.onHeightChange = { [weak self, weak composer] in
+            if let composer { self?.composerHeightChanged(composer) }
+        }
+        let state = renderer.files[file]
+        if state.collapsed { state.collapsed = false }
+        refreshFile(file, anchor: .keepTopRow) { state.composers.append(composer) }
+        reveal(composer)
+    }
+
+    /// The model posted the comment (`error == nil`), or GitHub refused it.
+    public func composerDidFinish(_ key: CommentComposer, error: String?) {
+        guard let (file, index) = composerLocation(key) else { return }
+        let composer = renderer.files[file].composers[index]
+        guard let error else { return closeComposer(file: file, index: index) }
+        composer.busy = false
+        composer.error = error
+        composerHeightChanged(composer)
+    }
+
+    /// Harness: types into an open comment box, or posts it.
+    public func setComposerText(_ text: String, for key: CommentComposer) {
+        guard let (file, index) = composerLocation(key) else { return }
+        renderer.files[file].composers[index].view.setText(text)
+    }
+
+    public func submitComposer(_ key: CommentComposer, _ submit: CommentSubmit) {
+        self.submit(key, submit)
+    }
+
+    /// Harness: shows the "+" button of a new-side line as if the mouse were over it.
+    public func showAddCommentButton(path: String, line: Int) {
+        guard let file = fileIndex[path], let key = renderer.files[file].lineKey(side: .right, number: line),
+              let row = rowRange(ofFile: file).first(where: { rows[$0].kind == .line(hunk: key.hunk, row: key.row) })
+        else { return }
+        renderer.hover = (rows[row].logical, .right)
+        tableView.enumerateAvailableRowViews { rowView, _ in rowView.needsDisplay = true }
+    }
+
+    public func composerError(_ key: CommentComposer) -> String? {
+        composerLocation(key).flatMap { renderer.files[$0.file].composers[$0.index].error }
+    }
+
+    public var openComposers: [CommentComposer] {
+        renderer.files.flatMap { $0.composers.map(\.key) }
+    }
+
+    private func submit(_ key: CommentComposer, _ submit: CommentSubmit) {
+        guard let (file, index) = composerLocation(key) else { return }
+        let composer = renderer.files[file].composers[index]
+        composer.busy = true
+        let hadError = composer.error != nil
+        composer.error = nil
+        if hadError { composerHeightChanged(composer) }
+        onSubmitComment?(key, composer.view.text, submit)
+    }
+
+    private func cancelComposer(_ key: CommentComposer) {
+        guard let (file, index) = composerLocation(key) else { return }
+        let composer = renderer.files[file].composers[index]
+        guard !composer.busy else { return NSSound.beep() }
+        let original = composerTarget(key)?.text ?? ""
+        let unchanged = composer.view.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || composer.view.text == original
+        guard !unchanged, let window = view.window else { return closeComposer(file: file, index: index) }
+        let alert = NSAlert()
+        alert.messageText = "Discard this comment?"
+        alert.informativeText = "The text you wrote will be lost."
+        alert.addButton(withTitle: "Discard")
+        alert.addButton(withTitle: "Keep Editing")
+        alert.buttons[0].hasDestructiveAction = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn, let self, let (file, index) = composerLocation(key) else {
+                composer.view.focus()
+                return
+            }
+            closeComposer(file: file, index: index)
+        }
+    }
+
+    /// Moves focus to the diff only when the closing box had it, so typing in another box goes on.
+    private func closeComposer(file: Int, index: Int) {
+        let state = renderer.files[file]
+        let hadFocus = (view.window?.firstResponder as? NSView)?.isDescendant(of: state.composers[index].view) == true
+        refreshFile(file, anchor: .keepTopRow) { state.composers.remove(at: index) }
+        if hadFocus { focus() }
+    }
+
+    private func composerLocation(_ key: CommentComposer) -> (file: Int, index: Int)? {
+        for (file, state) in renderer.files.enumerated() {
+            if let index = state.composers.firstIndex(where: { $0.key == key }) { return (file, index) }
+        }
+        return nil
+    }
+
+    private func composerTarget(_ key: CommentComposer) -> (file: Int, anchor: Composer.Anchor, side: DiffSide, text: String)? {
+        switch key {
+        case let .newThread(target):
+            guard let file = fileIndex[target.path],
+                  renderer.files[file].canComment(side: target.side, from: target.startLine ?? target.line, to: target.line)
+            else { return nil }
+            return (file, .line(side: target.side, number: target.line), target.side, "")
+        case let .reply(threadID):
+            guard let (file, thread) = findThread({ $0.id == threadID }) else { return nil }
+            return (file, .thread(id: thread.id), thread.side, "")
+        case let .edit(commentID):
+            guard let (file, thread) = findThread({ $0.comments.contains { $0.id == commentID } }),
+                  let comment = thread.comments.first(where: { $0.id == commentID })
+            else { return nil }
+            return (file, .thread(id: thread.id), thread.side, comment.body)
+        }
+    }
+
+    private func findThread(_ predicate: (ReviewThread) -> Bool) -> (file: Int, thread: ReviewThread)? {
+        for (file, state) in renderer.files.enumerated() {
+            if let thread = state.item.threads.first(where: predicate) { return (file, thread) }
+        }
+        return nil
+    }
+
+    /// Searches only the rows of the box's file.
+    private func composerRow(_ composer: Composer) -> Int? {
+        guard let file = fileIndex[composer.path], renderer.files[file].composers.contains(where: { $0 === composer }) else { return nil }
+        return rowRange(ofFile: file).first { row in
+            if case let .composer(index) = rows[row].kind { renderer.files[file].composers[index] === composer } else { false }
+        }
+    }
+
+    private func reveal(_ composer: Composer) {
+        guard let row = composerRow(composer) else { return }
+        tableView.scrollRowToVisible(row)
+        Task { @MainActor in composer.view.focus() }
+    }
+
+    private func composerHeightChanged(_ composer: Composer) {
+        guard let row = composerRow(composer), heights[row] != composer.height else { return }
+        heights[row] = composer.height
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integer: row))
+        }
+    }
+
+    private func forEachComposer(_ body: (Composer) -> Void) {
+        for state in renderer.files { state.composers.forEach(body) }
+    }
+
+    private func showCommentMenu(thread index: Int, comment commentIndex: Int, file: Int) {
+        let comment = renderer.files[file].item.threads[index].comments[commentIndex]
+        let menu = NSMenu()
+        if comment.viewerCanUpdate {
+            menu.addItem(MenuAction.item("Edit") { [weak self] in self?.openComposer(.edit(comment: comment.id)) })
+        }
+        if comment.viewerCanDelete {
+            menu.addItem(MenuAction.item("Delete…") { [weak self] in self?.confirmDelete(comment.id) })
+        }
+        guard let window = view.window else { return }
+        let point = tableView.convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        menu.popUp(positioning: nil, at: point, in: tableView)
+    }
+
+    private func confirmDelete(_ commentID: String) {
+        guard let window = view.window else { return }
+        let alert = NSAlert()
+        alert.messageText = "Delete this comment?"
+        alert.informativeText = "GitHub cannot restore a deleted comment."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        alert.buttons[0].hasDestructiveAction = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            if response == .alertFirstButtonReturn { self?.onDeleteComment?(commentID) }
+        }
+    }
+
+    /// The selected lines of one hunk, as a comment target.
+    private func commentTarget(for selection: LineSelection) -> (file: Int, target: CommentTarget)? {
+        guard let file = selection.refs.first?.file, selection.refs.allSatisfy({ $0.file == file }), let diff = renderer.files[file].diff
+        else { return nil }
+        var hunks = Set<Int>()
+        var numbers: [Int] = []
+        for ref in selection.refs {
+            guard case let .line(hunk, row) = ref.kind, let line = diff.hunks[safe: hunk]?.rows[safe: row],
+                  let cell = selection.side == .left ? line.left : line.right
+            else { continue }
+            hunks.insert(hunk)
+            numbers.append(cell.number)
+        }
+        guard hunks.count == 1, let first = numbers.min(), let last = numbers.max() else { return nil }
+        let path = renderer.files[file].item.file.path
+        return (file, CommentTarget(path: path, side: selection.side, line: last, startLine: first == last ? nil : first))
+    }
+
+    private func commentOnSelection() {
+        guard let selection = renderer.selection, let (_, target) = commentTarget(for: selection) else { return NSSound.beep() }
+        openComposer(.newThread(target))
+    }
+
+    // MARK: Hover
+
+    private func updateHover(_ point: CGPoint?) {
+        var hover: (ref: RowRef, side: DiffSide)?
+        if let point, NSEvent.pressedMouseButtons == 0 {
+            let row = tableView.row(at: point)
+            if row >= 0, row < rows.count, case let .line(hunk, lineRow) = rows[row].kind,
+               let line = renderer.files[rows[row].file].diff?.hunks[safe: hunk]?.rows[safe: lineRow] {
+                let side = renderer.side(at: point.x, width: tableView.bounds.width, file: rows[row].file)
+                if let cell = side == .left ? line.left : line.right,
+                   renderer.files[rows[row].file].canComment(side: side, from: cell.number, to: cell.number) {
+                    hover = (rows[row].logical, side)
+                }
+            }
+        }
+        let old = renderer.hover
+        guard old?.ref != hover?.ref || old?.side != hover?.side else { return }
+        renderer.hover = hover
+        let changed = Set([old?.ref, hover?.ref].compactMap { $0 })
+        tableView.enumerateAvailableRowViews { rowView, _ in
+            if let rowView = rowView as? DiffRowView, let ref = rowView.ref?.logical, changed.contains(ref) { rowView.needsDisplay = true }
+        }
+    }
+
     public func scrollToFile(_ path: String) {
         guard let index = fileIndex[path] else { return }
         scrollToRow(headerRows[index])
@@ -234,6 +483,7 @@ public final class DiffViewController: NSViewController {
     private func rebuild(anchor: Anchor?) {
         let saved = anchor.flatMap(captureAnchor)
         renderer.selection = nil
+        renderer.hover = nil
         selectionAnchor = nil
         layoutWidth = tableView.bounds.width
         rows.removeAll(keepingCapacity: true)
@@ -252,6 +502,7 @@ public final class DiffViewController: NSViewController {
     private func refreshFile(_ file: Int, anchor: Anchor, change: () -> Void) {
         let saved = captureAnchor(anchor)
         setSelection(nil)
+        renderer.hover = nil
         change()
         let old = rowRange(ofFile: file)
         var newRows: [RowRef] = []
@@ -282,7 +533,8 @@ public final class DiffViewController: NSViewController {
         renderer.files[file].appendRows(file: file, to: &logical)
         for ref in logical {
             let height = renderer.height(of: ref, width: layoutWidth)
-            guard height > Metrics.sliceHeight else {
+            let isComposer = if case .composer = ref.kind { true } else { false }
+            guard height > Metrics.sliceHeight, !isComposer else {
                 rows.append(ref)
                 heights.append(height)
                 continue
@@ -399,6 +651,16 @@ public final class DiffViewController: NSViewController {
             onExpand?(path, hunk)
         case .expandTail:
             onExpand?(path, nil)
+        case let .addComment(side):
+            guard let row = rows.firstIndex(of: ref) else { return }
+            view.window?.makeFirstResponder(tableView)
+            commentDrag = true
+            selectionAnchor = (row, side)
+            extendSelection(to: row)
+        case let .reply(thread):
+            openComposer(.reply(thread: state.item.threads[thread].id))
+        case let .commentMenu(thread, comment):
+            showCommentMenu(thread: thread, comment: comment, file: ref.file)
         }
     }
 
@@ -420,7 +682,10 @@ public final class DiffViewController: NSViewController {
             let row = tableView.row(at: point)
             extendSelection(to: row >= 0 ? row : (point.y < 0 ? 0 : rows.count - 1))
         case .end:
-            break
+            guard commentDrag else { return }
+            commentDrag = false
+            guard let selection = renderer.selection, let (_, target) = commentTarget(for: selection) else { return NSSound.beep() }
+            openComposer(.newThread(target))
         }
     }
 
@@ -466,6 +731,8 @@ public final class DiffViewController: NSViewController {
     private func handleKey(_ event: NSEvent) -> Bool {
         if Shortcut.clearSelection.matches(event), renderer.selection != nil {
             setSelection(nil)
+        } else if Shortcut.commentOnSelection.matches(event) {
+            commentOnSelection()
         } else if Shortcut.nextFile.matches(event) {
             jumpFile(by: 1)
         } else if Shortcut.previousFile.matches(event) {
@@ -532,6 +799,13 @@ extension DiffViewController: NSTableViewDataSource, NSTableViewDelegate {
     public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? { nil }
 
     public func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        if case let .composer(index) = rows[row].kind, let composer = renderer.files[rows[row].file].composers[safe: index] {
+            composer.view.renderer = renderer
+            composer.view.ref = rows[row]
+            composer.view.hasPendingReview = hasPendingReview
+            composer.view.needsLayout = true
+            return composer.view
+        }
         let rowView = tableView.makeView(withIdentifier: DiffRowView.identifier, owner: self) as? DiffRowView ?? {
             let view = DiffRowView()
             view.identifier = DiffRowView.identifier

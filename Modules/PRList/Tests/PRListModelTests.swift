@@ -196,6 +196,7 @@ private nonisolated final class GatedListService: PullRequestService, Sendable {
     }
 
     func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList { throw GitHubError.notFound }
+    func comment(_ action: CommentAction, pullRequestID: String) async throws -> CommentResult { throw GitHubError.notFound }
     func snapshot(of ref: PRRef) async throws -> PullRequestSnapshot { throw GitHubError.notFound }
     func setViewed(_ viewed: Bool, paths: [String], pullRequestID: String) async throws { throw GitHubError.notFound }
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }

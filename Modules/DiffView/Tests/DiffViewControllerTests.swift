@@ -41,6 +41,103 @@ struct DiffViewControllerTests {
         #expect(lineRows.map(\.element.slice) == Array(0..<lineRows.count))
     }
 
+    @Test func commentBoxOpensAfterItsLineAndKeepsItsTextThroughReloadAndCollapse() throws {
+        let items = (0..<3).map { item(index: $0, lines: 10) }
+        let controller = makeController(items: items)
+        let key = CommentComposer.newThread(CommentTarget(path: "src/file1.ts", side: .right, line: 3, startLine: 2))
+        controller.openComposer(key)
+        controller.setComposerText("Why?", for: key)
+        #expect(kinds(controller, file: 1).contains([.line(hunk: 0, row: 2), .composer(0), .line(hunk: 0, row: 3)]))
+
+        controller.setFiles(items)
+        controller.setViewed(true, path: "src/file1.ts")
+        #expect(!kinds(controller, file: 1).contains(.composer(0)))
+        controller.setViewed(false, path: "src/file1.ts")
+        #expect(kinds(controller, file: 1).contains(.composer(0)))
+        #expect(composer(controller, file: 1)?.view.text == "Why?")
+
+        controller.composerDidFinish(key, error: nil)
+        #expect(controller.openComposers.isEmpty)
+        #expect(!kinds(controller, file: 1).contains(.composer(0)))
+    }
+
+    @Test func aRefusedCommentKeepsTheBoxAndShowsTheError() throws {
+        let controller = makeController(files: 2)
+        let key = CommentComposer.newThread(CommentTarget(path: "src/file0.ts", side: .left, line: 11))
+        controller.openComposer(key)
+        let row = try #require(controller.rows.firstIndex { $0.kind == .composer(0) })
+        let height = controller.heights[row]
+        controller.submitComposer(key, .single)
+        controller.composerDidFinish(key, error: "GitHub refused it.")
+        #expect(controller.openComposers == [key])
+        #expect(composer(controller, file: 0)?.busy == false)
+        #expect(controller.heights[row] == height + Composer.errorHeight)
+    }
+
+    @Test func replyBoxFollowsItsThreadAndATargetOutsideTheDiffIsRefused() throws {
+        let thread = ReviewThread(
+            id: "T1", path: "src/file0.ts", line: 2, startLine: nil, side: .right, isResolved: false, isOutdated: false,
+            comments: [ReviewComment(id: "C1", author: nil, bodyText: "Hi", createdAt: .now)]
+        )
+        var withThread = item(index: 0, lines: 10)
+        withThread.threads = [thread]
+        let controller = makeController(items: [withThread])
+        controller.openComposer(.reply(thread: "T1"))
+        #expect(kinds(controller, file: 0).contains([.line(hunk: 0, row: 1), .thread(0), .composer(0)]))
+
+        controller.openComposer(.newThread(CommentTarget(path: "src/file0.ts", side: .right, line: 400)))
+        controller.openComposer(.edit(comment: "missing"))
+        #expect(controller.openComposers == [.reply(thread: "T1")])
+    }
+
+    @Test func anEmptyBoxClosesAtOnceAndABusyBoxIgnoresCancel() throws {
+        let controller = makeController(files: 1)
+        let key = CommentComposer.newThread(CommentTarget(path: "src/file0.ts", side: .right, line: 2))
+        controller.openComposer(key)
+        composer(controller, file: 0)?.view.onCancel?()
+        #expect(controller.openComposers.isEmpty)
+
+        controller.openComposer(key)
+        controller.setComposerText("Posting", for: key)
+        controller.submitComposer(key, .single)
+        composer(controller, file: 0)?.view.onCancel?()
+        #expect(controller.openComposers == [key])
+    }
+
+    @Test func aReplyBoxClosesWhenItsThreadIsGone() throws {
+        let thread = ReviewThread(
+            id: "T1", path: "src/file0.ts", line: 2, startLine: nil, side: .right, isResolved: false, isOutdated: false,
+            comments: [ReviewComment(id: "C1", author: nil, bodyText: "Hi", createdAt: .now)]
+        )
+        var withThread = item(index: 0, lines: 10)
+        withThread.threads = [thread]
+        let controller = makeController(items: [withThread])
+        controller.openComposer(.reply(thread: "T1"))
+        controller.updateFile(item(index: 0, lines: 10))
+        #expect(controller.openComposers.isEmpty)
+        #expect(!kinds(controller, file: 0).contains(.composer(0)))
+    }
+
+    @Test func onlyLinesInsideGitHubsHunksTakeComments() throws {
+        let patch = "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n@@ -20,2 +20,3 @@\n x\n+y\n z\n"
+        let file = ChangedFile(path: "h.ts", previousPath: nil, status: .modified, additions: 2, deletions: 1, patch: patch, viewedState: .unviewed)
+        let state = FileState(item: DiffFileItem(file: file, content: .diff(FileDiffBuilder.build(patch: patch))), collapsed: false)
+        #expect(state.canComment(side: .right, from: 1, to: 3))
+        #expect(state.canComment(side: .right, from: 20, to: 22))
+        #expect(!state.canComment(side: .right, from: 3, to: 20))
+        #expect(state.canComment(side: .left, from: 20, to: 21))
+        #expect(!state.canComment(side: .left, from: 22, to: 22))
+    }
+
+    private func kinds(_ controller: DiffViewController, file: Int) -> [RowRef.Kind] {
+        let end = file + 1 < controller.headerRows.count ? controller.headerRows[file + 1] : controller.rows.count
+        return controller.rows[controller.headerRows[file]..<end].map(\.kind)
+    }
+
+    private func composer(_ controller: DiffViewController, file: Int) -> Composer? {
+        controller.fileStates[file].composers.first
+    }
+
     private func makeController(files: Int) -> DiffViewController {
         makeController(items: (0..<files).map { item(index: $0, lines: 10 + $0) })
     }

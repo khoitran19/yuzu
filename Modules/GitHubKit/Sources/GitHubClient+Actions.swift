@@ -4,14 +4,15 @@ import PRModels
 extension GitHubClient {
     public func perform(_ action: PullRequestAction, pullRequestID: String) async throws {
         let (field, fields) = Self.mutation(for: action, pullRequestID: pullRequestID)
-        let declarations = fields.map { "$\($0.name): \($0.type)" }.joined(separator: ", ")
-        let input = fields.map { "\($0.name): $\($0.name)" }.joined(separator: ", ")
-        let variables = Dictionary(uniqueKeysWithValues: fields.map { ($0.name, $0.value) })
-        let envelope = try await graphQLEnvelope(
-            "mutation(\(declarations)) {\n  \(field)(input: {\(input)}) { clientMutationId }\n}", variables: variables,
-            as: MutationPayload.self
-        )
+        _ = try await send(Mutation(field, fields), as: MutationPayload.self)
+    }
+
+    /// Throws `GitHubError.rejected` with GitHub's messages when the response has errors.
+    func send<Payload: Decodable>(_ mutation: Mutation, as _: Payload.Type) async throws -> Payload {
+        let envelope = try await graphQLEnvelope(mutation.document, variables: mutation.variables, as: [String: Payload?].self)
         guard envelope.errors.isEmpty else { throw GitHubError.rejected(envelope.errors.map(\.message).joined(separator: " ")) }
+        guard let payload = envelope.data?[mutation.field] ?? nil else { throw GitHubError.malformedResponse }
+        return payload
     }
 
     /// Input fields with a `nil` value are left out, so GitHub uses the repository default.
@@ -70,4 +71,32 @@ struct MutationField {
     }
 }
 
-private struct MutationPayload: Decodable {}
+struct Mutation {
+    let field: String
+    let fields: [MutationField]
+    let input: String
+    let selection: String
+
+    /// `input` defaults to each field set from its variable.
+    init(_ field: String, _ fields: [MutationField], input: String? = nil, selection: String = "clientMutationId") {
+        self.field = field
+        self.fields = fields
+        self.input = input ?? Self.input(fields)
+        self.selection = selection
+    }
+
+    static func input(_ fields: [MutationField]) -> String {
+        fields.map { "\($0.name): $\($0.name)" }.joined(separator: ", ")
+    }
+
+    var document: String {
+        let declarations = fields.map { "$\($0.name): \($0.type)" }.joined(separator: ", ")
+        return "mutation(\(declarations)) {\n  \(field)(input: {\(input)}) { \(selection) }\n}"
+    }
+
+    var variables: [String: JSONValue] {
+        Dictionary(uniqueKeysWithValues: fields.map { ($0.name, $0.value) })
+    }
+}
+
+struct MutationPayload: Decodable {}

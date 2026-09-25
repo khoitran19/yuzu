@@ -44,6 +44,67 @@ struct ReviewSheet: View {
     }
 }
 
+/// Comment, Approve, or Request changes. The viewer's pending comments go with the review.
+struct FinishReviewSheet: View {
+    let pendingCount: Int
+    /// False for the author: GitHub lets the author only comment.
+    let canApprove: Bool
+    let canSubmit: (PullRequestAction.ReviewEvent, String) -> Bool
+    let submit: (PullRequestAction.ReviewEvent, String) -> Void
+    /// `nil` when there is no pending review.
+    let discard: (() -> Void)?
+    let cancel: () -> Void
+    @State private var event: PullRequestAction.ReviewEvent = .comment
+    @State private var text = ""
+    @State private var confirmDiscard = false
+    @FocusState private var editorFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Finish your review").font(.headline)
+                Spacer()
+                if pendingCount > 0 {
+                    Text("\(pendingCount) pending comment\(pendingCount == 1 ? "" : "s")").foregroundStyle(.secondary)
+                }
+            }
+            CommentEditor(text: $text, placeholder: "Leave a comment. Markdown is supported.")
+                .focused($editorFocused)
+                .accessibilityIdentifier("finishReview.editor")
+            Picker("Review", selection: $event) {
+                Text("Comment").tag(PullRequestAction.ReviewEvent.comment)
+                Text("Approve").tag(PullRequestAction.ReviewEvent.approve).disabled(!canApprove)
+                Text("Request changes").tag(PullRequestAction.ReviewEvent.requestChanges).disabled(!canApprove)
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+            HStack {
+                if discard != nil {
+                    Button("Discard review", role: .destructive) { confirmDiscard = true }
+                }
+                Spacer()
+                Button("Cancel", action: cancel)
+                    .keyboardShortcut(Shortcut.cancelSheet.keyboardShortcut)
+                Button("Submit review") { submit(event, text) }
+                    .keyboardShortcut(Shortcut.submitSheet.keyboardShortcut)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSubmit(event, text))
+                    .help("Submit review (\(Shortcut.submitSheet.symbols))")
+                    .accessibilityIdentifier("finishReview.submit")
+            }
+        }
+        .padding(20)
+        .frame(width: 520)
+        .onAppear { editorFocused = true }
+        .confirmationDialog("Discard your pending review?", isPresented: $confirmDiscard) {
+            Button("Discard", role: .destructive) { discard?() }
+        } message: {
+            Text("GitHub deletes its \(pendingCount) pending comment\(pendingCount == 1 ? "" : "s").")
+        }
+        .accessibilityIdentifier("finishReview")
+    }
+}
+
 /// Confirms a merge, which GitHub cannot undo. Empty fields let GitHub use the repository default.
 struct MergeSheet: View {
     let pullRequest: PullRequest

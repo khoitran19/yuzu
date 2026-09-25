@@ -16,16 +16,24 @@ public final class FixturePullRequestService: PullRequestService {
         public let pullRequestID: String
     }
 
+    public struct CommentCall: Sendable, Equatable {
+        public let action: CommentAction
+        public let pullRequestID: String
+    }
+
     private struct State {
         var snapshot: PullRequestSnapshot?
         var setViewedCalls: [SetViewedCall] = []
         var performCalls: [PerformCall] = []
+        var commentCalls: [CommentCall] = []
+        var pendingReview: String?
+        var lastID = 0
         var statusCalls = 0
         var conversationCalls = 0
     }
 
-    /// The signed-in user in fixture mode; reviews and auto-merge from `perform` use it.
-    public static let viewerLogin = "yuzu-reviewer"
+    /// The signed-in user in fixture mode: it makes reviews and comments, and can edit its own comments.
+    public static let viewerLogin = "octocat"
 
     public let store: FixtureStore
     private let latency: Duration
@@ -37,7 +45,7 @@ public final class FixturePullRequestService: PullRequestService {
 
     /// `setViewed` leaves `failingViewedPaths` unchanged and throws `GitHubError.partialFailure` with them.
     /// `emptyPullRequestLists` makes `openPullRequests` return no rows. `mergeStatus` replaces the fixture's merge box state.
-    /// With `rejection`, `perform` changes nothing and throws `GitHubError.rejected` with it.
+    /// With `rejection`, `perform` and `comment` change nothing and throw `GitHubError.rejected` with it.
     public init(
         directory: URL, latency: Duration = .zero, failingViewedPaths: Set<String> = [], emptyPullRequestLists: Bool = false,
         mergeStatus: MergeStatusPreset? = nil, rejection: String? = nil
@@ -56,6 +64,10 @@ public final class FixturePullRequestService: PullRequestService {
 
     public var performCalls: [PerformCall] {
         state.withLock { $0.performCalls }
+    }
+
+    public var commentCalls: [CommentCall] {
+        state.withLock { $0.commentCalls }
     }
 
     public var statusCalls: Int {
@@ -120,28 +132,32 @@ public final class FixturePullRequestService: PullRequestService {
             guard var snapshot = state.snapshot, snapshot.pullRequest.nodeID == pullRequestID else {
                 throw GitHubError.rejected("Could not resolve to a node with the global id of '\(pullRequestID)'")
             }
-            try Self.apply(action, to: &snapshot, number: state.performCalls.count)
+            try Self.apply(action, to: &snapshot, reviewID: "PRR_fixture_\(state.performCalls.count)")
             state.snapshot = snapshot
         }
     }
 
-    private static func apply(_ action: PullRequestAction, to snapshot: inout PullRequestSnapshot, number: Int) throws {
+    private static func apply(_ action: PullRequestAction, to snapshot: inout PullRequestSnapshot, reviewID: String) throws {
         var conversation = snapshot.conversation ?? Conversation(items: [], checks: [])
         var status = conversation.merge ?? MergeStatusPreset.base(for: snapshot.pullRequest)
         guard status.state == .open else { throw GitHubError.rejected("Pull request is not open") }
         switch action {
         case let .review(event, body):
-            let state: Review.State = event == .approve ? .approved : .changesRequested
+            let state: Review.State = switch event {
+            case .approve: .approved
+            case .requestChanges: .changesRequested
+            case .comment: .commented
+            }
             let escaped = body.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
             conversation.items.append(
                 .review(
                     Review(
-                        id: "PRR_fixture_\(number)",
+                        id: reviewID,
                         author: Author(actor: Actor(login: viewerLogin, avatarURL: nil), isBot: false, association: "MEMBER"),
                         state: state, bodyHTML: body.isEmpty ? "" : "<p>\(escaped)</p>", createdAt: .now, url: nil, comments: []
                     )))
             status.viewerReviewState = state
-            status.reviewDecision = event == .approve ? .approved : .changesRequested
+            if event != .comment { status.reviewDecision = event == .approve ? .approved : .changesRequested }
         case let .merge(_, headOid, _, _):
             guard headOid == status.headOid else { throw GitHubError.rejected("Head branch was modified. Review and try the merge again.") }
             guard !status.isDraft else { throw GitHubError.rejected("Pull request is still a draft") }
@@ -186,6 +202,123 @@ public final class FixturePullRequestService: PullRequestService {
         return SyntheticPullRequestList.make(repo: repo, scope: scope, current: try loadedSnapshot().pullRequest, now: .now)
     }
 
+    /// Applies the change GitHub would make to the stored threads, so later reads show it.
+    @concurrent public func comment(_ action: CommentAction, pullRequestID: String) async throws -> CommentResult {
+        try await simulateLatency()
+        _ = try loadedSnapshot()
+        return try state.withLock { state in
+            state.commentCalls.append(CommentCall(action: action, pullRequestID: pullRequestID))
+            if let rejection { throw GitHubError.rejected(rejection) }
+            guard state.snapshot?.pullRequest.nodeID == pullRequestID else {
+                throw GitHubError.rejected("Could not resolve to a node with the global id of '\(pullRequestID)'")
+            }
+            return try Self.apply(action, to: &state)
+        }
+    }
+
+    /// Changes `state` only when GitHub would accept the action.
+    private static func apply(_ action: CommentAction, to state: inout State) throws -> CommentResult {
+        guard var snapshot = state.snapshot else { throw GitHubError.malformedResponse }
+        var threads = snapshot.threads
+        var pendingReview = state.pendingReview
+        var lastID = state.lastID
+        func newID(_ prefix: String) -> String {
+            lastID += 1
+            return "\(prefix)_fixture_\(lastID)"
+        }
+        func newComment(_ body: String, review: String, isPending: Bool) -> ReviewComment {
+            ReviewComment(
+                id: newID("PRRC"), author: Actor(login: viewerLogin, avatarURL: nil), bodyText: body, body: body, createdAt: .now,
+                isPending: isPending, viewerCanUpdate: true, viewerCanDelete: true, reviewID: review
+            )
+        }
+        func requirePending(_ review: String) throws {
+            guard review == pendingReview else {
+                throw GitHubError.rejected("Could not resolve to a PullRequestReview with the id of '\(review)'.")
+            }
+        }
+        func location(of comment: String) throws -> (thread: Int, comment: Int) {
+            for (index, thread) in threads.enumerated() {
+                if let position = thread.comments.firstIndex(where: { $0.id == comment }) { return (index, position) }
+            }
+            throw GitHubError.rejected("Could not resolve to a PullRequestReviewComment with the id of '\(comment)'.")
+        }
+
+        let result: CommentResult
+        switch action {
+        case let .addThread(target, body, review):
+            guard snapshot.files.contains(where: { $0.path == target.path }) else {
+                throw GitHubError.rejected("Path could not be resolved")
+            }
+            if let startLine = target.startLine, startLine >= target.line {
+                throw GitHubError.rejected("The start line must be before the line")
+            }
+            if let review {
+                try requirePending(review)
+            } else if pendingReview != nil {
+                throw GitHubError.rejected("User can only have one pending review per pull request")
+            }
+            let comment = newComment(body, review: review ?? newID("PRR"), isPending: review != nil)
+            let thread = ReviewThread(
+                id: newID("PRRT"), path: target.path, line: target.line, startLine: target.startLine, side: target.side,
+                isResolved: false, isOutdated: false, comments: [comment]
+            )
+            threads.append(thread)
+            result = .thread(thread)
+        case .startReview:
+            let id = pendingReview ?? newID("PRR")
+            pendingReview = id
+            result = .review(id: id)
+        case let .reply(threadID, body, review):
+            guard let index = threads.firstIndex(where: { $0.id == threadID }) else {
+                throw GitHubError.rejected("Could not resolve to a PullRequestReviewThread with the id of '\(threadID)'.")
+            }
+            if let review { try requirePending(review) }
+            let comment = newComment(body, review: review ?? newID("PRR"), isPending: review != nil)
+            threads[index] = threads[index].replacing(comments: threads[index].comments + [comment])
+            result = .comment(comment)
+        case let .edit(id, body):
+            let (thread, position) = try location(of: id)
+            guard threads[thread].comments[position].viewerCanUpdate else { throw GitHubError.rejected("You cannot update this comment") }
+            let comment = threads[thread].comments[position].replacing(body: body)
+            var comments = threads[thread].comments
+            comments[position] = comment
+            threads[thread] = threads[thread].replacing(comments: comments)
+            result = .comment(comment)
+        case let .delete(id):
+            let (thread, position) = try location(of: id)
+            guard threads[thread].comments[position].viewerCanDelete else { throw GitHubError.rejected("You cannot delete this comment") }
+            var comments = threads[thread].comments
+            comments.remove(at: position)
+            if comments.isEmpty {
+                threads.remove(at: thread)
+            } else {
+                threads[thread] = threads[thread].replacing(comments: comments)
+            }
+            result = .done
+        case let .submitReview(review, event, body):
+            try requirePending(review)
+            try apply(.review(event, body: body), to: &snapshot, reviewID: review)
+            threads = threads.map { thread in
+                thread.replacing(comments: thread.comments.map { $0.reviewID == review ? $0.replacing(isPending: false) : $0 })
+            }
+            pendingReview = nil
+            result = .done
+        case let .discardReview(review):
+            try requirePending(review)
+            threads = threads.compactMap { thread in
+                let comments = thread.comments.filter { $0.reviewID != review }
+                return comments.isEmpty ? nil : thread.replacing(comments: comments)
+            }
+            pendingReview = nil
+            result = .done
+        }
+        state.lastID = lastID
+        state.pendingReview = pendingReview
+        state.snapshot = snapshot.replacing(threads: threads)
+        return result
+    }
+
     /// `@me` is the Mine list. Other logins match the authors of both lists.
     @concurrent public func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList {
         let mine = try await openPullRequests(in: repo, scope: .mine).pullRequests
@@ -199,6 +332,9 @@ public final class FixturePullRequestService: PullRequestService {
         if let snapshot = state.withLock({ $0.snapshot }) { return snapshot }
         var loaded = try store.readSnapshot()
         mergeStatus?.apply(to: &loaded)
+        loaded = loaded.replacing(threads: loaded.threads.map { thread in
+            thread.replacing(comments: thread.comments.map { $0.author?.login == Self.viewerLogin ? $0.replacing(editable: true) : $0 })
+        })
         return state.withLock { state in
             if let snapshot = state.snapshot { return snapshot }
             state.snapshot = loaded
@@ -208,5 +344,30 @@ public final class FixturePullRequestService: PullRequestService {
 
     private func simulateLatency() async throws {
         if latency > .zero { try await Task.sleep(for: latency) }
+    }
+}
+
+private extension PullRequestSnapshot {
+    func replacing(threads: [ReviewThread]) -> PullRequestSnapshot {
+        PullRequestSnapshot(pullRequest: pullRequest, files: files, threads: threads, conversation: conversation)
+    }
+}
+
+private extension ReviewThread {
+    func replacing(comments: [ReviewComment]) -> ReviewThread {
+        ReviewThread(
+            id: id, path: path, line: line, startLine: startLine, side: side, isResolved: isResolved, isOutdated: isOutdated,
+            comments: comments
+        )
+    }
+}
+
+private extension ReviewComment {
+    func replacing(body: String? = nil, isPending: Bool? = nil, editable: Bool? = nil) -> ReviewComment {
+        ReviewComment(
+            id: id, author: author, bodyText: body ?? bodyText, body: body ?? self.body, createdAt: createdAt,
+            isPending: isPending ?? self.isPending, viewerCanUpdate: editable ?? viewerCanUpdate,
+            viewerCanDelete: editable ?? viewerCanDelete, reviewID: reviewID
+        )
     }
 }

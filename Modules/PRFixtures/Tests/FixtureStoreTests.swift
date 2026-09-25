@@ -79,7 +79,8 @@ struct FixtureStoreTests {
             fixture.snapshot.pullRequest.ref, from: service, to: FixtureStore(directory: target), concurrency: 3
         )
         let baseOid = fixture.snapshot.pullRequest.baseOid
-        let expected = Fixture(snapshot: fixture.snapshot, contents: fixture.contents, mergeBaseOid: baseOid)
+        let served = try await service.snapshot(of: fixture.snapshot.pullRequest.ref)
+        let expected = Fixture(snapshot: served, contents: fixture.contents, mergeBaseOid: baseOid)
         #expect(try FixtureStore(directory: target).read() == expected)
         #expect(summary.mergeBaseOid == baseOid)
         #expect(summary.contentCount == fixture.contents.count)
@@ -106,7 +107,8 @@ struct FixtureStoreTests {
         #expect(try await service.mergeBaseOid(of: pullRequest.ref, base: pullRequest.baseOid, head: pullRequest.headOid) == mergeBase)
 
         let summary = try await FixtureRecorder.record(pullRequest.ref, from: service, to: FixtureStore(directory: target))
-        #expect(try FixtureStore(directory: target).read() == moved)
+        let served = try await service.snapshot(of: pullRequest.ref)
+        #expect(try FixtureStore(directory: target).read() == Fixture(snapshot: served, contents: moved.contents, mergeBaseOid: mergeBase))
         #expect(summary.contentCount == moved.contents.count)
     }
 

@@ -49,6 +49,10 @@ pushed" notice shows). `clean` also makes all checks pass. Actions then change o
 | `--open-tab <link>` | After the load, open this pull request in a new tab (repeatable). A fixture serves only its own pull request, so other tabs show the load error |
 | `--submit <text>` | After the tabs open, submit this text in the address field, such as `@rik` (repeatable, 50 ms apart). In a fixture, `@rik` gives the Mine rows and the fixture pull request |
 | `--key <combo>` | After the tabs open, send a key combination such as `shift+cmd+]` to the main menu (repeatable). Logs the selected tab |
+| `--comment <path>:<line>` | Open a comment box on this new-side line |
+| `--comment-text <text>` | Type this text into the box of `--comment` |
+| `--comment-submit single\|review` | Post the box of `--comment`. The fixture changes its threads in memory. Logs the open boxes and pending comments |
+| `--hover <path>:<line>` | Show the "+" button of this new-side line |
 | `--collapse-all` | Collapse every file |
 | `--settings` | Open Settings; with `--screenshot`, capture it and quit |
 | `--preview <path>` | Open the Markdown preview of a file |

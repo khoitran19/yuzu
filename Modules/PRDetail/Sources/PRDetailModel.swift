@@ -25,12 +25,15 @@ public final class PRDetailModel {
     /// A confirmation sheet over the pull request screen.
     public enum ActionSheet: Identifiable, Equatable {
         case review(PullRequestAction.ReviewEvent)
+        /// Comment, Approve, or Request changes, with the pending comments of the viewer's review.
+        case finishReview
         /// `bypass` merges now past the branch rules. `headOid` is the head the viewer reviewed when the sheet opened.
         case merge(bypass: Bool, headOid: String)
 
         public var id: String {
             switch self {
             case let .review(event): "review-\(event.rawValue)"
+            case .finishReview: "finish-review"
             case let .merge(bypass, _): bypass ? "bypass" : "merge"
             }
         }
@@ -41,7 +44,7 @@ public final class PRDetailModel {
     public private(set) var pullRequest: PullRequest?
     public private(set) var viewedPaths: Set<String> = []
     public private(set) var fileCount = 0
-    public private(set) var errorBanner: String?
+    public internal(set) var errorBanner: String?
     /// Set when GitHub returned fewer files than the pull request changes.
     public private(set) var incompleteNotice: String?
     /// True while parts from GitHub are still arriving.
@@ -58,6 +61,16 @@ public final class PRDetailModel {
     /// The sidebar action that runs now. Only one runs at a time.
     private(set) var runningAction: SidebarAction?
     public var sheet: ActionSheet?
+    /// The viewer's pending review. Its comments show only to the viewer until the review is submitted.
+    public internal(set) var pendingReviewID: String? {
+        didSet { filesController.diff.hasPendingReview = pendingReviewID != nil }
+    }
+    public internal(set) var pendingCommentCount = 0
+    /// Comment requests that have not returned. The review cannot be submitted or discarded until they do,
+    /// so a late result cannot add to a finished review.
+    public internal(set) var commentsInFlight = 0
+    /// True while the pending review is submitted or discarded; comment boxes cannot post until it ends.
+    public internal(set) var isFinishingReview = false
     /// The split button's method; it starts at the repository default and stays for this pull request.
     private var selectedMethod: MergeMethod?
     public var tab: Tab = .files {
@@ -93,12 +106,14 @@ public final class PRDetailModel {
     /// Called once when all parts have arrived.
     @ObservationIgnored public var onLoaded: (() -> Void)?
     @ObservationIgnored public var onDetail: ((PullRequest) -> Void)?
-    @ObservationIgnored private let service: any PullRequestService
+    @ObservationIgnored let service: any PullRequestService
     @ObservationIgnored private let highlighter: (any SyntaxHighlighting)?
     @ObservationIgnored private let rules: ReviewRules
-    @ObservationIgnored private var pullRequestID: String?
+    @ObservationIgnored private(set) var pullRequestID: String?
     @ObservationIgnored private var files: [ChangedFile] = []
-    @ObservationIgnored private var threads: [ReviewThread]?
+    @ObservationIgnored var threads: [ReviewThread]?
+    /// Shared by comment boxes that start a review at the same time; GitHub allows one pending review.
+    @ObservationIgnored var startingReview: Task<String, Error>?
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var summaryGeneration = 0
     /// True when `summaryPage.document` does not show the current details.
@@ -150,6 +165,8 @@ public final class PRDetailModel {
         filesController.onLoadFullDiff = { [weak self] path in self?.loadFullDiff(path) }
         filesController.onExpand = { [weak self] path, hunk in self?.expand(path, hunk: hunk) }
         filesController.onPreview = { [weak self] path in self?.loadPreview(path) }
+        filesController.diff.onSubmitComment = { [weak self] key, body, submit in self?.submitComment(key, body: body, submit: submit) }
+        filesController.diff.onDeleteComment = { [weak self] id in self?.deleteComment(id) }
     }
 
     public var viewedCount: Int { viewedPaths.count }
@@ -177,7 +194,7 @@ public final class PRDetailModel {
                 case let .detail(pullRequest):
                     receiveDetail(pullRequest)
                 case let .threads(threads):
-                    receiveThreads(threads)
+                    receiveThreads(threads, fromGitHub: true)
                 case let .conversation(conversation):
                     receiveConversation(conversation)
                     scheduleStatusRefresh()
@@ -354,10 +371,33 @@ public final class PRDetailModel {
         rebuildSummary()
     }
 
+    /// Submits the pending review when there is one, so its comments go with the review.
     public func submitReview(_ event: PullRequestAction.ReviewEvent, body: String) {
         sheet = nil
-        guard canReview, event == .approve || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        run(.review(event, body: body), as: event == .approve ? .approve : .requestChanges)
+        let button: SidebarAction = switch event {
+        case .approve: .approve
+        case .requestChanges: .requestChanges
+        case .comment: .submitReview
+        }
+        guard canSubmit(event, body: body), let id = pullRequest?.nodeID ?? pullRequestID else { return }
+        guard let review = pendingReviewID else { return run(.review(event, body: body), as: button) }
+        isFinishingReview = true
+        run(as: button, isReview: true) { [service] in
+            defer { self.isFinishingReview = false }
+            _ = try await service.comment(.submitReview(review: review, event: event, body: body), pullRequestID: id)
+            self.publishPendingComments()
+        }
+    }
+
+    /// GitHub needs a comment for Request changes and for Comment, unless pending comments go with the review.
+    public func canSubmit(_ event: PullRequestAction.ReviewEvent, body: String) -> Bool {
+        guard runningAction == nil, conversation != nil, commentsInFlight == 0, !isFinishingReview else { return false }
+        let hasBody = !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch event {
+        case .approve: return sidebarState.canReview
+        case .requestChanges: return sidebarState.canReview && (hasBody || pendingCommentCount > 0)
+        case .comment: return hasBody || pendingCommentCount > 0
+        }
     }
 
     /// `nil` title or body lets GitHub use the repository default. Rebase merges send neither.
@@ -388,7 +428,7 @@ public final class PRDetailModel {
         case .resolveConflicts: openExternal(ref.webURL.appending(path: "conflicts"))
         case .viewMergeQueue: if let url = mergeStatus?.mergeQueueURL { openExternal(url) }
         case .reload: reload()
-        case .chooseMethod: break
+        case .chooseMethod, .submitReview: break
         }
     }
 
@@ -420,15 +460,20 @@ public final class PRDetailModel {
 
     /// Shows the spinner, runs the action, then shows the new state. A review also reloads the timeline.
     private func run(_ action: PullRequestAction, as button: SidebarAction) {
-        guard runningAction == nil, let id = pullRequest?.nodeID ?? pullRequestID else { return }
+        guard let id = pullRequest?.nodeID ?? pullRequestID else { return }
+        let isReview = if case .review = action { true } else { false }
+        run(as: button, isReview: isReview) { [service] in try await service.perform(action, pullRequestID: id) }
+    }
+
+    private func run(as button: SidebarAction, isReview: Bool, _ operation: @escaping () async throws -> Void) {
+        guard runningAction == nil else { return }
         statusRefresh?.cancel()
         runningAction = button
         rebuildSummary()
         actionTask = Task {
-            let isReview = if case .review = action { true } else { false }
             var refreshed = true
             do {
-                try await service.perform(action, pullRequestID: id)
+                try await operation()
                 unknownMergeableRefreshes = 0
                 refreshed = await refresh(afterReview: isReview)
             } catch {
@@ -522,8 +567,12 @@ public final class PRDetailModel {
         }
     }
 
-    private func receiveThreads(_ threads: [ReviewThread]) {
+    /// GitHub's threads replace the pending review ID. A local change keeps it, because a started review can be empty.
+    func receiveThreads(_ threads: [ReviewThread], fromGitHub: Bool = false) {
         self.threads = threads
+        let pending = threads.flatMap(\.comments).filter(\.isPending)
+        pendingCommentCount = pending.count
+        if fromGitHub || pending.first != nil { pendingReviewID = pending.first?.reviewID }
         if conversation != nil {
             summaryTimelineStale = true
             rebuildSummary()

@@ -12,6 +12,10 @@ enum HitTarget: Equatable {
     case toggleThread(Int)
     case expandHunk(Int)
     case expandTail
+    /// The hover "+" of a code line.
+    case addComment(DiffSide)
+    case reply(thread: Int)
+    case commentMenu(thread: Int, comment: Int)
 }
 
 /// Measures and draws every row kind. Row views hold no state beyond their `RowRef`.
@@ -23,6 +27,8 @@ struct LineSelection: Equatable {
 final class DiffRenderer {
     var files: [FileState] = []
     var selection: LineSelection?
+    /// The code line and side under the mouse; its "+" button shows.
+    var hover: (ref: RowRef, side: DiffSide)?
     /// The file that the Markdown preview shows; its header button draws as active.
     var previewPath: String?
     let cache = TextLayoutCache()
@@ -47,6 +53,8 @@ final class DiffRenderer {
             return CGFloat(max(left, right)) * Metrics.lineHeight
         case let .thread(index):
             return threadLayout(state: state, file: ref.file, index: index, geometry: geometry).rowHeight
+        case let .composer(index):
+            return state.composers[safe: index]?.height ?? 0
         }
     }
 
@@ -88,10 +96,18 @@ final class DiffRenderer {
         case let .line(hunk, row):
             if let line = state.diff?.hunks[hunk].rows[row] {
                 let selectedSide = selection.flatMap { $0.refs.contains(ref.logical) ? $0.side : nil }
-                drawLine(line, file: ref.file, state: state, selectedSide: selectedSide, bounds: bounds, dirty: dirty, geometry: geometry, context: context)
+                let hoveredSide = hover.flatMap { $0.ref == ref.logical ? $0.side : nil }
+                drawLine(
+                    line, file: ref.file, state: state, selectedSide: selectedSide, hoveredSide: hoveredSide,
+                    bounds: bounds, dirty: dirty, geometry: geometry, context: context
+                )
             }
         case let .thread(index):
             drawThread(state: state, file: ref.file, index: index, bounds: bounds, dirty: dirty, geometry: geometry, context: context)
+        case let .composer(index):
+            if let composer = state.composers[safe: index] {
+                drawComposer(composer, ref: ref, bounds: bounds, geometry: geometry, context: context)
+            }
         case .notice: drawNotice(state, bounds: bounds, geometry: geometry, context: context)
         case .footer:
             if !state.collapsed { drawCardBottom(bounds: bounds, geometry: geometry, context: context) }
@@ -290,7 +306,7 @@ final class DiffRenderer {
     }
 
     private func drawLine(
-        _ row: DiffRow, file: Int, state: FileState, selectedSide: DiffSide?,
+        _ row: DiffRow, file: Int, state: FileState, selectedSide: DiffSide?, hoveredSide: DiffSide?,
         bounds: CGRect, dirty: CGRect, geometry: CardGeometry, context: CGContext
     ) {
         for side in [DiffSide.left, .right] {
@@ -340,6 +356,9 @@ final class DiffRenderer {
             let spans = side == .left ? state.item.highlights?.left[safe: cell.lineIndex] : state.item.highlights?.right[safe: cell.lineIndex]
             let layout = cache.layout(cell, side: side, file: file, spans: spans, width: geometry.codeWidth)
             let codeX = geometry.codeX(side)
+            defer {
+                if hoveredSide == side { drawAddCommentButton(plusRect(side, bounds: bounds, geometry: geometry), context: context) }
+            }
             if let wordColor, !cell.changedRanges.isEmpty {
                 context.setFillColor(wordColor)
                 for (index, line) in layout.lines.enumerated() {
@@ -362,6 +381,18 @@ final class DiffRenderer {
         }
         context.setFillColor(theme.border)
         context.fill(CGRect(x: geometry.sideMinX(.right), y: bounds.minY, width: 1, height: bounds.height))
+    }
+
+    /// The "+" sits on the edge between the line number and the code, like on GitHub.
+    func plusRect(_ side: DiffSide, bounds: CGRect, geometry: CardGeometry) -> CGRect {
+        CGRect(x: geometry.sideMinX(side) + geometry.numberWidth - 4, y: bounds.minY + 1, width: 20, height: Metrics.lineHeight - 2)
+    }
+
+    private func drawAddCommentButton(_ rect: CGRect, context: CGContext) {
+        context.addPath(CGPath(roundedRect: rect, cornerWidth: 4, cornerHeight: 4, transform: nil))
+        context.setFillColor(theme.accent)
+        context.fillPath()
+        drawSymbol("plus", in: rect, color: CGColor.white, pointSize: 10)
     }
 
     private func drawLine(_ line: CTLine, x: CGFloat, top: CGFloat, context: CGContext) {
@@ -425,7 +456,60 @@ final class DiffRenderer {
                 drawFrame(comment.body, x: box.minX + ThreadLayout.innerPadding, top: y, height: comment.bodyHeight + 1, dirty: dirty, context: context)
             }
             y += comment.bodyHeight + ThreadLayout.innerPadding
+            if comment.hasMenu {
+                drawSymbol("ellipsis", in: layout.menuRect(comment: commentIndex, box: box), color: theme.mutedText, pointSize: 12)
+            }
         }
+        let reply = layout.replyRect(box: box)
+        context.setFillColor(theme.border)
+        context.fill(CGRect(x: box.minX + 1, y: box.maxY - ThreadLayout.replyHeight, width: box.width - 2, height: 1))
+        guard reply.minY < dirty.maxY, reply.maxY > dirty.minY else { return }
+        let field = CGPath(roundedRect: reply.insetBy(dx: 0.5, dy: 0.5), cornerWidth: 6, cornerHeight: 6, transform: nil)
+        context.addPath(field)
+        context.setFillColor(theme.background)
+        context.fillPath()
+        context.addPath(field)
+        context.setStrokeColor(theme.border)
+        context.strokePath()
+        drawLine(cache.replyPlaceholder, x: reply.minX + 10, top: reply.midY - Metrics.lineHeight / 2, context: context)
+    }
+
+    // MARK: Comment boxes
+
+    func composerBox(_ ref: RowRef, composer: Composer, bounds rowBounds: CGRect) -> CGRect {
+        let state = files[ref.file]
+        let geometry = CardGeometry(width: rowBounds.width, numberWidth: state.numberWidth)
+        return CGRect(
+            x: geometry.sideMinX(composer.side) + Composer.outerPadding,
+            y: rowBounds.minY + Composer.outerPadding,
+            width: geometry.halfWidth - Composer.outerPadding * 2,
+            height: composer.height - Composer.outerPadding * 2
+        )
+    }
+
+    private func drawComposer(_ composer: Composer, ref: RowRef, bounds: CGRect, geometry: CardGeometry, context: CGContext) {
+        context.setFillColor(theme.border)
+        context.fill(CGRect(x: geometry.sideMinX(.right), y: bounds.minY, width: 1, height: bounds.height))
+        let box = composerBox(ref, composer: composer, bounds: bounds)
+        let path = CGPath(roundedRect: box.insetBy(dx: 0.5, dy: 0.5), cornerWidth: 6, cornerHeight: 6, transform: nil)
+        context.addPath(path)
+        context.setFillColor(theme.cardHeader)
+        context.fillPath()
+        let field = CGRect(
+            x: box.minX + Composer.innerPadding, y: box.minY + Composer.innerPadding,
+            width: box.width - Composer.innerPadding * 2, height: composer.textHeight
+        )
+        let fieldPath = CGPath(roundedRect: field.insetBy(dx: -0.5, dy: -0.5), cornerWidth: 6, cornerHeight: 6, transform: nil)
+        context.addPath(fieldPath)
+        context.setFillColor(theme.background)
+        context.fillPath()
+        context.addPath(fieldPath)
+        context.setStrokeColor(theme.accent)
+        context.setLineWidth(1)
+        context.strokePath()
+        context.addPath(path)
+        context.setStrokeColor(theme.border)
+        context.strokePath()
     }
 
     /// Draws only the frame's lines that intersect `dirty`.
@@ -491,15 +575,31 @@ final class DiffRenderer {
             if case .tooLarge = state.item.content { return .loadFullDiff }
             return nil
         case let .thread(index):
-            guard state.item.threads[index].isResolved else { return nil }
             let box = threadBox(state: state, file: ref.file, index: index, bounds: bounds, geometry: geometry)
+            let layout = threadLayout(state: state, file: ref.file, index: index, geometry: geometry)
+            if !layout.collapsed {
+                for (commentIndex, comment) in layout.comments.enumerated() where comment.hasMenu {
+                    if layout.menuRect(comment: commentIndex, box: box).insetBy(dx: -4, dy: -4).contains(point) {
+                        return .commentMenu(thread: index, comment: commentIndex)
+                    }
+                }
+                if layout.replyRect(box: box).contains(point) { return .reply(thread: index) }
+            }
             let toggleArea = CGRect(x: box.minX, y: box.minY, width: box.width, height: ThreadLayout.collapsedHeight)
-            return toggleArea.contains(point) ? .toggleThread(index) : nil
+            return state.item.threads[index].isResolved && toggleArea.contains(point) ? .toggleThread(index) : nil
         case let .hunk(index):
             return isExpandable(state, hunk: index) ? .expandHunk(index) : nil
         case .expandTail:
             return .expandTail
-        case .line, .footer:
+        case let .line(hunk, row):
+            guard let line = state.diff?.hunks[safe: hunk]?.rows[safe: row] else { return nil }
+            for side in [DiffSide.left, .right] {
+                guard let cell = side == .left ? line.left : line.right, state.canComment(side: side, from: cell.number, to: cell.number)
+                else { continue }
+                if plusRect(side, bounds: bounds, geometry: geometry).insetBy(dx: -2, dy: -1).contains(point) { return .addComment(side) }
+            }
+            return nil
+        case .composer, .footer:
             return nil
         }
     }

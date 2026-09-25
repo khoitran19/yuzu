@@ -61,6 +61,8 @@ public struct PRDetailView: View {
             switch sheet {
             case let .review(event):
                 ReviewSheet(event: event, submit: { model.submitReview(event, body: $0) }, cancel: { model.sheet = nil })
+            case .finishReview:
+                finishReviewSheet
             case let .merge(bypass, headOid):
                 if let pullRequest = model.pullRequest {
                     MergeSheet(
@@ -71,6 +73,17 @@ public struct PRDetailView: View {
                 }
             }
         }
+    }
+
+    private var finishReviewSheet: FinishReviewSheet {
+        let model = model
+        let canDiscard = model.pendingReviewID != nil && model.commentsInFlight == 0
+        let discard: (() -> Void)? = canDiscard ? { model.discardPendingReview() } : nil
+        return FinishReviewSheet(
+            pendingCount: model.pendingCommentCount, canApprove: model.sidebarState.canReview,
+            canSubmit: { model.canSubmit($0, body: $1) }, submit: { model.submitReview($0, body: $1) },
+            discard: discard, cancel: { model.sheet = nil }
+        )
     }
 
     private var tabBar: some View {
@@ -90,6 +103,7 @@ public struct PRDetailView: View {
                 ProgressView().controlSize(.mini).help("Updating from GitHub")
             }
             if model.tab == .files, model.phase == .loaded {
+                FinishReviewButton(pendingCount: model.pendingCommentCount) { model.sheet = .finishReview }
                 ViewedProgress(viewed: model.viewedCount, total: model.fileCount)
                 Menu {
                     Button(Shortcut.collapseAll.title) { model.setAllCollapsed(true) }
@@ -212,6 +226,24 @@ struct TabButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// "Review changes", or "Finish your review (N)" while the viewer's review has pending comments.
+struct FinishReviewButton: View {
+    let pendingCount: Int
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            if pendingCount > 0 {
+                Button("Finish your review (\(pendingCount))", action: action).buttonStyle(.borderedProminent)
+            } else {
+                Button("Review changes", action: action).buttonStyle(.bordered)
+            }
+        }
+        .controlSize(.small)
+        .accessibilityIdentifier("prDetail.finishReview")
     }
 }
 

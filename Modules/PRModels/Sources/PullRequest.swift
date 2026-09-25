@@ -131,14 +131,67 @@ public struct ReviewThread: Sendable, Identifiable, Equatable, Codable {
 public struct ReviewComment: Sendable, Identifiable, Equatable, Codable {
     public let id: String
     public let author: Actor?
+    /// The rendered text, for display.
     public let bodyText: String
+    /// The Markdown source, for editing.
+    public let body: String
     public let createdAt: Date
+    /// In the viewer's pending review: only the viewer sees it until the review is submitted.
+    public let isPending: Bool
+    public let viewerCanUpdate: Bool
+    public let viewerCanDelete: Bool
+    /// The review that holds the comment.
+    public let reviewID: String?
 
-    public init(id: String, author: Actor?, bodyText: String, createdAt: Date) {
+    public init(
+        id: String, author: Actor?, bodyText: String, body: String? = nil, createdAt: Date, isPending: Bool = false,
+        viewerCanUpdate: Bool = false, viewerCanDelete: Bool = false, reviewID: String? = nil
+    ) {
         self.id = id
         self.author = author
         self.bodyText = bodyText
+        self.body = body ?? bodyText
         self.createdAt = createdAt
+        self.isPending = isPending
+        self.viewerCanUpdate = viewerCanUpdate
+        self.viewerCanDelete = viewerCanDelete
+        self.reviewID = reviewID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, author, bodyText, body, createdAt, isPending, viewerCanUpdate, viewerCanDelete, reviewID
+    }
+
+    /// Fixtures recorded before comments could change have only the first four fields.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(String.self, forKey: .id),
+            author: try container.decodeIfPresent(Actor.self, forKey: .author),
+            bodyText: try container.decode(String.self, forKey: .bodyText),
+            body: try container.decodeIfPresent(String.self, forKey: .body),
+            createdAt: try container.decode(Date.self, forKey: .createdAt),
+            isPending: try container.decodeIfPresent(Bool.self, forKey: .isPending) ?? false,
+            viewerCanUpdate: try container.decodeIfPresent(Bool.self, forKey: .viewerCanUpdate) ?? false,
+            viewerCanDelete: try container.decodeIfPresent(Bool.self, forKey: .viewerCanDelete) ?? false,
+            reviewID: try container.decodeIfPresent(String.self, forKey: .reviewID)
+        )
+    }
+}
+
+/// Where a new comment goes: one line, or `startLine...line`, on one side of one file.
+public struct CommentTarget: Sendable, Hashable, Codable {
+    public let path: String
+    public let side: DiffSide
+    public let line: Int
+    /// `nil` for one line. Otherwise less than `line`, on the same side.
+    public let startLine: Int?
+
+    public init(path: String, side: DiffSide, line: Int, startLine: Int? = nil) {
+        self.path = path
+        self.side = side
+        self.line = line
+        self.startLine = startLine
     }
 }
 

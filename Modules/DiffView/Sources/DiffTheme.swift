@@ -22,6 +22,8 @@ struct DiffTheme {
     let deletionStat: CGColor
     let neutralStat: CGColor
     let accent: CGColor
+    /// The Pending label of a comment in the viewer's unsubmitted review.
+    let pending: CGColor
     let tokens: [TokenKind: CGColor]
 
     static func resolve(for appearance: NSAppearance) -> DiffTheme {
@@ -48,6 +50,7 @@ struct DiffTheme {
         deletionStat: hex(0xF85149),
         neutralStat: hex(0x3D444D),
         accent: hex(0x4493F8),
+        pending: hex(0xD29922),
         tokens: [
             .keyword: hex(0xFF7B72), .operator: hex(0xFF7B72),
             .string: hex(0xA5D6FF),
@@ -79,6 +82,7 @@ struct DiffTheme {
         deletionStat: hex(0xD1242F),
         neutralStat: hex(0xD1D9E0),
         accent: hex(0x0969DA),
+        pending: hex(0x9A6700),
         tokens: [
             .keyword: hex(0xCF222E), .operator: hex(0xCF222E),
             .string: hex(0x0A3069),

@@ -11,6 +11,8 @@ nonisolated enum SidebarAction: String, Sendable, CaseIterable {
     case resolveConflicts, viewMergeQueue
     /// Loads the pull request again after new commits were pushed.
     case reload
+    /// Submits the viewer's pending review from the Files changed tab. It has no sidebar button.
+    case submitReview
 
     /// Actions that merge the head; they need the head the viewer reviewed.
     static let merging: Set<SidebarAction> = [.merge, .bypassMerge, .enqueue, .enableAutoMerge, .chooseMethod]
@@ -28,6 +30,7 @@ nonisolated enum SidebarAction: String, Sendable, CaseIterable {
         case .markReady: "Marking as ready…"
         case .convertToDraft: "Converting to draft…"
         case .reload: "Reloading…"
+        case .submitReview: "Submitting review…"
         case .chooseMethod, .resolveConflicts, .viewMergeQueue: ""
         }
     }
@@ -47,6 +50,7 @@ nonisolated enum SidebarAction: String, Sendable, CaseIterable {
         case .chooseMethod: "change the merge method"
         case .resolveConflicts, .viewMergeQueue: "open GitHub"
         case .reload: "reload the pull request"
+        case .submitReview: "submit the review"
         }
     }
 

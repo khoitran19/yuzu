@@ -37,7 +37,7 @@ extension Shortcut {
     public static let merge = Shortcut("merge", "Merge…", area: .pullRequest, keys: [.returnKey], modifiers: [.shift, .command])
 
     public static let submitSheet = Shortcut(
-        "submitSheet", "Submit the review or confirm the merge", area: .sheet, keys: [.returnKey], modifiers: .command
+        "submitSheet", "Submit the review or comment, or confirm the merge", area: .sheet, keys: [.returnKey], modifiers: .command
     )
     public static let cancelSheet = Shortcut("cancelSheet", "Cancel", area: .sheet, keys: [.escape])
 
@@ -50,7 +50,12 @@ extension Shortcut {
     )
     public static let copyLines = Shortcut(
         "copyLines", "Copy the selected lines", area: .diff, keys: [.character("c")], modifiers: .command)
+    public static let commentOnSelection = Shortcut(
+        "commentOnSelection", "Comment on the selected lines", area: .diff, keys: [.character("c")])
     public static let clearSelection = Shortcut("clearSelection", "Clear the line selection", area: .diff, keys: [.escape])
+
+    public static let addSingleComment = Shortcut(
+        "addSingleComment", "Add a single comment, not in a review", area: .composer, keys: [.returnKey], modifiers: [.option, .command])
 
     public static let openTreeItem = Shortcut(
         "openTreeItem", "Show the file, or open or close the folder", area: .fileTree, keys: [.returnKey])
@@ -69,7 +74,8 @@ extension Shortcut {
         summaryTab, filesTab, collapseAll, expandAll, toggleFileTree, toggleMarkdownPreview, refresh, approve, requestChanges,
         merge,
         submitSheet, cancelSheet,
-        nextFile, previousFile, toggleViewed, previewFile, toggleCollapse, copyLines, clearSelection,
+        nextFile, previousFile, toggleViewed, previewFile, toggleCollapse, copyLines, commentOnSelection, clearSelection,
+        addSingleComment,
         openTreeItem,
         filterToTree, filterOpenFirst,
         panelPrevious, panelNext, panelOpen, panelClose,

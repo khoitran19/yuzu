@@ -18,7 +18,16 @@ This document uses ASD-STE100 Simplified Technical English.
 | Merge queue | GraphQL `enqueuePullRequest(input: {pullRequestId, expectedHeadOid})`, `dequeuePullRequest(input: {id})` | `DequeuePullRequestInput` names the pull request `id`, not `pullRequestId`. |
 | Draft | GraphQL `markPullRequestReadyForReview(input: {pullRequestId})`, `convertPullRequestToDraft(input: {pullRequestId})` | |
 | Avatars | `avatarUrl(size: 80)`, served to the Summary web view through the `yuzu-avatar:` scheme | `AvatarCache` keeps each image in `~/Library/Caches/dev.khoitran.yuzu/Avatars`. A copy older than 7 days is shown, then refreshed in the background. |
-| Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments }` | Comments over 100 per thread load through `node(id:)`. |
+| Review threads | GraphQL `reviewThreads { line startLine diffSide isResolved isOutdated comments { body bodyText state viewerCanUpdate viewerCanDelete pullRequestReview { id } } }` | Comments over 100 per thread load through `node(id:)`. `state: PENDING` means the comment is in the viewer's pending review. Only the viewer sees it. |
+| Single comment (`addThread`, no review) | GraphQL `addPullRequestReview(input: {pullRequestId, event: COMMENT, threads: [{body, path, line, side, startLine, startSide}]})` | GitHub publishes the comment at once. The payload reads `pullRequest { reviewThreads(last: 5) }` and keeps the thread whose first comment belongs to the new review, because a comment has no link to its thread. GitHub refuses it while the viewer has a pending review. |
+| Comment in a review (`addThread` with a review) | GraphQL `addPullRequestReviewThread(input: {pullRequestReviewId, body, path, line, side, startLine, startSide})` | Returns the thread with the pending comment. |
+| Multi-line comment | `startLine` and `startSide` in the two rows above | Sent only for a range. `startSide` is always the same as `side`. |
+| Start a review | GraphQL `addPullRequestReview(input: {pullRequestId, commitOID})` | No `event`, so the review stays pending. `commitOID` is the head of the loaded diff. A viewer can have only one pending review. If GitHub refuses, the app reads `reviews(states: [PENDING], first: 1)` and uses that review, for example an empty pending review from the web. |
+| Reply | GraphQL `addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId, body, pullRequestReviewId})` | Without `pullRequestReviewId`, GitHub posts the reply at once. The result `state` tells if the reply is pending. |
+| Edit a comment | GraphQL `updatePullRequestReviewComment(input: {pullRequestReviewCommentId, body})` | `body` is Markdown. Returns the changed comment. |
+| Delete a comment | GraphQL `deletePullRequestReviewComment(input: {id})` | When the last comment goes, GitHub removes the thread. |
+| Submit a review | GraphQL `submitPullRequestReview(input: {pullRequestReviewId, event, body})` | `event` is `COMMENT`, `APPROVE`, or `REQUEST_CHANGES`. An empty body is left out. |
+| Discard a review | GraphQL `deletePullRequestReview(input: {pullRequestReviewId})` | Removes the pending review and all of its comments. |
 | Full file contents | REST `GET /repos/{o}/{r}/contents/{path}?ref={oid}` with `Accept: application/vnd.github.raw+json` | For "Load diff" and context expansion. |
 | Merge base | REST `GET /repos/{o}/{r}/compare/{base}...{head}?per_page=1&page=2` | Page 2 leaves out the file list, so the response is small. |
 | Open pull request panel | GraphQL `search(type: ISSUE, query: "repo:o/r is:pr is:open author:@me sort:updated-desc")`, and `-author:@me` for Others | 50 per page, at most 2 pages (100 rows) per tab. `issueCount` gives the tab count. Checks come from `commits(last: 1) { statusCheckRollup { state } }`. |
@@ -35,8 +44,11 @@ This document uses ASD-STE100 Simplified Technical English.
   per 100 files. Each sidebar action costs 2 requests: the mutation and one status refresh (a review reloads the timeline
   too, so it costs 3). Polling costs 1 request per 15 s while checks run, the pull request is queued, or auto-merge is on,
   and at most 5 requests at 3 s while mergeability is unknown.
-- **Mutation errors.** GitHub returns refused actions as GraphQL errors. `GitHubClient.perform` throws
-  `GitHubError.rejected` with GitHub's message, and the banner shows "Could not merge: <message>". Expansion and "Load diff" cost 1–3 requests per file. Opening the pull request panel costs 2–4 GraphQL
+- **Comment actions.** Each comment action costs 1 GraphQL request. "Start a review" costs 2 when GitHub refuses it,
+  because the app then reads the pending review that already exists. A single comment is 1 request, not 2: the payload
+  of `addPullRequestReview` reads the new thread back.
+- **Mutation errors.** GitHub returns refused actions as GraphQL errors. `GitHubClient.perform` and
+  `GitHubClient.comment` throw `GitHubError.rejected` with GitHub's message, and the banner shows "Could not merge: <message>". Expansion and "Load diff" cost 1–3 requests per file. Opening the pull request panel costs 2–4 GraphQL
   requests.
 - **Response time.** On #6663 (22 files): files 0.46 s, Viewed states 0.49 s, details 0.75 s, threads 0.91 s. The first
   paint waits for the first two only: about 0.6 s.
