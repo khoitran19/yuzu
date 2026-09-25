@@ -12,17 +12,19 @@ final class HarnessRunner {
     private let pullRequestList: PRListModel
     private let window: NSWindow?
     private let openTab: (PRRef) -> Void
+    private let submit: (String) -> Void
     private var perf: ScrollPerfHarness?
 
     init(
         options: LaunchOptions, model: PRDetailModel, pullRequestList: PRListModel, window: NSWindow?,
-        openTab: @escaping (PRRef) -> Void
+        openTab: @escaping (PRRef) -> Void, submit: @escaping (String) -> Void
     ) {
         self.options = options
         self.model = model
         self.pullRequestList = pullRequestList
         self.window = window
         self.openTab = openTab
+        self.submit = submit
     }
 
     func run() {
@@ -83,12 +85,16 @@ final class HarnessRunner {
     }
 
     private func openTabsAndSendKeys() async {
-        guard !options.openTabs.isEmpty || !options.keys.isEmpty else { return }
+        guard !options.openTabs.isEmpty || !options.keys.isEmpty || options.submit != nil else { return }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
         for ref in options.openTabs {
             openTab(ref)
             try? await Task.sleep(for: .milliseconds(500))
+        }
+        if let text = options.submit {
+            submit(text)
+            try? await Task.sleep(for: .seconds(options.settleSeconds))
         }
         for key in options.keys {
             let handled = Self.keyEvent(key).map { NSApp.mainMenu?.performKeyEquivalent(with: $0) == true } ?? false

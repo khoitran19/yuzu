@@ -5,13 +5,13 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppServices.self) private var services
-    @Binding var ref: PRRef?
+    @Binding var tab: WindowTab?
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Group {
             if let service = services.service {
-                MainWindowView(ref: $ref, lists: services.pullRequestLists(for: service))
+                MainWindowView(ref: ref, lists: services.pullRequestLists(for: service))
             } else {
                 SignInView(session: services.auth)
             }
@@ -22,6 +22,10 @@ struct RootView: View {
             await services.bootstrapAuth()
             await captureSignInIfRequested()
         }
+    }
+
+    private var ref: Binding<PRRef?> {
+        Binding { tab?.ref } set: { ref in tab = ref.map { WindowTab(ref: $0, id: tab?.id ?? UUID()) } }
     }
 
     /// Harness: with `--screenshot` and no session, captures the sign-in screen and quits.

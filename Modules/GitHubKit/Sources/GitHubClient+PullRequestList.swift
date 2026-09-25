@@ -6,8 +6,15 @@ extension GitHubClient {
     static let pullRequestListLimit = 100
 
     @concurrent public func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList {
-        let author = scope == .mine ? "author:@me" : "-author:@me"
-        let query = "repo:\(repo.displayName) is:pr is:open \(author) sort:updated-desc"
+        try await searchOpenPullRequests(in: repo, filter: scope == .mine ? "author:@me" : "-author:@me")
+    }
+
+    @concurrent public func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList {
+        try await searchOpenPullRequests(in: repo, filter: "author:\(author.login)")
+    }
+
+    @concurrent private func searchOpenPullRequests(in repo: RepoRef, filter: String) async throws -> PullRequestList {
+        let query = "repo:\(repo.displayName) is:pr is:open \(filter) sort:updated-desc"
         var pullRequests: [PullRequestSummary] = []
         var totalCount = 0
         var cursor: String?

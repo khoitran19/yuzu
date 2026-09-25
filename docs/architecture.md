@@ -178,8 +178,11 @@ Status polling:
 
 ## Tabs
 
-- Each tab is a native macOS window tab. The window's scene value is its `PRRef`, so state restoration reopens the
-  tabs. A hidden tab does no layout or drawing, so the cost of a switch does not grow with the number of tabs.
+- Each tab is a native macOS window tab. The window's scene value is a `WindowTab` (a `PRRef` and an ID), so state
+  restoration reopens the tabs. The ID stops SwiftUI from reusing a window that shows, or just showed, the same pull
+  request. A hidden tab does no layout or drawing, so the cost of a switch does not grow with the number of tabs.
+- A tab loads its pull request when it is first selected (`loadIfSelected`, on the first window and on each occlusion
+  change). Until then it shows its title and a spinner. A group of new or restored tabs does not load all at once.
 - The panel, ⇧⌘V, and pull request links open a new tab. The address field replaces the current tab. A window that
   shows Home is always reused.
 - `PullRequestWindows` records the pull request of each window. A request for a pull request that is open in a tab
@@ -187,6 +190,12 @@ Status polling:
 - SwiftUI shows a new window before AppKit can tab it automatically. The opener records itself as the tab host of the
   pull request. When the new window gets its view, it joins the host's group and becomes the selected tab. The new tab
   goes after the host.
+- `@login` in the address field (`AuthorQuery`) searches the active repository for that author's open pull requests,
+  most recently updated first. The current tab shows the first one, the other tabs of the window close, and the rest
+  open as background tabs. SwiftUI can create these windows in any order, so each keeps its place in
+  `PullRequestWindows` and joins the group at that place. An empty result keeps the tabs and marks the field red.
+- ⌘R calls `PRDetailModel.refresh`: the same in-place load as the merge box Reload button. It is ignored while an
+  action runs.
 - ⇧⌘[ and ⇧⌘] select the previous and next tab, and wrap at the ends. A menu matches the character that the keyboard
   sends, so `Shortcut.keyboardShortcut` gives `{` and `}` with ⌘ for these keys.
 - All windows share one `PRListStore`, so the panel in a new tab shows the cached lists at once. Each window keeps its

@@ -22,6 +22,9 @@ Debug builds skip sign-in when `YUZU_GITHUB_TOKEN` is set, for example `YUZU_GIT
 - Links to GitHub pull requests open in the app. Other links open in the browser.
 - Each pull request has its own tab. The panel (⌘P), ⇧⌘V, and links open a new tab. The address field replaces the
   pull request in the current tab. ⇧⌘[ and ⇧⌘] go to the previous and next tab.
+- Type `@login` in the address field to replace all tabs with that author's open pull requests in the active
+  repository. `@me` gives your own. A tab loads when you first select it.
+- ⌘R loads the current pull request again. The scroll position and the collapsed files stay.
 
 | Key            | Action                                           |
 | -------------- | ------------------------------------------------ |

@@ -186,6 +186,15 @@ public final class FixturePullRequestService: PullRequestService {
         return SyntheticPullRequestList.make(repo: repo, scope: scope, current: try loadedSnapshot().pullRequest, now: .now)
     }
 
+    /// `@me` is the Mine list. Other logins match the authors of both lists.
+    @concurrent public func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList {
+        let mine = try await openPullRequests(in: repo, scope: .mine).pullRequests
+        if author.login == "@me" { return PullRequestList(pullRequests: mine, totalCount: mine.count) }
+        let others = try await openPullRequests(in: repo, scope: .others).pullRequests
+        let matches = (mine + others).filter { $0.author?.login == author.login }
+        return PullRequestList(pullRequests: matches, totalCount: matches.count)
+    }
+
     private func loadedSnapshot() throws -> PullRequestSnapshot {
         if let snapshot = state.withLock({ $0.snapshot }) { return snapshot }
         var loaded = try store.readSnapshot()

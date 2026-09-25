@@ -172,6 +172,17 @@ struct GitHubClientTests {
         #expect(body.variables["query"] == "repo:octo/app is:pr is:open -author:@me sort:updated-desc")
     }
 
+    @Test func authorQuerySearchesOneLogin() async throws {
+        let session = StubURLProtocol.session(token: token) { _ in
+            #"{"data":{"search":{"issueCount":0,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}"#
+        }
+        let author = try #require(AuthorQuery(string: "@rik"))
+        _ = try await GitHubClient(token: token, session: session)
+            .openPullRequests(in: RepoRef(owner: "octo", name: "app"), author: author)
+        let body = try JSONDecoder().decode(GraphQLBody.self, from: try #require(StubURLProtocol.requests(token: token).first).body)
+        #expect(body.variables["query"] == "repo:octo/app is:pr is:open author:rik sort:updated-desc")
+    }
+
     @Test func openPullRequestsStopsAtOneHundred() async throws {
         let session = StubURLProtocol.session(token: token) { request in
             let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)

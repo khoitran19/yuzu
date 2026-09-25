@@ -28,6 +28,8 @@ public protocol PullRequestService: Sendable {
     func perform(_ action: PullRequestAction, pullRequestID: String) async throws
     /// Up to 100 open pull requests of `repo`, most recently updated first.
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList
+    /// Up to 100 open pull requests of `repo` by one author, most recently updated first.
+    func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList
 }
 
 extension PullRequestService {

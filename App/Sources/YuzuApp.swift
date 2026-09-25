@@ -8,8 +8,8 @@ struct YuzuApp: App {
     @State private var services = AppServices()
 
     var body: some Scene {
-        WindowGroup(id: "main", for: PRRef.self) { $ref in
-            RootView(ref: $ref)
+        WindowGroup(id: "main", for: WindowTab.self) { $tab in
+            RootView(tab: $tab)
                 .environment(services)
                 .frame(minWidth: 900, minHeight: 600)
         }

@@ -191,6 +191,7 @@ private final class ManualPartsService: PullRequestService, @unchecked Sendable 
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
+    func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList { throw GitHubError.notFound }
 
     func perform(_ action: PullRequestAction, pullRequestID: String) async throws {}
 

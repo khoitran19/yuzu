@@ -29,6 +29,7 @@ extension Shortcut {
     public static let toggleMarkdownPreview = Shortcut(
         "toggleMarkdownPreview", "Show or Hide Markdown Preview", area: .pullRequest, keys: [.character("m")],
         modifiers: [.shift, .command])
+    public static let refresh = Shortcut("refresh", "Refresh", area: .pullRequest, keys: [.character("r")], modifiers: .command)
     public static let approve = Shortcut("approve", "Approve…", area: .pullRequest, keys: [.character("a")], modifiers: [.shift, .command])
     public static let requestChanges = Shortcut(
         "requestChanges", "Request Changes…", area: .pullRequest, keys: [.character("r")], modifiers: [.shift, .command]
@@ -65,7 +66,8 @@ extension Shortcut {
     /// Every shortcut, in settings order.
     public static let all: [Shortcut] = [
         openPullRequest, openFromClipboard, myPullRequests, otherPullRequests, previousTab, nextTab, showSummary, showFiles,
-        summaryTab, filesTab, collapseAll, expandAll, toggleFileTree, toggleMarkdownPreview, approve, requestChanges, merge,
+        summaryTab, filesTab, collapseAll, expandAll, toggleFileTree, toggleMarkdownPreview, refresh, approve, requestChanges,
+        merge,
         submitSheet, cancelSheet,
         nextFile, previousFile, toggleViewed, previewFile, toggleCollapse, copyLines, clearSelection,
         openTreeItem,

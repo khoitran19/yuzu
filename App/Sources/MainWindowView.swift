@@ -14,6 +14,7 @@ struct MainWindowView: View {
     @State private var detail: PRDetailModel?
     @State private var address = ""
     @State private var addressInvalid = false
+    @State private var authorSearch: Task<Void, Never>?
     @State private var window: NSWindow?
     @State private var harness: HarnessRunner?
     @State private var pullRequestList: PRListModel
@@ -28,30 +29,30 @@ struct MainWindowView: View {
         screen
         .pullRequestListPanel(pullRequestList) { open($0, in: .newTab) }
         .toolbar { toolbar }
-        .navigationTitle(detail.map { $0.pullRequest?.title ?? $0.ref.displayName } ?? "Yuzu")
-        .navigationSubtitle(detail?.ref.displayName ?? "")
+        .navigationTitle(title)
+        .navigationSubtitle(ref?.displayName ?? "")
         .background(WindowAccessor(onAttach: { [ref] in services.windows.attach($0, showing: ref) }) { window = $0 })
         .environment(\.openURL, OpenURLAction(handler: openLink))
         .focusedSceneValue(\.windowActions, windowActions)
         .onChange(of: activeRepository, initial: true) { _, repo in pullRequestList.setRepository(repo) }
-        .onChange(of: detail?.ref, initial: true) { _, ref in
-            pullRequestList.current = ref
+        .onChange(of: detail?.ref, initial: true) { _, ref in pullRequestList.current = ref }
+        .onChange(of: ref, initial: true) { _, ref in
             if let window { services.windows.set(ref, for: window) }
         }
         .task {
-            if let ref {
-                show(ref)
-            } else if let ref = await services.takeLaunchRef() {
-                show(ref, runsHarness: true)
-            }
+            if ref == nil, let ref = await services.takeLaunchRef() { show(ref, runsHarness: true) }
         }
         .onChange(of: window) { _, window in
             guard let window else { return }
-            services.windows.set(detail?.ref, for: window)
+            services.windows.set(ref, for: window)
             if let size = services.options.windowSize {
                 window.setContentSize(size)
                 window.center()
             }
+            loadIfSelected()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
+            if note.object as? NSWindow === window { loadIfSelected() }
         }
         .onDisappear {
             if let window { services.windows.set(nil, for: window) }
@@ -62,6 +63,10 @@ struct MainWindowView: View {
         if let detail {
             PRDetailView(model: detail)
                 .id(detail.ref)
+        } else if let ref {
+            ProgressView("Loading \(ref.displayName)…")
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             HomeView(address: $address, open: submit(_:))
         }
@@ -89,6 +94,7 @@ struct MainWindowView: View {
             focusAddress: focusAddress,
             openFromClipboard: openFromClipboard,
             showPullRequests: activeRepository == nil ? nil : { list.request($0) },
+            refresh: detail.map { $0.refresh },
             showTab: detail.map { detail in
                 { tab in
                     list.close()
@@ -129,10 +135,26 @@ struct MainWindowView: View {
             .focused($addressFocused)
             .onSubmit { submit(address) }
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(.red, lineWidth: addressInvalid ? 1 : 0))
+            .overlay(alignment: .trailing) {
+                if authorSearch != nil { ProgressView().controlSize(.small).padding(.trailing, 6) }
+            }
             .accessibilityIdentifier("address.field")
     }
 
+    private var title: String {
+        if let detail { return detail.pullRequest?.title ?? detail.ref.displayName }
+        return ref.map { services.windows.title(for: $0) ?? $0.displayName } ?? "Yuzu"
+    }
+
+    /// A tab loads when it is first selected, so a group of new or restored tabs does not load all at once.
+    private func loadIfSelected() {
+        guard detail == nil, let ref, let window, window.tabbedWindows == nil || window.tabGroup?.selectedWindow === window
+        else { return }
+        show(ref)
+    }
+
     private func submit(_ text: String) {
+        if let author = AuthorQuery(string: text) { return openTabs(by: author) }
         guard let ref = PRRef(string: text, in: activeRepository) else {
             addressInvalid = true
             return
@@ -155,9 +177,34 @@ struct MainWindowView: View {
             other.makeKeyAndOrderFront(nil)
         } else if placement == .newTab, let detail, detail.ref != ref {
             services.windows.openingTab(ref, from: window)
-            openWindow(id: "main", value: ref)
+            openWindow(id: "main", value: WindowTab(ref: ref))
         } else {
             show(ref)
+        }
+    }
+
+    /// Replaces every tab of the window with the author's open pull requests. The first one shows in this tab.
+    private func openTabs(by author: AuthorQuery) {
+        guard let repo = activeRepository, let service = services.service else {
+            addressInvalid = true
+            return
+        }
+        addressInvalid = false
+        authorSearch?.cancel()
+        authorSearch = Task {
+            let list = try? await service.openPullRequests(in: repo, author: author)
+            guard !Task.isCancelled else { return }
+            authorSearch = nil
+            let pullRequests = (list?.pullRequests ?? []).sorted { $0.updatedAt > $1.updatedAt }
+            guard let first = pullRequests.first else {
+                addressInvalid = true
+                return
+            }
+            for other in window?.tabbedWindows ?? [] where other !== window { other.close() }
+            if first.ref != detail?.ref { show(first.ref) }
+            let rest = pullRequests.dropFirst()
+            services.windows.openingBackgroundTabs(rest.map { ($0.ref, $0.title) }, from: window)
+            for pullRequest in rest { openWindow(id: "main", value: WindowTab(ref: pullRequest.ref)) }
         }
     }
 
@@ -175,7 +222,7 @@ struct MainWindowView: View {
             guard runsHarness, options.isHarness, !options.settings, let model else { return }
             let runner = HarnessRunner(
                 options: options, model: model, pullRequestList: pullRequestList, window: window,
-                openTab: { open($0, in: .newTab) }
+                openTab: { open($0, in: .newTab) }, submit: submit
             )
             harness = runner
             runner.run()
@@ -228,6 +275,8 @@ struct WindowActions {
     /// `nil` when the window has no active repository.
     let showPullRequests: ((PullRequestListScope) -> Void)?
     /// `nil` when no pull request is open.
+    let refresh: (() -> Void)?
+    /// `nil` when no pull request is open.
     let showTab: ((PRDetailModel.Tab) -> Void)?
     /// `nil` when the viewer cannot review now: no pull request, the viewer is the author, or an action runs.
     let review: ((PullRequestAction.ReviewEvent) -> Void)?
@@ -276,6 +325,10 @@ struct PullRequestCommands: Commands {
         }
         CommandGroup(replacing: .printItem) {}
         CommandMenu("Pull Request") {
+            Button(Shortcut.refresh.title) { actions?.refresh?() }
+                .keyboardShortcut(Shortcut.refresh.keyboardShortcut)
+                .disabled(actions?.refresh == nil)
+            Divider()
             Button(Shortcut.approve.title) { actions?.review?(.approve) }
                 .keyboardShortcut(Shortcut.approve.keyboardShortcut)
                 .disabled(actions?.review == nil)

@@ -392,6 +392,12 @@ public final class PRDetailModel {
         }
     }
 
+    /// Loads again in place, so the scroll position, collapsed files, and Viewed changes stay. Ignored while an action runs.
+    public func refresh() {
+        guard runningAction == nil else { return }
+        reload()
+    }
+
     private func reload() {
         guard !isRefreshing else { return }
         statusRefresh?.cancel()

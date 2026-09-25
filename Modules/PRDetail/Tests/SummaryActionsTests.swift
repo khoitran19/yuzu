@@ -283,6 +283,20 @@ struct PullRequestActionTests {
         #expect(service.performCalls.isEmpty)
     }
 
+    @Test func refreshReloadsInPlaceButNotWhileAnActionRuns() async throws {
+        let (model, _) = try await loadedModel(preset: .queueEnabled, latency: .milliseconds(100))
+        model.refresh()
+        #expect(model.runningAction == .reload)
+        await model.settleAction()
+        #expect(model.runningAction == nil)
+        #expect(model.phase == .loaded)
+
+        model.handle(.enqueue)
+        model.refresh()
+        #expect(model.runningAction == .enqueue)
+        await model.settleAction()
+    }
+
     @Test func newCommitsBlockMergingUntilReload() async throws {
         let (model, service) = try await loadedModel(preset: .newCommits)
         let reviewed = try #require(model.pullRequest?.headOid)
@@ -486,6 +500,7 @@ private final class ScriptedStatusService: PullRequestService, @unchecked Sendab
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
+    func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList { throw GitHubError.notFound }
     @MainActor func perform(_ action: PullRequestAction, pullRequestID: String) async throws {
         performed.append(action)
     }
@@ -519,6 +534,7 @@ private final class FlakyStatusService: PullRequestService, @unchecked Sendable 
     func fileContents(of ref: PRRef, oid: String, path: String) async throws -> String? { nil }
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String { base }
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList { throw GitHubError.notFound }
+    func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList { throw GitHubError.notFound }
     func perform(_ action: PullRequestAction, pullRequestID: String) async throws {
         try await base.perform(action, pullRequestID: pullRequestID)
     }
