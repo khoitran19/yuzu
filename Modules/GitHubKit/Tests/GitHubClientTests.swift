@@ -114,6 +114,18 @@ struct GitHubClientTests {
     @Test func conversationKeepsCommentsAndReviewsAndPagesChecks() async throws {
         let session = StubURLProtocol.session(token: token) { request in
             let body = try JSONDecoder().decode(GraphQLBody.self, from: request.body)
+            if body.query.contains("reviews(first") {
+                return #"""
+                {"data":{"repository":{"pullRequest":{"reviews":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[
+                  {"__typename":"PullRequestReview","id":"R2","state":"APPROVED","bodyHTML":"","createdAt":"2026-09-01T00:00:00Z",
+                   "submittedAt":"2026-09-02T00:00:00Z","url":null,"authorAssociation":"MEMBER","author":null,"comments":{"nodes":[]}},
+                  {"__typename":"PullRequestReview","id":"R3","state":"COMMENTED","bodyHTML":"","createdAt":"2026-09-01T12:00:00Z",
+                   "submittedAt":"2026-09-01T12:00:00Z","url":null,"authorAssociation":"OWNER","author":null,"comments":{"nodes":[
+                     {"id":"C3","bodyHTML":"<p>fixed</p>","createdAt":"2026-09-01T12:00:00Z","path":"a.ts","diffHunk":"@@ -1 +1 @@",
+                      "outdated":false,"authorAssociation":"OWNER","replyTo":{"id":"C1"},"author":null}]}}
+                ]}}}}}
+                """#
+            }
             if body.query.contains("timelineItems") {
                 return #"""
                 {"data":{"repository":{"pullRequest":{"timelineItems":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[
@@ -137,9 +149,10 @@ struct GitHubClientTests {
         }
         let conversation = try await GitHubClient(token: token, session: session).conversation(of: ref)
 
-        guard conversation.items.count == 2, case let .comment(comment) = conversation.items[0],
-              case let .review(review) = conversation.items[1]
-        else { Issue.record("Expected a comment and the submitted review, got \(conversation.items)"); return }
+        guard conversation.items.count == 3, case let .comment(comment) = conversation.items[0],
+              case let .review(replyOnly) = conversation.items[1], case let .review(review) = conversation.items[2]
+        else { Issue.record("Expected a comment, the reply-only review, and the submitted review, got \(conversation.items)"); return }
+        #expect(replyOnly.comments.map(\.id) == ["C3"])
         #expect(comment.author?.isBot == true)
         #expect(comment.minimizedReason == "outdated")
         #expect(review.state == .approved)

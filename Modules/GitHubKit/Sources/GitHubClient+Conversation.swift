@@ -5,9 +5,34 @@ extension GitHubClient {
     /// Comments and reviews only; event rows such as commits, labels, and deployments are not requested.
     public func conversation(of ref: PRRef) async throws -> Conversation {
         async let items = timelineItems(ref)
+        async let reviews = reviews(ref)
         async let status = status(of: ref)
         let current = try await status
-        return Conversation(items: try await items, checks: current.checks, merge: current.merge)
+        return Conversation(items: Self.merge(try await items, reviews: try await reviews), checks: current.checks, merge: current.merge)
+    }
+
+    /// `timelineItems` leaves out reviews that only reply to threads, so their replies come from `reviews`.
+    static func merge(_ items: [TimelineItem], reviews: [Review]) -> [TimelineItem] {
+        let known = Set(items.compactMap { if case let .review(review) = $0 { review.id } else { nil } })
+        var merged = items
+        for review in reviews where !known.contains(review.id) {
+            merged.insert(.review(review), at: merged.firstIndex { $0.createdAt > review.createdAt } ?? merged.endIndex)
+        }
+        return merged
+    }
+
+    private func reviews(_ ref: PRRef) async throws -> [Review] {
+        var reviews: [Review] = []
+        var cursor: String?
+        repeat {
+            var variables = ref.variables
+            variables["cursor"] = cursor.map(JSONValue.string) ?? .null
+            let response = try await graphQL(ConversationQueries.reviews, variables: variables, as: RepositoryPayload<ReviewsNode>.self)
+            guard let page = response.repository?.pullRequest?.reviews else { throw GitHubError.notFound }
+            reviews += page.nodes.compactMap { if case let .review(review) = $0.model { review } else { nil } }
+            cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : nil
+        } while cursor != nil
+        return reviews
     }
 
     private func timelineItems(_ ref: PRRef) async throws -> [TimelineItem] {
@@ -57,19 +82,38 @@ private enum ConversationQueries {
                 id bodyHTML createdAt url isMinimized minimizedReason authorAssociation
                 author { ...author }
               }
-              ... on PullRequestReview {
-                id state bodyHTML createdAt submittedAt url authorAssociation
-                author { ...author }
-                comments(first: 100) {
-                  nodes {
-                    id bodyHTML createdAt path diffHunk outdated authorAssociation
-                    replyTo { id }
-                    author { ...author }
-                  }
-                }
-              }
+              ...review
             }
           }
+        }
+      }
+    }
+    \(reviewFragments)
+    """
+
+    static let reviews = """
+    query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+          reviews(first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes { ...review }
+          }
+        }
+      }
+    }
+    \(reviewFragments)
+    """
+
+    private static let reviewFragments = """
+    fragment review on PullRequestReview {
+      __typename id state bodyHTML createdAt submittedAt url authorAssociation
+      author { ...author }
+      comments(first: 100) {
+        nodes {
+          id bodyHTML createdAt path diffHunk outdated authorAssociation
+          replyTo { id }
+          author { ...author }
         }
       }
     }
@@ -202,6 +246,10 @@ private struct TimelineNode: Decodable {
     }
 
     let timelineItems: Items
+}
+
+private struct ReviewsNode: Decodable {
+    let reviews: TimelineNode.Items
 }
 
 /// The merge fields decode as `nil` on pages after the first.
