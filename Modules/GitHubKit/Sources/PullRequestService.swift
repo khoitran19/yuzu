@@ -32,9 +32,15 @@ public protocol PullRequestService: Sendable {
     func openPullRequests(in repo: RepoRef, scope: PullRequestListScope) async throws -> PullRequestList
     /// Up to 100 open pull requests of `repo` by one author, most recently updated first.
     func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList
+    /// An image that GitHub serves only to signed-in users. See `GitHubClient.privateImageURL(for:)`.
+    func imageData(at url: URL) async throws -> Data
 }
 
 extension PullRequestService {
+    public func imageData(at _: URL) async throws -> Data {
+        throw GitHubError.notFound
+    }
+
     /// Services that serve a fixed snapshot return its checks and merge box state.
     public func status(of ref: PRRef) async throws -> PullRequestStatus {
         let conversation = try await snapshot(of: ref).conversation

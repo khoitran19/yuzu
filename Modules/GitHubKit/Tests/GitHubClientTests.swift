@@ -529,3 +529,27 @@ private func comment(_ id: String, pending: Bool, review: String) -> ReviewComme
 private func thread(_ id: String, comments: [ReviewComment]) -> ReviewThread {
     ReviewThread(id: id, path: "a.swift", line: 9, startLine: 7, side: .left, isResolved: false, isOutdated: false, comments: comments)
 }
+
+struct PrivateImageTests {
+    @Test(arguments: [
+        ("https://github.com/o/r/blob/team/branch/shots/a.png?raw=true", "https://raw.githubusercontent.com/o/r/team/branch/shots/a.png"),
+        ("https://github.com/o/r/raw/main/a%20b.png", "https://raw.githubusercontent.com/o/r/main/a%20b.png"),
+        ("https://raw.githubusercontent.com/o/r/main/a.png", "https://raw.githubusercontent.com/o/r/main/a.png"),
+        ("https://github.com/user-attachments/assets/4276fcd1", "https://github.com/user-attachments/assets/4276fcd1"),
+        ("https://github.com/o/r/pull/1", nil),
+        ("https://camo.githubusercontent.com/abc", nil),
+        ("http://raw.githubusercontent.com/o/r/main/a.png", nil),
+    ])
+    func mapsSignedInImagesToFetchableURLs(source: String, expected: String?) {
+        #expect(GitHubClient.privateImageURL(for: URL(string: source)!)?.absoluteString == expected)
+    }
+
+    @Test func imageDataFetchesRawFileWithToken() async throws {
+        let token = "token-\(UUID().uuidString)"
+        let session = StubURLProtocol.session(token: token) { _ in "PNG" }
+        let client = GitHubClient(token: token, session: session)
+        let data = try await client.imageData(at: URL(string: "https://github.com/o/r/blob/main/a.png?raw=true")!)
+        #expect(String(decoding: data, as: UTF8.self) == "PNG")
+        #expect(StubURLProtocol.requests(token: token).map(\.url.absoluteString) == ["https://raw.githubusercontent.com/o/r/main/a.png"])
+    }
+}

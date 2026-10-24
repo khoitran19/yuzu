@@ -55,7 +55,7 @@ final class AvatarScheme: NSObject, WKURLSchemeHandler {
         running.remove(ObjectIdentifier(task))
     }
 
-    private static func mimeType(of data: Data) -> String {
+    static func mimeType(of data: Data) -> String {
         switch data.first {
         case 0x89: "image/png"
         case 0xFF: "image/jpeg"

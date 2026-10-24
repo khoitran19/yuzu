@@ -6,7 +6,7 @@ nonisolated enum SummaryHTML {
     static let timelineElementID = "timeline"
 
     static func document(pullRequest: PullRequest, timeline: String, sidebar: String, now: Date) -> String {
-        let body = pullRequest.bodyHTML.isEmpty ? "<p class=\"empty\">No description provided.</p>" : pullRequest.bodyHTML
+        let body = pullRequest.bodyHTML.isEmpty ? "<p class=\"empty\">No description provided.</p>" : GitHubImageScheme.rewrite(pullRequest.bodyHTML)
         let author = pullRequest.author
         return """
         <!doctype html>
@@ -51,13 +51,13 @@ nonisolated enum SummaryHTML {
             <div class="tl-comment">\(avatar(comment.author?.actor, size: 40, className: "tl-avatar"))
             <details class="box arrow minimized"><summary class="box-header"><span class="muted">\(text)</span>
             <span class="grow"></span><span class="link show">Show comment</span><span class="link hide">Hide comment</span></summary>
-            <div class="box-header sub">\(header)</div><div class="markdown-body">\(comment.bodyHTML)</div></details></div>
+            <div class="box-header sub">\(header)</div><div class="markdown-body">\(GitHubImageScheme.rewrite(comment.bodyHTML))</div></details></div>
             """
         }
         return """
         <div class="tl-comment">\(avatar(comment.author?.actor, size: 40, className: "tl-avatar"))
         <div class="box arrow"><div class="box-header">\(header)</div>
-        <div class="markdown-body">\(comment.bodyHTML)</div></div></div>
+        <div class="markdown-body">\(GitHubImageScheme.rewrite(comment.bodyHTML))</div></div></div>
         """
     }
 
@@ -82,7 +82,7 @@ nonisolated enum SummaryHTML {
             <div class="box nested"><div class="box-header">\(avatar(review.author?.actor, size: 20, className: "inline"))
             \(authorLink(review.author?.actor.login))\(botLabel(review.author)) <span class="muted">left a comment</span>
             <span class="grow"></span>\(labels(review.author, pullRequestAuthor: pullRequestAuthor))</div>
-            <div class="markdown-body">\(review.bodyHTML)</div></div>
+            <div class="markdown-body">\(GitHubImageScheme.rewrite(review.bodyHTML))</div></div>
             """
         }
         for thread in threads { html += self.thread(thread, pullRequestAuthor: pullRequestAuthor, now: now) }
@@ -104,7 +104,7 @@ nonisolated enum SummaryHTML {
             <div class="tc-header">\(authorLink(comment.author?.actor.login))\(botLabel(comment.author))
             <span class="muted">\(time(comment.createdAt, now: now, url: nil))</span>
             <span class="grow"></span>\(labels(comment.author, pullRequestAuthor: pullRequestAuthor))</div>
-            <div class="markdown-body">\(comment.bodyHTML)</div></div></div>
+            <div class="markdown-body">\(GitHubImageScheme.rewrite(comment.bodyHTML))</div></div></div>
             """
         }
         return html + "</div></details>"

@@ -29,7 +29,8 @@ public struct PRDetailView: View {
                     SummaryView(
                         page: page, focusPending: model.summaryFocusPending, onFocus: model.summaryDidTakeFocus,
                         methods: MethodMenu(allowed: model.allowedMethods, selected: model.mergeMethod, select: model.selectMethod),
-                        onAction: model.handle
+                        onAction: model.handle,
+                        loadImage: { [service = model.service] url in try await service.imageData(at: url) }
                     )
                     .opacity(model.tab == .summary ? 1 : 0)
                     .allowsHitTesting(model.tab == .summary)

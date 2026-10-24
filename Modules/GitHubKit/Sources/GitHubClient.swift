@@ -41,6 +41,33 @@ public struct GitHubClient: Sendable {
         return Actor(login: user.login, avatarURL: URL(string: user.avatar_url))
     }
 
+    // MARK: Images
+
+    /// The URL to fetch with the token for an image that GitHub serves only to signed-in users, or `nil` for other images.
+    public static func privateImageURL(for url: URL) -> URL? {
+        guard url.scheme == "https" else { return nil }
+        let parts = url.path(percentEncoded: true).split(separator: "/").map(String.init)
+        switch url.host() {
+        case "raw.githubusercontent.com":
+            return url
+        case "github.com" where parts.count > 2 && parts[0] == "user-attachments" && parts[1] == "assets":
+            return url
+        case "github.com" where parts.count > 4 && ["blob", "raw"].contains(parts[2]):
+            return URL(string: "https://raw.githubusercontent.com/\(parts[0])/\(parts[1])/\(parts[3...].joined(separator: "/"))")
+        default:
+            return nil
+        }
+    }
+
+    public func imageData(at url: URL) async throws -> Data {
+        guard let source = Self.privateImageURL(for: url) else { throw GitHubError.notFound }
+        var request = URLRequest(url: source)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request, delegate: RedirectWithoutToken())
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw GitHubError.notFound }
+        return data
+    }
+
     // MARK: REST
 
     func rest(path: String, query: [URLQueryItem] = [], accept: String = "application/vnd.github+json") async throws -> Data {
@@ -172,4 +199,15 @@ private struct RESTError: Decodable {
 private struct RESTUser: Decodable {
     let login: String
     let avatar_url: String
+}
+
+/// Image hosts redirect to signed storage URLs, which must not receive the GitHub token.
+private final class RedirectWithoutToken: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(
+        _: URLSession, task: URLSessionTask, willPerformHTTPRedirection _: HTTPURLResponse, newRequest request: URLRequest
+    ) async -> URLRequest? {
+        var request = request
+        if request.url?.host() != task.originalRequest?.url?.host() { request.setValue(nil, forHTTPHeaderField: "Authorization") }
+        return request
+    }
 }

@@ -126,3 +126,16 @@ private actor Counter {
     private(set) var value = 0
     func increment() { value += 1 }
 }
+
+struct GitHubImageSchemeTests {
+    @Test func rewritesOnlyImagesThatNeedTheToken() {
+        let html = """
+        <a href="https://github.com/o/r/blob/main/a.png?raw=true"><img src="https://github.com/o/r/blob/main/a.png?raw=true" alt="a"></a>\
+        <img alt="b" src="https://camo.githubusercontent.com/b">
+        """
+        let rewritten = GitHubImageScheme.rewrite(html)
+        #expect(rewritten.contains(#"<a href="https://github.com/o/r/blob/main/a.png?raw=true">"#))
+        #expect(rewritten.contains(#"<img src="yuzu-image://image?src=https://github.com/o/r/blob/main/a.png?raw%3Dtrue" alt="a">"#))
+        #expect(rewritten.contains(#"<img alt="b" src="https://camo.githubusercontent.com/b">"#))
+    }
+}

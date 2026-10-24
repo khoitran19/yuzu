@@ -1,3 +1,4 @@
+import Foundation
 import GitHubKit
 import PRModels
 
@@ -70,6 +71,10 @@ struct PrefetchedService: PullRequestService {
 
     func openPullRequests(in repo: RepoRef, author: AuthorQuery) async throws -> PullRequestList {
         try await base.openPullRequests(in: repo, author: author)
+    }
+
+    func imageData(at url: URL) async throws -> Data {
+        try await base.imageData(at: url)
     }
 
     func mergeBaseOid(of ref: PRRef, base: String, head: String) async throws -> String {

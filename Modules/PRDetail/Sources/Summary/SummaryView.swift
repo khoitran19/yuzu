@@ -28,9 +28,10 @@ struct SummaryView: View {
     let onFocus: () -> Void
     let methods: MethodMenu
     let onAction: (SidebarAction) -> Void
+    let loadImage: GitHubImageScheme.Fetch
 
     var body: some View {
-        HTMLView(page: page, focusPending: focusPending, onFocus: onFocus, methods: methods, onAction: onAction)
+        HTMLView(page: page, focusPending: focusPending, onFocus: onFocus, methods: methods, onAction: onAction, loadImage: loadImage)
             .accessibilityIdentifier("prDetail.summary")
     }
 }
@@ -41,12 +42,14 @@ private struct HTMLView: NSViewRepresentable {
     let onFocus: () -> Void
     let methods: MethodMenu
     let onAction: (SidebarAction) -> Void
+    let loadImage: GitHubImageScheme.Fetch
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(images: GitHubImageScheme(fetch: loadImage)) }
 
     func makeNSView(context: Context) -> FocusableWebView {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(context.coordinator.avatars, forURLScheme: AvatarScheme.name)
+        configuration.setURLSchemeHandler(context.coordinator.images, forURLScheme: GitHubImageScheme.name)
         let scripts = configuration.userContentController
         scripts.addUserScript(
             WKUserScript(
@@ -73,6 +76,7 @@ private struct HTMLView: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         let avatars = AvatarScheme()
+        let images: GitHubImageScheme
         var openURL: OpenURLAction?
         var methods: MethodMenu?
         var onAction: ((SidebarAction) -> Void)?
@@ -83,6 +87,10 @@ private struct HTMLView: NSViewRepresentable {
         private var shownTimeline = ""
         private var shownSidebar = ""
         private var isLoading = false
+
+        init(images: GitHubImageScheme) {
+            self.images = images
+        }
 
         /// Replaces only the changed parts when the description is unchanged, so the scroll position stays.
         func load(_ page: SummaryPage, in webView: WKWebView) {
